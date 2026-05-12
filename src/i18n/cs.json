@@ -9,7 +9,12 @@
   "workspace": {
     "leftPaneTitle": "Projekt",
     "centerPaneEmpty": "Vyberte rozhovor pro zobrazení přepisu.",
-    "rightPaneEmpty": "Vyberte označený úsek pro zobrazení detailu."
+    "rightPaneEmpty": "Vyberte označený úsek pro zobrazení detailu.",
+    "interviews": "Rozhovory",
+    "codebook": "Číselník",
+    "noInterviews": "Zatím žádné rozhovory",
+    "addInterview": "+ Nový rozhovor",
+    "newInterviewPrompt": "Název nového rozhovoru:"
   },
   "settings": {
     "title": "Nastavení",

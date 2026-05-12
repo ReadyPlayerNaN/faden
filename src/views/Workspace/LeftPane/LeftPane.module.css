@@ -1,0 +1,17 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  padding: 0.75rem;
+  overflow: auto;
+  height: 100%;
+  gap: 1rem;
+}
+.section { display: flex; flex-direction: column; gap: 0.5rem; }
+.title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin: 0;
+  letter-spacing: 0.04em;
+}

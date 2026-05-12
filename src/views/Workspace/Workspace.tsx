@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
 import { Button } from "../../components/Button/Button";
+import { LeftPane } from "./LeftPane/LeftPane";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -34,9 +35,7 @@ export const Workspace = () => {
         </div>
       </header>
       <div className={styles.panes}>
-        <aside className={styles.left}>
-          <h3 className={styles.paneTitle}>{t("workspace.leftPaneTitle")}</h3>
-        </aside>
+        <LeftPane />
         <section className={styles.center}>
           <p className={styles.empty}>{t("workspace.centerPaneEmpty")}</p>
         </section>

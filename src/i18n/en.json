@@ -9,7 +9,12 @@
   "workspace": {
     "leftPaneTitle": "Project",
     "centerPaneEmpty": "Select an interview to view its transcript.",
-    "rightPaneEmpty": "Select a tagged span to see its details."
+    "rightPaneEmpty": "Select a tagged span to see its details.",
+    "interviews": "Interviews",
+    "codebook": "Codebook",
+    "noInterviews": "No interviews yet",
+    "addInterview": "+ New interview",
+    "newInterviewPrompt": "Name for the new interview:"
   },
   "settings": {
     "title": "Settings",

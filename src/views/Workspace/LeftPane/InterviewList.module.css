@@ -1,0 +1,15 @@
+.wrap { display: flex; flex-direction: column; gap: 0.5rem; }
+.empty { opacity: 0.6; font-style: italic; font-size: 0.9rem; }
+.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.125rem; }
+.item {
+  display: block; width: 100%; text-align: left;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+.item:hover { background: var(--bg-muted); }
+.selected { background: var(--bg-muted); border-color: var(--border); }
