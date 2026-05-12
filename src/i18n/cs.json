@@ -1,0 +1,27 @@
+{
+  "picker": {
+    "title": "Otevřít projekt",
+    "newProject": "Nový projekt",
+    "openFolder": "Otevřít složku…",
+    "recent": "Nedávné",
+    "empty": "Zatím žádné projekty."
+  },
+  "workspace": {
+    "leftPaneTitle": "Projekt",
+    "centerPaneEmpty": "Vyberte rozhovor pro zobrazení přepisu.",
+    "rightPaneEmpty": "Vyberte označený úsek pro zobrazení detailu."
+  },
+  "settings": {
+    "title": "Nastavení",
+    "geminiApiKey": "Gemini API klíč",
+    "save": "Uložit",
+    "saved": "Uloženo",
+    "back": "Zpět"
+  },
+  "common": {
+    "cancel": "Zrušit",
+    "create": "Vytvořit",
+    "error": "Chyba",
+    "loading": "Načítání…"
+  }
+}

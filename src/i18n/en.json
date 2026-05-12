@@ -1,0 +1,27 @@
+{
+  "picker": {
+    "title": "Open a project",
+    "newProject": "New project",
+    "openFolder": "Open folder…",
+    "recent": "Recent",
+    "empty": "No recent projects yet."
+  },
+  "workspace": {
+    "leftPaneTitle": "Project",
+    "centerPaneEmpty": "Select an interview to view its transcript.",
+    "rightPaneEmpty": "Select a tagged span to see its details."
+  },
+  "settings": {
+    "title": "Settings",
+    "geminiApiKey": "Gemini API key",
+    "save": "Save",
+    "saved": "Saved",
+    "back": "Back"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "create": "Create",
+    "error": "Error",
+    "loading": "Loading…"
+  }
+}
