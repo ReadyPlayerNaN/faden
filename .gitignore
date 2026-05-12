@@ -24,3 +24,7 @@ src-tauri/gen/
 
 # Tauri config local overrides
 src-tauri/tauri.conf.local.json
+
+# Tauri sidecar binaries (fetched via scripts/fetch-binaries.sh)
+src-tauri/binaries/*
+!src-tauri/binaries/README.md

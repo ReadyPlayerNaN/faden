@@ -7,6 +7,13 @@
     "core:default",
     "dialog:default",
     "store:default",
-    "fs:default"
+    "fs:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "binaries/ffmpeg", "sidecar": true, "args": true },
+        { "name": "binaries/ffprobe", "sidecar": true, "args": true }
+      ]
+    }
   ]
 }
