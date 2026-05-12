@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 use stt_app_lib::db::migrations::apply_migrations;
 use stt_app_lib::db::queries::interview::{self, TranscriptStatus};
+use stt_app_lib::db::queries::{segment, speaker};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -75,4 +76,115 @@ fn delete_cascades_speakers_and_segments() {
         .unwrap();
     assert_eq!(speakers, 0);
     assert_eq!(segments, 0);
+}
+
+#[test]
+fn speaker_create_or_get_idempotent() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let a = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let b = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    assert_eq!(a.id, b.id);
+}
+
+#[test]
+fn speaker_list_for_interview() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    speaker::create_or_get(&conn, i.id, "B", None).unwrap();
+    assert_eq!(speaker::list_for_interview(&conn, i.id).unwrap().len(), 2);
+}
+
+#[test]
+fn speaker_set_display_name() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let s = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    speaker::set_display_name(&conn, s.id, Some("Interviewer")).unwrap();
+    assert_eq!(
+        speaker::get(&conn, s.id).unwrap().display_name.as_deref(),
+        Some("Interviewer")
+    );
+}
+
+#[test]
+fn segment_insert_batch_and_list() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[
+            segment::NewSegment {
+                speaker_id: sp.id,
+                start_sec: 0.0,
+                end_sec: 5.0,
+                text: "hi".into(),
+            },
+            segment::NewSegment {
+                speaker_id: sp.id,
+                start_sec: 5.0,
+                end_sec: 10.0,
+                text: "there".into(),
+            },
+        ],
+    )
+    .unwrap();
+    assert_eq!(ids.len(), 2);
+    let listed = segment::list_for_interview(&conn, i.id).unwrap();
+    assert_eq!(listed.len(), 2);
+    assert!(listed[0].order_index < listed[1].order_index);
+}
+
+#[test]
+fn segment_list_ordered_by_order_index() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[
+            segment::NewSegment {
+                speaker_id: sp.id,
+                start_sec: 10.0,
+                end_sec: 20.0,
+                text: "later".into(),
+            },
+            segment::NewSegment {
+                speaker_id: sp.id,
+                start_sec: 0.0,
+                end_sec: 10.0,
+                text: "earlier".into(),
+            },
+        ],
+    )
+    .unwrap();
+    let listed = segment::list_for_interview(&conn, i.id).unwrap();
+    // order_index is insertion order, NOT time order.
+    assert_eq!(listed[0].text, "later");
+    assert_eq!(listed[1].text, "earlier");
+}
+
+#[test]
+fn segment_delete_all_for_interview() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: sp.id,
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: "x".into(),
+        }],
+    )
+    .unwrap();
+    let n = segment::delete_all_for_interview(&conn, i.id).unwrap();
+    assert_eq!(n, 1);
+    assert!(segment::list_for_interview(&conn, i.id).unwrap().is_empty());
 }
