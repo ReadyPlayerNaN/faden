@@ -11,3 +11,16 @@ wheels/
 
 # Worktrees
 .worktrees/
+
+# Node
+node_modules/
+
+# Vite build
+# (dist/ already covered above)
+
+# Tauri build
+src-tauri/target/
+src-tauri/gen/
+
+# Tauri config local overrides
+src-tauri/tauri.conf.local.json
