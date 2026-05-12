@@ -1,4 +1,5 @@
 pub mod category;
 pub mod cluster;
+pub mod interview;
 pub mod project_meta;
 pub mod tag;
