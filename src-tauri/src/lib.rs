@@ -53,6 +53,7 @@ pub fn run() {
             commands::interview::interview_get,
             commands::interview::interview_rename,
             commands::interview::interview_delete,
+            commands::interview::interview_create_with_audio,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
