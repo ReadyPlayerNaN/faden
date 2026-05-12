@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod chunker;
 pub mod ffmpeg;
 pub mod gemini;
