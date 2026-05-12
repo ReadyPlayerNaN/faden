@@ -1,0 +1,94 @@
+.wrap { display: flex; flex-direction: column; gap: 0.125rem; font-size: 0.9rem; }
+.addBtn {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--fg);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 0.25rem;
+  opacity: 0.7;
+}
+.addBtn:hover { opacity: 1; }
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  padding: 0.25rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+}
+.cluster { display: flex; flex-direction: column; gap: 0.05rem; }
+.category { display: flex; flex-direction: column; gap: 0.05rem; padding-left: 1rem; }
+.tagRow {
+  display: flex;
+  align-items: center;
+  padding-left: 2rem;
+  gap: 0.25rem;
+}
+.row { display: flex; align-items: center; gap: 0.25rem; }
+.chevron {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0 0.25rem;
+  font-size: 0.7rem;
+}
+.label {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.label:hover { background: var(--bg-muted); }
+.selected .label, .selected.tagRow .label { background: var(--bg-muted); }
+.swatch {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+}
+.count { opacity: 0.6; font-size: 0.8em; margin-left: auto; }
+.delBtn {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  opacity: 0;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  font-size: 1.1rem;
+}
+.row:hover .delBtn,
+.tagRow:hover .delBtn { opacity: 0.5; }
+.delBtn:hover { opacity: 1 !important; color: var(--danger); }
+.input {
+  flex: 1;
+  background: var(--bg-muted);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+}
+.addNested {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  margin-left: 1.2rem;
+  font-size: 0.85em;
+  opacity: 0.6;
+  text-align: left;
+}
+.addNested:hover { opacity: 1; }

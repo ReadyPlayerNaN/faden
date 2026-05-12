@@ -16,6 +16,19 @@
     "addInterview": "+ Nový rozhovor",
     "newInterviewPrompt": "Název nového rozhovoru:"
   },
+  "codebook": {
+    "addCluster": "+ Cluster",
+    "addCategory": "+ Kategorie",
+    "addTag": "+ Štítek",
+    "rename": "Přejmenovat",
+    "delete": "Smazat",
+    "confirmDelete": "Smazat „{{name}}\"?",
+    "errorInUse": "Nelze smazat — entita se používá",
+    "errorDuplicate": "Název už existuje",
+    "nameCluster": "Název clusteru:",
+    "nameCategory": "Název kategorie:",
+    "nameTag": "Název štítku:"
+  },
   "settings": {
     "title": "Nastavení",
     "geminiApiKey": "Gemini API klíč",

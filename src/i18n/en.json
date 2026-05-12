@@ -16,6 +16,19 @@
     "addInterview": "+ New interview",
     "newInterviewPrompt": "Name for the new interview:"
   },
+  "codebook": {
+    "addCluster": "+ Cluster",
+    "addCategory": "+ Category",
+    "addTag": "+ Tag",
+    "rename": "Rename",
+    "delete": "Delete",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "errorInUse": "Cannot delete — entity is in use",
+    "errorDuplicate": "Name already exists",
+    "nameCluster": "Name the cluster:",
+    "nameCategory": "Name the category:",
+    "nameTag": "Name the tag:"
+  },
   "settings": {
     "title": "Settings",
     "geminiApiKey": "Gemini API key",
