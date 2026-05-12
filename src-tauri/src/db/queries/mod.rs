@@ -1,3 +1,4 @@
+pub mod ai_run;
 pub mod category;
 pub mod cluster;
 pub mod interview;
