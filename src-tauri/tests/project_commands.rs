@@ -33,16 +33,17 @@ fn read_missing_returns_not_found() {
 }
 
 use std::path::PathBuf;
-use stt_app_lib::commands::project::{project_create, project_open, ProjectInfo};
+use stt_app_lib::commands::project::{project_create_impl, project_open_impl, ProjectInfo};
 use tempfile::tempdir;
 
 #[tokio::test]
 async fn project_create_initializes_files() {
     let dir = tempdir().unwrap();
     let path = dir.path().to_path_buf();
-    let info: ProjectInfo = project_create(path.to_string_lossy().to_string(), "My Study".into())
-        .await
-        .unwrap();
+    let info: ProjectInfo =
+        project_create_impl(path.to_string_lossy().to_string(), "My Study".into())
+            .await
+            .unwrap();
     assert_eq!(info.name, "My Study");
     assert!(path.join("project.sqlite").exists());
     assert!(path.join("media").is_dir());
@@ -53,10 +54,12 @@ async fn project_create_initializes_files() {
 async fn project_open_reads_existing() {
     let dir = tempdir().unwrap();
     let path = dir.path().to_path_buf();
-    project_create(path.to_string_lossy().to_string(), "X".into())
+    project_create_impl(path.to_string_lossy().to_string(), "X".into())
         .await
         .unwrap();
-    let info = project_open(path.to_string_lossy().to_string()).await.unwrap();
+    let info = project_open_impl(path.to_string_lossy().to_string())
+        .await
+        .unwrap();
     assert_eq!(info.name, "X");
 }
 
@@ -64,10 +67,10 @@ async fn project_open_reads_existing() {
 async fn project_create_rejects_existing_project() {
     let dir = tempdir().unwrap();
     let path = dir.path().to_path_buf();
-    project_create(path.to_string_lossy().to_string(), "A".into())
+    project_create_impl(path.to_string_lossy().to_string(), "A".into())
         .await
         .unwrap();
-    let err = project_create(path.to_string_lossy().to_string(), "B".into())
+    let err = project_create_impl(path.to_string_lossy().to_string(), "B".into())
         .await
         .unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
@@ -76,6 +79,8 @@ async fn project_create_rejects_existing_project() {
 #[tokio::test]
 async fn project_open_missing_returns_error() {
     let path: PathBuf = tempdir().unwrap().path().join("does-not-exist");
-    let err = project_open(path.to_string_lossy().to_string()).await.unwrap_err();
+    let err = project_open_impl(path.to_string_lossy().to_string())
+        .await
+        .unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
 }

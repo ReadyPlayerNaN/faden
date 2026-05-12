@@ -4,6 +4,7 @@ use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::path::PathBuf;
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {
@@ -11,8 +12,7 @@ pub struct ProjectInfo {
     pub name: String,
 }
 
-#[tauri::command]
-pub async fn project_create(path: String, name: String) -> AppResult<ProjectInfo> {
+pub async fn project_create_impl(path: String, name: String) -> AppResult<ProjectInfo> {
     let dir: PathBuf = PathBuf::from(&path);
     let sqlite = dir.join("project.sqlite");
     if sqlite.exists() {
@@ -28,8 +28,7 @@ pub async fn project_create(path: String, name: String) -> AppResult<ProjectInfo
     Ok(ProjectInfo { path, name })
 }
 
-#[tauri::command]
-pub async fn project_open(path: String) -> AppResult<ProjectInfo> {
+pub async fn project_open_impl(path: String) -> AppResult<ProjectInfo> {
     let dir = Path::new(&path);
     let sqlite = dir.join("project.sqlite");
     if !sqlite.exists() {
@@ -44,4 +43,24 @@ pub async fn project_open(path: String) -> AppResult<ProjectInfo> {
         path,
         name: meta.name,
     })
+}
+
+#[tauri::command]
+pub async fn project_create(
+    app: tauri::AppHandle,
+    path: String,
+    name: String,
+) -> AppResult<ProjectInfo> {
+    let info = project_create_impl(path.clone(), name).await?;
+    app.state::<crate::app_state::AppState>()
+        .set_current(PathBuf::from(&path));
+    Ok(info)
+}
+
+#[tauri::command]
+pub async fn project_open(app: tauri::AppHandle, path: String) -> AppResult<ProjectInfo> {
+    let info = project_open_impl(path.clone()).await?;
+    app.state::<crate::app_state::AppState>()
+        .set_current(PathBuf::from(&path));
+    Ok(info)
 }

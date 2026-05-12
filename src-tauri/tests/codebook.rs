@@ -303,6 +303,26 @@ fn stats_after_tagging_one_span() {
 }
 
 #[test]
+fn codebook_tree_empty() {
+    let conn = fresh_conn();
+    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    assert!(tree.clusters.is_empty());
+}
+
+#[test]
+fn codebook_tree_full_hierarchy() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    tag::create(&conn, cat.id, "T1", None, None).unwrap();
+    tag::create(&conn, cat.id, "T2", None, None).unwrap();
+    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    assert_eq!(tree.clusters.len(), 1);
+    assert_eq!(tree.clusters[0].categories.len(), 1);
+    assert_eq!(tree.clusters[0].categories[0].tags.len(), 2);
+}
+
+#[test]
 fn stats_two_tags_same_category() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
