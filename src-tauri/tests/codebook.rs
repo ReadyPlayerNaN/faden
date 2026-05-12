@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{category, cluster, tag};
+use stt_app_lib::db::queries::{category, cluster, stats, tag};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -251,4 +251,96 @@ fn tag_delete_rejected_when_in_use() {
 
     let err = tag::delete(&conn, t.id).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+}
+
+#[test]
+fn stats_empty_db_zero_counts() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+    let counts = stats::codebook_counts(&conn).unwrap();
+    assert_eq!(counts.by_cluster.get(&cl.id).copied().unwrap_or(0), 0);
+    assert_eq!(counts.by_category.get(&cat.id).copied().unwrap_or(0), 0);
+    assert_eq!(counts.by_tag.get(&t.id).copied().unwrap_or(0), 0);
+}
+
+#[test]
+fn stats_after_tagging_one_span() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+    conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', 'now', 'now')", []).unwrap();
+    let iid = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO speaker (interview_id, label_raw) VALUES (?1, 'A')",
+        rusqlite::params![iid],
+    )
+    .unwrap();
+    let sid = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, 0.0, 1.0, 'x', 0)",
+        rusqlite::params![iid, sid],
+    )
+    .unwrap();
+    let seg = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO tagged_span (interview_id, segment_id, start_offset, end_offset, text_snapshot, audio_start_sec, audio_end_sec, created_at) VALUES (?1, ?2, 0, 1, 'x', 0.0, 1.0, 'now')",
+        rusqlite::params![iid, seg],
+    )
+    .unwrap();
+    let span = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO span_tag (span_id, tag_id, source) VALUES (?1, ?2, 'manual')",
+        rusqlite::params![span, t.id],
+    )
+    .unwrap();
+    let counts = stats::codebook_counts(&conn).unwrap();
+    assert_eq!(counts.by_cluster[&cl.id], 1);
+    assert_eq!(counts.by_category[&cat.id], 1);
+    assert_eq!(counts.by_tag[&t.id], 1);
+}
+
+#[test]
+fn stats_two_tags_same_category() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let t1 = tag::create(&conn, cat.id, "T1", None, None).unwrap();
+    let t2 = tag::create(&conn, cat.id, "T2", None, None).unwrap();
+    fn insert_tagged_span(conn: &rusqlite::Connection, tag_id: i64) {
+        conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', 'now', 'now')", []).unwrap();
+        let iid = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO speaker (interview_id, label_raw) VALUES (?1, 'A')",
+            rusqlite::params![iid],
+        )
+        .unwrap();
+        let sid = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, 0.0, 1.0, 'x', 0)",
+            rusqlite::params![iid, sid],
+        )
+        .unwrap();
+        let seg = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO tagged_span (interview_id, segment_id, start_offset, end_offset, text_snapshot, audio_start_sec, audio_end_sec, created_at) VALUES (?1, ?2, 0, 1, 'x', 0.0, 1.0, 'now')",
+            rusqlite::params![iid, seg],
+        )
+        .unwrap();
+        let span = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO span_tag (span_id, tag_id, source) VALUES (?1, ?2, 'manual')",
+            rusqlite::params![span, tag_id],
+        )
+        .unwrap();
+    }
+    insert_tagged_span(&conn, t1.id);
+    insert_tagged_span(&conn, t2.id);
+    let counts = stats::codebook_counts(&conn).unwrap();
+    assert_eq!(counts.by_cluster[&cl.id], 2);
+    assert_eq!(counts.by_category[&cat.id], 2);
+    assert_eq!(counts.by_tag[&t1.id], 1);
+    assert_eq!(counts.by_tag[&t2.id], 1);
 }
