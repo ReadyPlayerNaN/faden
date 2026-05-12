@@ -1,7 +1,10 @@
 use crate::error::{AppError, AppResult};
 use rusqlite::{params, Connection};
 
-const MIGRATIONS: &[(i64, &str)] = &[(1, include_str!("m001_init.sql"))];
+const MIGRATIONS: &[(i64, &str)] = &[
+    (1, include_str!("m001_init.sql")),
+    (2, include_str!("m002_main.sql")),
+];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {
     apply_migrations_with(conn, MIGRATIONS)
