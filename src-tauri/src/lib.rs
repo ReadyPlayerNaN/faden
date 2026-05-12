@@ -46,6 +46,11 @@ pub fn run() {
             commands::codebook::tag_delete,
             commands::codebook::tag_reorder,
             commands::codebook::tag_move_to_category,
+            commands::interview::interview_create,
+            commands::interview::interview_list,
+            commands::interview::interview_get,
+            commands::interview::interview_rename,
+            commands::interview::interview_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
