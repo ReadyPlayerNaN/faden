@@ -41,8 +41,8 @@ fn applies_in_transaction() {
     // If a migration fails, schema_version row should NOT be inserted.
     use stt_app_lib::db::migrations::apply_migrations_with;
     let mut conn = open_mem();
-    let migrations = vec![(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;".to_string())];
-    let result = apply_migrations_with(&mut conn, &migrations);
+    let migrations: &[(i64, &str)] = &[(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;")];
+    let result = apply_migrations_with(&mut conn, migrations);
     assert!(result.is_err());
     // Neither the table nor the schema_version row should exist.
     let table_exists: i64 = conn

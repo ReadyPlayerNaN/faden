@@ -7,6 +7,12 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("sqlite: {0}")]
     Sqlite(#[from] rusqlite::Error),
+    #[error("migration {version} failed: {source}")]
+    Migration {
+        version: i64,
+        #[source]
+        source: rusqlite::Error,
+    },
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
     #[error("not found: {0}")]

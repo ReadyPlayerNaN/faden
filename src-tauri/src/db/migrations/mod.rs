@@ -4,16 +4,12 @@ use rusqlite::{params, Connection};
 const MIGRATIONS: &[(i64, &str)] = &[(1, include_str!("m001_init.sql"))];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {
-    let owned: Vec<(i64, String)> = MIGRATIONS
-        .iter()
-        .map(|(v, s)| (*v, (*s).to_string()))
-        .collect();
-    apply_migrations_with(conn, &owned)
+    apply_migrations_with(conn, MIGRATIONS)
 }
 
 pub fn apply_migrations_with(
     conn: &mut Connection,
-    migrations: &[(i64, String)],
+    migrations: &[(i64, &str)],
 ) -> AppResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
@@ -29,7 +25,10 @@ pub fn apply_migrations_with(
         }
         let tx = conn.transaction()?;
         tx.execute_batch(sql)
-            .map_err(|e| AppError::Invalid(format!("migration {version} failed: {e}")))?;
+            .map_err(|source| AppError::Migration {
+                version: *version,
+                source,
+            })?;
         tx.execute(
             "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
             params![version, chrono::Utc::now().to_rfc3339()],
