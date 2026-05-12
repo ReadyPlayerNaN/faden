@@ -1,1 +1,1 @@
-// placeholder; populated by later tasks
+pub mod project_meta;
