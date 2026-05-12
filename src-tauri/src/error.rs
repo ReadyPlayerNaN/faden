@@ -19,11 +19,19 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid: {0}")]
     Invalid(String),
+    #[error("tauri: {0}")]
+    Tauri(String),
 }
 
 impl Serialize for AppError {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&self.to_string())
+    }
+}
+
+impl From<tauri::Error> for AppError {
+    fn from(e: tauri::Error) -> Self {
+        AppError::Tauri(e.to_string())
     }
 }
 

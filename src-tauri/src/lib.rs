@@ -19,6 +19,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::project::project_create,
             commands::project::project_open,
+            commands::settings::settings_get,
+            commands::settings::settings_set,
+            commands::settings::settings_add_recent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
