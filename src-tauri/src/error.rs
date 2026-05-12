@@ -19,6 +19,8 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid: {0}")]
     Invalid(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error("tauri: {0}")]
     Tauri(String),
 }
