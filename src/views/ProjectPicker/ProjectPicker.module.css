@@ -1,0 +1,21 @@
+.wrap { max-width: 720px; margin: 4rem auto; padding: 0 1.5rem; }
+.title { font-size: 1.75rem; margin: 0 0 1.5rem; }
+.subtitle { font-size: 1.1rem; margin: 2rem 0 0.75rem; opacity: 0.85; }
+.actions { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+.recents { list-style: none; padding: 0; margin: 0; }
+.recents li + li { margin-top: 0.25rem; }
+.recentItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+.recentItem:hover { background: var(--bg-muted); }
+.empty { opacity: 0.6; font-style: italic; }
