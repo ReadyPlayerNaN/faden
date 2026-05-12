@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{category, cluster};
+use stt_app_lib::db::queries::{category, cluster, tag};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -142,4 +142,113 @@ fn category_delete_empty_works() {
     let cat = category::create(&conn, cl.id, "X", None, None).unwrap();
     category::delete(&conn, cat.id).unwrap();
     assert!(category::list_all(&conn).unwrap().is_empty());
+}
+
+#[test]
+fn tag_create_requires_existing_category() {
+    let conn = fresh_conn();
+    let err = tag::create(&conn, 999, "X", None, None).unwrap_err();
+    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+}
+
+#[test]
+fn tag_create_appends_within_category() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let a = tag::create(&conn, cat.id, "A", None, None).unwrap();
+    let b = tag::create(&conn, cat.id, "B", None, None).unwrap();
+    assert_eq!(b.order_index, a.order_index + 1);
+}
+
+#[test]
+fn tag_name_unique_across_project() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
+    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    tag::create(&conn, c1.id, "Same", None, None).unwrap();
+    let err = tag::create(&conn, c2.id, "Same", None, None).unwrap_err();
+    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+}
+
+#[test]
+fn tag_list_for_category_filters() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
+    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    tag::create(&conn, c1.id, "T1", None, None).unwrap();
+    tag::create(&conn, c2.id, "T2", None, None).unwrap();
+    assert_eq!(tag::list_for_category(&conn, c1.id).unwrap().len(), 1);
+}
+
+#[test]
+fn tag_move_to_category_works() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
+    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    let t = tag::create(&conn, c1.id, "Moveme", None, None).unwrap();
+    tag::move_to_category(&conn, t.id, c2.id).unwrap();
+    let moved = tag::get(&conn, t.id).unwrap();
+    assert_eq!(moved.category_id, c2.id);
+}
+
+#[test]
+fn tag_reorder_within_category() {
+    let mut conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let a = tag::create(&conn, cat.id, "A", None, None).unwrap();
+    let b = tag::create(&conn, cat.id, "B", None, None).unwrap();
+    let cc = tag::create(&conn, cat.id, "C", None, None).unwrap();
+    tag::reorder(&mut conn, cat.id, &[cc.id, a.id, b.id]).unwrap();
+    let listed = tag::list_for_category(&conn, cat.id).unwrap();
+    let names: Vec<_> = listed.iter().map(|t| t.name.as_str()).collect();
+    assert_eq!(names, vec!["C", "A", "B"]);
+}
+
+#[test]
+fn tag_delete_empty_works() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "Cl", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let t = tag::create(&conn, cat.id, "X", None, None).unwrap();
+    tag::delete(&conn, t.id).unwrap();
+    assert!(tag::list_all(&conn).unwrap().is_empty());
+}
+
+#[test]
+fn tag_delete_rejected_when_in_use() {
+    let conn = fresh_conn();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+
+    // Insert interview + segment + tagged_span + span_tag via raw SQL
+    conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', '2026-05-12', '2026-05-12')", []).unwrap();
+    let iid: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO speaker (interview_id, label_raw) VALUES (?1, 'A')",
+        rusqlite::params![iid],
+    ).unwrap();
+    let sid: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, 0.0, 1.0, 'hi', 0)",
+        rusqlite::params![iid, sid],
+    ).unwrap();
+    let seg_id: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO tagged_span (interview_id, segment_id, start_offset, end_offset, text_snapshot, audio_start_sec, audio_end_sec, created_at) VALUES (?1, ?2, 0, 1, 'hi', 0.0, 1.0, '2026-05-12')",
+        rusqlite::params![iid, seg_id],
+    ).unwrap();
+    let span_id: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO span_tag (span_id, tag_id, source) VALUES (?1, ?2, 'manual')",
+        rusqlite::params![span_id, t.id],
+    ).unwrap();
+
+    let err = tag::delete(&conn, t.id).unwrap_err();
+    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
 }
