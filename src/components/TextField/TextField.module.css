@@ -1,0 +1,11 @@
+.wrap { display: flex; flex-direction: column; gap: 0.25rem; }
+.label { font-size: 0.85rem; color: var(--fg); opacity: 0.85; }
+.input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--fg);
+  border-radius: 4px;
+  font: inherit;
+}
+.input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
