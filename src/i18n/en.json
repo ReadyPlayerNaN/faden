@@ -66,6 +66,23 @@
     "error": "Error",
     "loading": "Loading…"
   },
+  "import": {
+    "title": "Add interview",
+    "tabs": {
+      "audio": "Audio only",
+      "text": "Transcript text",
+      "json": "Transcript JSON",
+      "audioText": "Audio + transcript"
+    },
+    "name": "Name",
+    "pasteText": "Paste transcript here",
+    "pasteJson": "Paste JSON here",
+    "pickAudio": "Choose audio…",
+    "pickFile": "Or pick a file…",
+    "submit": "Create",
+    "errorParse": "Could not parse input",
+    "errorEmpty": "Provide content"
+  },
   "tagging": {
     "applyTag": "Apply tag",
     "createNewTag": "Create new tag…",

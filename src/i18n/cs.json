@@ -66,6 +66,23 @@
     "error": "Chyba",
     "loading": "Načítání…"
   },
+  "import": {
+    "title": "Přidat rozhovor",
+    "tabs": {
+      "audio": "Pouze zvuk",
+      "text": "Přepis (text)",
+      "json": "Přepis (JSON)",
+      "audioText": "Zvuk + přepis"
+    },
+    "name": "Název",
+    "pasteText": "Vložte přepis sem",
+    "pasteJson": "Vložte JSON sem",
+    "pickAudio": "Vybrat zvuk…",
+    "pickFile": "Nebo vyberte soubor…",
+    "submit": "Vytvořit",
+    "errorParse": "Nelze rozparsovat vstup",
+    "errorEmpty": "Vyplňte obsah"
+  },
   "tagging": {
     "applyTag": "Přiřadit štítek",
     "createNewTag": "Nový štítek…",

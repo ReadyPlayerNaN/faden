@@ -52,3 +52,23 @@ export const interviewDelete = (id: number): Promise<void> =>
 
 export const interviewCreateWithAudio = async (name: string, sourceAudioPath: string): Promise<Interview> =>
   fromRaw(await invoke<RawInterview>("interview_create_with_audio", { name, sourceAudioPath }));
+
+export const interviewImportText = async (name: string, rawText: string): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_import_text", { name, rawText }));
+
+export const interviewImportJson = async (name: string, rawJson: string): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_import_json", { name, rawJson }));
+
+export const interviewImportAudioText = async (
+  name: string,
+  audioPath: string,
+  rawText: string,
+): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_import_audio_text", { name, audioPath, rawText }));
+
+export const interviewImportAudioJson = async (
+  name: string,
+  audioPath: string,
+  rawJson: string,
+): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_import_audio_json", { name, audioPath, rawJson }));

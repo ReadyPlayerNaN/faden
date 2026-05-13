@@ -1,16 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue } from "jotai";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import {
-  interviewList as fetchList,
-  interviewCreate,
-  interviewCreateWithAudio,
-} from "../../../ipc/interview";
+import { interviewList as fetchList } from "../../../ipc/interview";
 import { transcribeStart, transcribeCancel } from "../../../ipc/transcribe";
 import { interviewListAtom, selectedInterviewIdAtom } from "../../../state/interview";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import { Button } from "../../../components/Button/Button";
+import { AddInterviewModal } from "./AddInterviewModal";
 import styles from "./InterviewList.module.css";
 import type { Interview } from "../../../ipc/interview";
 
@@ -19,46 +15,16 @@ export const InterviewList = () => {
   const [list, setList] = useAtom(interviewListAtom);
   const [selected, setSelected] = useAtom(selectedInterviewIdAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     void fetchList().then(setList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onAdd = async () => {
-    const name = window.prompt(t("workspace.newInterviewPrompt"));
-    if (!name) return;
-    try {
-      const created = await interviewCreate(name);
-      setList([...list, created]);
-      setSelected(created.id);
-    } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
-    }
-  };
-
-  const onAddFromAudio = async () => {
-    const path = await openDialog({
-      directory: false,
-      multiple: false,
-      filters: [{ name: t("workspace.audioFilter"), extensions: ["mp3", "m4a", "wav", "ogg", "flac", "aac"] }],
-    });
-    if (!path || Array.isArray(path)) return;
-    const name = window.prompt(t("workspace.newInterviewPrompt"));
-    if (!name) return;
-    try {
-      const created = await interviewCreateWithAudio(name, path);
-      setList([...list, created]);
-      setSelected(created.id);
-    } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
-    }
-  };
-
   return (
     <div className={styles.wrap}>
-      <Button onClick={() => void onAdd()}>{t("workspace.addInterview")}</Button>
-      <Button onClick={() => void onAddFromAudio()}>{t("workspace.addInterviewAudio")}</Button>
+      <Button onClick={() => setModalOpen(true)}>{t("workspace.addInterview")}</Button>
       {list.length === 0 ? (
         <p className={styles.empty}>{t("workspace.noInterviews")}</p>
       ) : (
@@ -74,6 +40,7 @@ export const InterviewList = () => {
           ))}
         </ul>
       )}
+      {modalOpen && <AddInterviewModal onClose={() => setModalOpen(false)} />}
     </div>
   );
 };
