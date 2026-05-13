@@ -8,6 +8,10 @@ import { interviewList as fetchInterviews } from "../../ipc/interview";
 import { interviewListAtom } from "../../state/interview";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
 import { transcriptionRunsAtom } from "../../state/transcription";
+import {
+  activeTextSelectionAtom,
+  selectedSpanIdAtom,
+} from "../../state/tagging";
 import { Button } from "../../components/Button/Button";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
@@ -22,6 +26,8 @@ export const Workspace = () => {
   const [project, setProject] = useAtom(currentProjectAtom);
   const setRuns = useSetAtom(transcriptionRunsAtom);
   const setInterviews = useSetAtom(interviewListAtom);
+  const setActiveSelection = useSetAtom(activeTextSelectionAtom);
+  const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -43,6 +49,32 @@ export const Workspace = () => {
     return () => {
       if (unlisten) unlisten();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === " ") {
+        e.preventDefault();
+        window.dispatchEvent(new Event("stt:toggle-play"));
+      } else if (e.key === "l" || e.key === "L") {
+        window.dispatchEvent(new Event("stt:toggle-loop"));
+      } else if (e.key === "Escape") {
+        setActiveSelection(null);
+        setSelectedSpan(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
