@@ -17,6 +17,7 @@ import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
 import { AudioPlayer } from "./AudioPlayer/AudioPlayer";
+import { StagingPanel } from "./AI/StagingPanel";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -97,6 +98,7 @@ export const Workspace = () => {
         <RightPane />
       </div>
       <AudioPlayer />
+      <StagingPanel />
     </div>
   );
 };
