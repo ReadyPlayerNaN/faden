@@ -31,6 +31,35 @@ pub async fn settings_add_recent(app: tauri::AppHandle, path: String) -> AppResu
 }
 
 #[tauri::command]
+pub async fn settings_recent_rename(
+    app: tauri::AppHandle,
+    path: String,
+    display_name: String,
+) -> AppResult<GlobalSettings> {
+    let store = store_for(&app)?;
+    let mut s = store.load()?;
+    for r in s.recent_projects.iter_mut() {
+        if r.path == path {
+            r.display_name = display_name.clone();
+        }
+    }
+    store.save(&s)?;
+    Ok(s)
+}
+
+#[tauri::command]
+pub async fn settings_recent_remove(
+    app: tauri::AppHandle,
+    path: String,
+) -> AppResult<GlobalSettings> {
+    let store = store_for(&app)?;
+    let mut s = store.load()?;
+    s.recent_projects.retain(|r| r.path != path);
+    store.save(&s)?;
+    Ok(s)
+}
+
+#[tauri::command]
 pub async fn project_settings_get(app: tauri::AppHandle) -> AppResult<ProjectSettings> {
     let conn = project_conn(&app)?;
     project_meta::read_settings(&conn)

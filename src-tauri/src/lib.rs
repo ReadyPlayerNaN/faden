@@ -30,6 +30,8 @@ pub fn run() {
             commands::settings::settings_get,
             commands::settings::settings_set,
             commands::settings::settings_add_recent,
+            commands::settings::settings_recent_rename,
+            commands::settings::settings_recent_remove,
             commands::settings::project_settings_get,
             commands::settings::project_settings_set,
             commands::codebook::codebook_tree,

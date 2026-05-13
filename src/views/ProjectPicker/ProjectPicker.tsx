@@ -4,7 +4,12 @@ import { useAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { open } from "@tauri-apps/plugin-dialog";
 import { projectCreate, projectOpen } from "../../ipc/project";
-import { settingsAddRecent, settingsGet } from "../../ipc/settings";
+import {
+  settingsAddRecent,
+  settingsGet,
+  settingsRecentRemove,
+  settingsRecentRename,
+} from "../../ipc/settings";
 import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
 import { Button } from "../../components/Button/Button";
@@ -49,6 +54,19 @@ export const ProjectPicker = () => {
     goTo(info.path, info.name);
   };
 
+  const onRenameRecent = async (path: string, currentName: string) => {
+    const next = window.prompt(t("picker.renameRecent"), currentName);
+    if (!next || next === currentName) return;
+    const updated = await settingsRecentRename(path, next);
+    setSettings(updated);
+  };
+
+  const onRemoveRecent = async (path: string) => {
+    if (!window.confirm(t("picker.confirmRemove"))) return;
+    const updated = await settingsRecentRemove(path);
+    setSettings(updated);
+  };
+
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>{t("picker.title")}</h1>
@@ -64,10 +82,28 @@ export const ProjectPicker = () => {
       {settings && settings.recentProjects.length > 0 ? (
         <ul className={styles.recents}>
           {settings.recentProjects.map((p) => (
-            <li key={p}>
-              <button className={styles.recentItem} onClick={() => void onOpenRecent(p)}>
-                {p}
+            <li key={p.path} className={styles.recentRow}>
+              <button
+                className={styles.recentItem}
+                onClick={() => void onOpenRecent(p.path)}
+              >
+                <span className={styles.recentName}>{p.displayName}</span>
+                <span className={styles.recentPath}>{p.path}</span>
               </button>
+              <span className={styles.recentActions}>
+                <button
+                  className={styles.recentAction}
+                  onClick={() => void onRenameRecent(p.path, p.displayName)}
+                >
+                  {t("picker.rename")}
+                </button>
+                <button
+                  className={styles.recentAction}
+                  onClick={() => void onRemoveRecent(p.path)}
+                >
+                  {t("picker.remove")}
+                </button>
+              </span>
             </li>
           ))}
         </ul>

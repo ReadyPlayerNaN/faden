@@ -1,4 +1,4 @@
-use stt_app_lib::settings::{GlobalSettings, SettingsStore};
+use stt_app_lib::settings::{GlobalSettings, RecentProject, SettingsStore};
 use tempfile::tempdir;
 
 #[test]
@@ -6,6 +6,8 @@ fn default_settings_have_empty_api_key_and_recents() {
     let s = GlobalSettings::default();
     assert_eq!(s.gemini_api_key, "");
     assert!(s.recent_projects.is_empty());
+    assert!(!s.default_transcription_model.is_empty());
+    assert!(!s.default_ai_model.is_empty());
 }
 
 #[test]
@@ -14,11 +16,15 @@ fn save_and_load_round_trip() {
     let store = SettingsStore::new(dir.path().to_path_buf());
     let mut s = GlobalSettings::default();
     s.gemini_api_key = "k-123".into();
-    s.recent_projects = vec!["/a".into(), "/b".into()];
+    s.add_recent("/a".into());
+    s.add_recent("/b".into());
     store.save(&s).unwrap();
     let loaded = store.load().unwrap();
     assert_eq!(loaded.gemini_api_key, "k-123");
-    assert_eq!(loaded.recent_projects, vec!["/a".to_string(), "/b".into()]);
+    assert_eq!(
+        loaded.recent_projects.iter().map(|r| r.path.clone()).collect::<Vec<_>>(),
+        vec!["/b".to_string(), "/a".into()]
+    );
 }
 
 #[test]
@@ -35,7 +41,8 @@ fn add_recent_dedupes_and_prepends() {
     s.add_recent("/a".into());
     s.add_recent("/b".into());
     s.add_recent("/a".into()); // bumps to top
-    assert_eq!(s.recent_projects, vec!["/a".to_string(), "/b".into()]);
+    let paths: Vec<String> = s.recent_projects.iter().map(|r| r.path.clone()).collect();
+    assert_eq!(paths, vec!["/a".to_string(), "/b".into()]);
 }
 
 #[test]
@@ -45,5 +52,45 @@ fn add_recent_caps_at_ten() {
         s.add_recent(format!("/{i}"));
     }
     assert_eq!(s.recent_projects.len(), 10);
-    assert_eq!(s.recent_projects[0], "/11");
+    assert_eq!(s.recent_projects[0].path, "/11");
+}
+
+#[test]
+fn add_recent_derives_display_name_from_filename() {
+    let mut s = GlobalSettings::default();
+    s.add_recent("/tmp/research/Project A".into());
+    assert_eq!(s.recent_projects[0].display_name, "Project A");
+    assert_eq!(s.recent_projects[0].path, "/tmp/research/Project A");
+}
+
+#[test]
+fn legacy_string_recents_are_migrated_on_load() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    std::fs::write(
+        &path,
+        r#"{"gemini_api_key":"k","recent_projects":["/foo/bar","/baz"]}"#,
+    )
+    .unwrap();
+    let store = SettingsStore::new(dir.path().to_path_buf());
+    let s = store.load().unwrap();
+    assert_eq!(s.recent_projects.len(), 2);
+    assert_eq!(s.recent_projects[0].path, "/foo/bar");
+    assert_eq!(s.recent_projects[0].display_name, "bar");
+    assert_eq!(s.recent_projects[1].display_name, "baz");
+}
+
+#[test]
+fn struct_recents_round_trip() {
+    let r = RecentProject {
+        path: "/x/y".into(),
+        display_name: "Renamed".into(),
+    };
+    let mut s = GlobalSettings::default();
+    s.recent_projects = vec![r.clone()];
+    let dir = tempdir().unwrap();
+    let store = SettingsStore::new(dir.path().to_path_buf());
+    store.save(&s).unwrap();
+    let loaded = store.load().unwrap();
+    assert_eq!(loaded.recent_projects, vec![r]);
 }

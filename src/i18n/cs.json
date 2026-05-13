@@ -4,7 +4,11 @@
     "newProject": "Nový projekt",
     "openFolder": "Otevřít složku…",
     "recent": "Nedávné",
-    "empty": "Zatím žádné projekty."
+    "empty": "Zatím žádné projekty.",
+    "rename": "Přejmenovat",
+    "remove": "Odebrat",
+    "renameRecent": "Přejmenovat tento záznam projektu:",
+    "confirmRemove": "Odebrat ze seznamu nedávných?"
   },
   "workspace": {
     "leftPaneTitle": "Projekt",

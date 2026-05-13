@@ -4,7 +4,11 @@
     "newProject": "New project",
     "openFolder": "Open folder…",
     "recent": "Recent",
-    "empty": "No recent projects yet."
+    "empty": "No recent projects yet.",
+    "rename": "Rename",
+    "remove": "Remove",
+    "renameRecent": "Rename this project entry:",
+    "confirmRemove": "Remove from recent list?"
   },
   "workspace": {
     "leftPaneTitle": "Project",
