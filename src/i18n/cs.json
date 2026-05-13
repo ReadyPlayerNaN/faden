@@ -127,5 +127,26 @@
     "running": "Zpracovává se…",
     "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
     "rejected": "Zamítnuto"
+  },
+  "export": {
+    "title": "Export",
+    "scope": "Rozsah",
+    "scopeCurrent": "Aktuální rozhovor",
+    "scopeAll": "Celý projekt",
+    "scopeByTag": "Podle štítku",
+    "formats": "Formáty",
+    "csv": "CSV (řádek na citaci)",
+    "markdown": "Markdown přepis",
+    "refi": "REFI-QDA XML",
+    "stats": "Statistiky",
+    "statsFormat": "Formát statistik",
+    "codebook": "Pouze číselník",
+    "codebookFormat": "Formát číselníku",
+    "directory": "Výstupní složka",
+    "pickDirectory": "Vybrat…",
+    "run": "Exportovat",
+    "success": "Exportováno {{count}} souborů",
+    "noFormats": "Vyberte alespoň jeden formát",
+    "noDirectory": "Vyberte výstupní složku"
   }
 }

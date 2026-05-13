@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -18,6 +18,7 @@ import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
 import { AudioPlayer } from "./AudioPlayer/AudioPlayer";
 import { StagingPanel } from "./AI/StagingPanel";
+import { ExportMenu } from "./Export/ExportMenu";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -29,6 +30,7 @@ export const Workspace = () => {
   const setInterviews = useSetAtom(interviewListAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -84,6 +86,9 @@ export const Workspace = () => {
       <header className={styles.header}>
         <div className={styles.title}>{project?.name ?? t("common.loading")}</div>
         <div className={styles.headerActions}>
+          <Button onClick={() => setExportOpen(true)}>
+            {t("export.title")}
+          </Button>
           <Button onClick={() => void navigate({ to: "/settings" })}>
             {t("settings.title")}
           </Button>
@@ -99,6 +104,12 @@ export const Workspace = () => {
       </div>
       <AudioPlayer />
       <StagingPanel />
+      {exportOpen && project && (
+        <ExportMenu
+          projectName={project.name}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
   );
 };

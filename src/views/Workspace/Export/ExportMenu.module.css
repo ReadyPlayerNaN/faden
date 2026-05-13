@@ -1,0 +1,87 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 480px;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modal label {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.tagSelect {
+  width: 100%;
+  min-height: 6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0.3rem;
+  border-radius: 4px;
+}
+
+.subSelect {
+  margin-left: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+.dirRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.path {
+  opacity: 0.7;
+  font-size: 0.85em;
+  font-family: ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.success {
+  color: var(--accent);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}

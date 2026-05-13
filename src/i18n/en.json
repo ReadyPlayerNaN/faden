@@ -127,5 +127,26 @@
     "running": "Running…",
     "accepted": "Created {{created}} items ({{skipped}} skipped)",
     "rejected": "Rejected"
+  },
+  "export": {
+    "title": "Export",
+    "scope": "Scope",
+    "scopeCurrent": "Current interview",
+    "scopeAll": "Whole project",
+    "scopeByTag": "By tag",
+    "formats": "Formats",
+    "csv": "CSV (one row per quote)",
+    "markdown": "Markdown transcript",
+    "refi": "REFI-QDA XML",
+    "stats": "Stats report",
+    "statsFormat": "Stats format",
+    "codebook": "Codebook only",
+    "codebookFormat": "Codebook format",
+    "directory": "Output directory",
+    "pickDirectory": "Browse…",
+    "run": "Export",
+    "success": "Exported {{count}} files",
+    "noFormats": "Select at least one format",
+    "noDirectory": "Pick an output directory"
   }
 }
