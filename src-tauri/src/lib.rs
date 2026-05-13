@@ -4,6 +4,7 @@ pub mod commands;
 pub mod db;
 pub mod domain;
 pub mod error;
+pub mod import;
 pub mod settings;
 pub mod transcription;
 
