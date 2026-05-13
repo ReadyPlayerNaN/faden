@@ -4,6 +4,7 @@ pub mod cluster;
 pub mod interview;
 pub mod project_meta;
 pub mod segment;
+pub mod span_tag;
 pub mod speaker;
 pub mod stats;
 pub mod tag;
