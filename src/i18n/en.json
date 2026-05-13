@@ -135,6 +135,13 @@
     "accepted": "Created {{created}} items ({{skipped}} skipped)",
     "rejected": "Rejected"
   },
+  "errors": {
+    "networkFailed": "Network request failed",
+    "notFound": "Not found",
+    "conflict": "This name is already in use",
+    "invalid": "Invalid input",
+    "unknown": "Something went wrong"
+  },
   "export": {
     "title": "Export",
     "scope": "Scope",

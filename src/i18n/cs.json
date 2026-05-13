@@ -135,6 +135,13 @@
     "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
     "rejected": "Zamítnuto"
   },
+  "errors": {
+    "networkFailed": "Síťový požadavek selhal",
+    "notFound": "Nenalezeno",
+    "conflict": "Tento název už existuje",
+    "invalid": "Neplatný vstup",
+    "unknown": "Něco se pokazilo"
+  },
   "export": {
     "title": "Export",
     "scope": "Rozsah",

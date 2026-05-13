@@ -5,11 +5,14 @@ import { Provider as JotaiProvider } from "jotai";
 import "./i18n";
 import { router } from "./router";
 import "./styles/global.css";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <JotaiProvider>
-      <RouterProvider router={router} />
-    </JotaiProvider>
+    <ErrorBoundary>
+      <JotaiProvider>
+        <RouterProvider router={router} />
+      </JotaiProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
