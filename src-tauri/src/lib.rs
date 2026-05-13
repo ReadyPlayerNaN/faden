@@ -28,6 +28,8 @@ pub fn run() {
             commands::settings::settings_get,
             commands::settings::settings_set,
             commands::settings::settings_add_recent,
+            commands::settings::project_settings_get,
+            commands::settings::project_settings_set,
             commands::codebook::codebook_tree,
             commands::codebook::cluster_create,
             commands::codebook::cluster_rename,

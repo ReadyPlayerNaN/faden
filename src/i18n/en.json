@@ -48,7 +48,17 @@
     "geminiApiKey": "Gemini API key",
     "save": "Save",
     "saved": "Saved",
-    "back": "Back"
+    "back": "Back",
+    "reset": "Reset",
+    "prompts": {
+      "title": "Prompts",
+      "transcriptionSystem": "Transcription — system instruction",
+      "transcriptionUser": "Transcription — user prompt",
+      "codebookGen": "Codebook generation",
+      "pretag": "Pre-tag transcript",
+      "findMore": "Find more like this",
+      "usesDefault": "(using default)"
+    }
   },
   "common": {
     "cancel": "Cancel",

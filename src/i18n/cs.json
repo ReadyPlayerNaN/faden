@@ -48,7 +48,17 @@
     "geminiApiKey": "Gemini API klíč",
     "save": "Uložit",
     "saved": "Uloženo",
-    "back": "Zpět"
+    "back": "Zpět",
+    "reset": "Obnovit",
+    "prompts": {
+      "title": "Prompty",
+      "transcriptionSystem": "Přepis — systémová instrukce",
+      "transcriptionUser": "Přepis — uživatelský prompt",
+      "codebookGen": "Generování číselníku",
+      "pretag": "Předpřiřazení štítků",
+      "findMore": "Najít další podobné",
+      "usesDefault": "(používá výchozí)"
+    }
   },
   "common": {
     "cancel": "Zrušit",

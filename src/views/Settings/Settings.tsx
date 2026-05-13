@@ -6,6 +6,7 @@ import { settingsGet, settingsSet } from "../../ipc/settings";
 import { globalSettingsAtom } from "../../state/settings";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/TextField/TextField";
+import { PromptEditors } from "./PromptEditors";
 import styles from "./Settings.module.css";
 
 export const Settings = () => {
@@ -56,6 +57,7 @@ export const Settings = () => {
         </Button>
         {savedAt && <span className={styles.saved}>{t("settings.saved")}</span>}
       </div>
+      <PromptEditors />
     </div>
   );
 };

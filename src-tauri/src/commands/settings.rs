@@ -1,4 +1,7 @@
+use crate::commands::util::project_conn;
+use crate::db::queries::project_meta;
 use crate::error::AppResult;
+use crate::settings::project::ProjectSettings;
 use crate::settings::{GlobalSettings, SettingsStore};
 use std::path::PathBuf;
 use tauri::Manager;
@@ -25,4 +28,19 @@ pub async fn settings_add_recent(app: tauri::AppHandle, path: String) -> AppResu
     s.add_recent(path);
     store.save(&s)?;
     Ok(s)
+}
+
+#[tauri::command]
+pub async fn project_settings_get(app: tauri::AppHandle) -> AppResult<ProjectSettings> {
+    let conn = project_conn(&app)?;
+    project_meta::read_settings(&conn)
+}
+
+#[tauri::command]
+pub async fn project_settings_set(
+    app: tauri::AppHandle,
+    value: ProjectSettings,
+) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    project_meta::write_settings(&conn, &value)
 }
