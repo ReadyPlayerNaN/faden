@@ -1,0 +1,7 @@
+.pane {
+  border-left: 1px solid var(--border);
+  padding: 0.75rem;
+  overflow: auto;
+  height: 100%;
+}
+.empty { opacity: 0.6; font-style: italic; }

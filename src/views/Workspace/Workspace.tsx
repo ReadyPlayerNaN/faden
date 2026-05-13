@@ -11,6 +11,7 @@ import { transcriptionRunsAtom } from "../../state/transcription";
 import { Button } from "../../components/Button/Button";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
+import { RightPane } from "./RightPane/RightPane";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -60,9 +61,7 @@ export const Workspace = () => {
       <div className={styles.panes}>
         <LeftPane />
         <CenterPane />
-        <aside className={styles.right}>
-          <p className={styles.empty}>{t("workspace.rightPaneEmpty")}</p>
-        </aside>
+        <RightPane />
       </div>
     </div>
   );

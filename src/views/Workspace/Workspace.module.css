@@ -8,5 +8,3 @@
 .title { font-weight: 600; }
 .headerActions { display: flex; gap: 0.5rem; }
 .panes { display: grid; grid-template-columns: 260px 1fr 320px; flex: 1; min-height: 0; }
-.right { border-left: 1px solid var(--border); padding: 0.75rem; overflow: auto; }
-.empty { opacity: 0.6; font-style: italic; }
