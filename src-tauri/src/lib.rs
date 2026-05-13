@@ -58,6 +58,13 @@ pub fn run() {
             commands::transcribe::transcribe_start,
             commands::transcribe::transcribe_cancel,
             commands::transcribe::transcribe_status,
+            commands::tagging::span_create,
+            commands::tagging::span_update_tags,
+            commands::tagging::span_update_offsets,
+            commands::tagging::span_delete,
+            commands::tagging::span_get,
+            commands::tagging::span_list_for_interview,
+            commands::tagging::memo_upsert,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
