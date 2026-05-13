@@ -49,3 +49,6 @@ export const interviewRename = (id: number, name: string): Promise<void> =>
 
 export const interviewDelete = (id: number): Promise<void> =>
   invoke("interview_delete", { id });
+
+export const interviewCreateWithAudio = async (name: string, sourceAudioPath: string): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_create_with_audio", { name, sourceAudioPath }));
