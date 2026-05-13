@@ -54,5 +54,18 @@
     "create": "Vytvořit",
     "error": "Chyba",
     "loading": "Načítání…"
+  },
+  "tagging": {
+    "applyTag": "Přiřadit štítek",
+    "createNewTag": "Nový štítek…",
+    "search": "Hledat štítky…",
+    "noResults": "Žádný štítek nevyhovuje",
+    "tags": "Štítky",
+    "memo": "Poznámka",
+    "memoPlaceholder": "Volitelné poznámky k citaci",
+    "deleteSpan": "Smazat výběr",
+    "confirmDelete": "Smazat tento výběr?",
+    "categoryRequired": "Vyberte kategorii pro nový štítek",
+    "selectInterview": "Pro zobrazení výběrů zvolte rozhovor."
   }
 }

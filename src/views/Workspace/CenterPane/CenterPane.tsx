@@ -5,6 +5,7 @@ import { selectedInterviewIdAtom } from "../../../state/interview";
 import { spansForCurrentInterviewAtom } from "../../../state/tagging";
 import { spanListForInterview } from "../../../ipc/tagging";
 import { TranscriptViewer } from "./TranscriptViewer";
+import { TagPopover } from "./TagPopover";
 import styles from "./CenterPane.module.css";
 
 export const CenterPane = () => {
@@ -27,6 +28,7 @@ export const CenterPane = () => {
       ) : (
         <TranscriptViewer interviewId={interviewId} />
       )}
+      <TagPopover />
     </section>
   );
 };

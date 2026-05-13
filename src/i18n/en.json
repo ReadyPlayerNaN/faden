@@ -54,5 +54,18 @@
     "create": "Create",
     "error": "Error",
     "loading": "Loading…"
+  },
+  "tagging": {
+    "applyTag": "Apply tag",
+    "createNewTag": "Create new tag…",
+    "search": "Search tags…",
+    "noResults": "No matching tags",
+    "tags": "Tags",
+    "memo": "Memo",
+    "memoPlaceholder": "Optional notes about this quote",
+    "deleteSpan": "Delete span",
+    "confirmDelete": "Delete this span?",
+    "categoryRequired": "Pick a category for the new tag",
+    "selectInterview": "Select an interview to view spans."
   }
 }
