@@ -41,14 +41,26 @@ pub fn build_prompt(
     Ok(prompts::render(template, &vars))
 }
 
-pub async fn run(
+fn build_request_body(prompt: &str) -> serde_json::Value {
+    serde_json::json!({
+        "contents": [{"role":"user","parts":[{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0,
+            "responseMimeType": "application/json",
+            "responseJsonSchema": serde_json::from_str::<serde_json::Value>(SPAN_SUGGESTIONS_SCHEMA).unwrap_or(serde_json::Value::Null),
+            "maxOutputTokens": 8192
+        }
+    })
+}
+
+pub fn prepare(
     conn: &Connection,
-    input: FindMoreInput,
+    input: &FindMoreInput,
     client: &GeminiClient,
     model: &str,
     prompt_override: Option<&str>,
-) -> AppResult<i64> {
-    let prompt = build_prompt(conn, &input, prompt_override)?;
+) -> AppResult<(i64, String, serde_json::Value)> {
+    let prompt = build_prompt(conn, input, prompt_override)?;
     let run_id = ai_run::start(
         conn,
         AiRunKind::FindMore,
@@ -57,16 +69,17 @@ pub async fn run(
         &prompt,
     )?;
     let url = client.text_generate_url(model);
-    let body = serde_json::json!({
-        "contents": [{"role":"user","parts":[{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0,
-            "responseMimeType": "application/json",
-            "responseJsonSchema": serde_json::from_str::<serde_json::Value>(SPAN_SUGGESTIONS_SCHEMA).unwrap_or(serde_json::Value::Null),
-            "maxOutputTokens": 8192
-        }
-    });
-    let resp_text = match client.post_generate(&url, &body).await {
+    let body = build_request_body(&prompt);
+    Ok((run_id, url, body))
+}
+
+pub fn finalize(
+    conn: &Connection,
+    run_id: i64,
+    input: &FindMoreInput,
+    api_result: AppResult<String>,
+) -> AppResult<i64> {
+    let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {
             ai_run::fail(conn, run_id, &e.to_string())?;
@@ -113,4 +126,16 @@ pub async fn run(
         Some(&format!("{} suggestions", filtered.suggestions.len())),
     )?;
     Ok(pid)
+}
+
+pub async fn run(
+    conn: &Connection,
+    input: FindMoreInput,
+    client: &GeminiClient,
+    model: &str,
+    prompt_override: Option<&str>,
+) -> AppResult<i64> {
+    let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
+    let api_result = client.post_generate(&url, &body).await;
+    finalize(conn, run_id, &input, api_result)
 }

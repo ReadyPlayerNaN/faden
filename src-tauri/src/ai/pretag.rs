@@ -26,24 +26,8 @@ pub fn build_prompt(
     Ok(prompts::render(template, &vars))
 }
 
-pub async fn run(
-    conn: &Connection,
-    input: PretagInput,
-    client: &GeminiClient,
-    model: &str,
-    prompt_override: Option<&str>,
-) -> AppResult<i64> {
-    let prompt = build_prompt(conn, &input, prompt_override)?;
-    let run_id = ai_run::start(
-        conn,
-        AiRunKind::Pretag,
-        Some(input.interview_id),
-        model,
-        &prompt,
-    )?;
-
-    let url = client.text_generate_url(model);
-    let body = serde_json::json!({
+fn build_request_body(prompt: &str) -> serde_json::Value {
+    serde_json::json!({
         "contents": [{"role":"user","parts":[{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0,
@@ -51,9 +35,36 @@ pub async fn run(
             "responseJsonSchema": serde_json::from_str::<serde_json::Value>(SPAN_SUGGESTIONS_SCHEMA).unwrap_or(serde_json::Value::Null),
             "maxOutputTokens": 16384
         }
-    });
+    })
+}
 
-    let resp_text = match client.post_generate(&url, &body).await {
+pub fn prepare(
+    conn: &Connection,
+    input: &PretagInput,
+    client: &GeminiClient,
+    model: &str,
+    prompt_override: Option<&str>,
+) -> AppResult<(i64, String, serde_json::Value)> {
+    let prompt = build_prompt(conn, input, prompt_override)?;
+    let run_id = ai_run::start(
+        conn,
+        AiRunKind::Pretag,
+        Some(input.interview_id),
+        model,
+        &prompt,
+    )?;
+    let url = client.text_generate_url(model);
+    let body = build_request_body(&prompt);
+    Ok((run_id, url, body))
+}
+
+pub fn finalize(
+    conn: &Connection,
+    run_id: i64,
+    interview_id: i64,
+    api_result: AppResult<String>,
+) -> AppResult<i64> {
+    let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {
             ai_run::fail(conn, run_id, &e.to_string())?;
@@ -75,7 +86,7 @@ pub async fn run(
     let mut skipped = 0_usize;
     for s in parsed.suggestions {
         let seg = match segment::get(conn, s.segment_id) {
-            Ok(seg) if seg.interview_id == input.interview_id => seg,
+            Ok(seg) if seg.interview_id == interview_id => seg,
             _ => {
                 skipped += 1;
                 continue;
@@ -124,4 +135,16 @@ pub async fn run(
         )),
     )?;
     Ok(pid)
+}
+
+pub async fn run(
+    conn: &Connection,
+    input: PretagInput,
+    client: &GeminiClient,
+    model: &str,
+    prompt_override: Option<&str>,
+) -> AppResult<i64> {
+    let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
+    let api_result = client.post_generate(&url, &body).await;
+    finalize(conn, run_id, input.interview_id, api_result)
 }

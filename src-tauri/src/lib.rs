@@ -66,6 +66,14 @@ pub fn run() {
             commands::tagging::span_get,
             commands::tagging::span_list_for_interview,
             commands::tagging::memo_upsert,
+            commands::ai::ai_codebook_gen_start,
+            commands::ai::ai_pretag_start,
+            commands::ai::ai_find_more_start,
+            commands::ai::ai_proposal_get,
+            commands::ai::ai_proposal_list,
+            commands::ai::ai_proposal_accept,
+            commands::ai::ai_proposal_reject,
+            commands::ai::ai_cost_estimate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

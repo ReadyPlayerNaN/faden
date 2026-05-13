@@ -30,18 +30,8 @@ pub fn build_prompt(
     Ok(prompts::render(template, &vars))
 }
 
-pub async fn run(
-    conn: &Connection,
-    input: CodebookGenInput,
-    client: &GeminiClient,
-    model: &str,
-    prompt_override: Option<&str>,
-) -> AppResult<i64> {
-    let prompt = build_prompt(conn, &input, prompt_override)?;
-    let run_id = ai_run::start(conn, AiRunKind::CodebookGen, None, model, &prompt)?;
-
-    let url = client.text_generate_url(model);
-    let body = serde_json::json!({
+fn build_request_body(prompt: &str) -> serde_json::Value {
+    serde_json::json!({
         "contents": [{
             "role": "user",
             "parts": [{ "text": prompt }]
@@ -52,9 +42,32 @@ pub async fn run(
             "responseJsonSchema": serde_json::from_str::<serde_json::Value>(CODEBOOK_RESPONSE_SCHEMA).unwrap_or(serde_json::Value::Null),
             "maxOutputTokens": 32768
         }
-    });
+    })
+}
 
-    let resp_text = match client.post_generate(&url, &body).await {
+/// Sync prep step: build the prompt, register the ai_run row, return the
+/// request URL+body. The caller drops the &Connection before .await.
+pub fn prepare(
+    conn: &Connection,
+    input: &CodebookGenInput,
+    client: &GeminiClient,
+    model: &str,
+    prompt_override: Option<&str>,
+) -> AppResult<(i64, String, serde_json::Value)> {
+    let prompt = build_prompt(conn, input, prompt_override)?;
+    let run_id = ai_run::start(conn, AiRunKind::CodebookGen, None, model, &prompt)?;
+    let url = client.text_generate_url(model);
+    let body = build_request_body(&prompt);
+    Ok((run_id, url, body))
+}
+
+/// Sync finalize step: persist results to db. Call after awaiting api_result.
+pub fn finalize(
+    conn: &Connection,
+    run_id: i64,
+    api_result: AppResult<String>,
+) -> AppResult<i64> {
+    let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {
             ai_run::fail(conn, run_id, &e.to_string())?;
@@ -83,4 +96,20 @@ pub async fn run(
         Some(&format!("{} clusters proposed", parsed.proposals.len())),
     )?;
     Ok(proposal_id)
+}
+
+/// Convenience: do everything when the caller is OK with `&Connection` being
+/// borrowed across `.await`. Suitable for tests where the future is not
+/// required to be `Send`. Tauri commands should use `prepare` + `finalize`
+/// directly to avoid holding the borrow across the await.
+pub async fn run(
+    conn: &Connection,
+    input: CodebookGenInput,
+    client: &GeminiClient,
+    model: &str,
+    prompt_override: Option<&str>,
+) -> AppResult<i64> {
+    let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
+    let api_result = client.post_generate(&url, &body).await;
+    finalize(conn, run_id, api_result)
 }

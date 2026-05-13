@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod codebook;
 pub mod interview;
 pub mod project;
