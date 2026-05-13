@@ -1,3 +1,4 @@
+pub mod cost;
 pub mod prompts;
 
 use serde::{Deserialize, Serialize};
