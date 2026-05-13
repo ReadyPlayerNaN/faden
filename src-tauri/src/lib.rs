@@ -63,6 +63,8 @@ pub fn run() {
             commands::interview::interview_import_audio_text,
             commands::interview::interview_import_audio_json,
             commands::interview::segment_list_for_interview,
+            commands::interview::speaker_list_for_interview,
+            commands::interview::speaker_set_display_name,
             commands::transcribe::transcribe_start,
             commands::transcribe::transcribe_cancel,
             commands::transcribe::transcribe_status,

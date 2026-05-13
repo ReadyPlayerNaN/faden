@@ -66,6 +66,10 @@
     "error": "Error",
     "loading": "Loading…"
   },
+  "speakers": {
+    "title": "Speakers",
+    "rename": "Rename"
+  },
   "import": {
     "title": "Add interview",
     "tabs": {

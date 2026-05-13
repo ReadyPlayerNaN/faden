@@ -66,6 +66,10 @@
     "error": "Chyba",
     "loading": "Načítání…"
   },
+  "speakers": {
+    "title": "Mluvčí",
+    "rename": "Přejmenovat"
+  },
   "import": {
     "title": "Přidat rozhovor",
     "tabs": {

@@ -169,6 +169,47 @@ pub async fn interview_import_audio_text(
     crate::import::ingest::ingest_impl(project_dir, name, Some(audio_path), Some(parsed)).await
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpeakerDTO {
+    pub id: i64,
+    pub interview_id: i64,
+    pub label_raw: String,
+    pub display_name: Option<String>,
+}
+
+impl From<Speaker> for SpeakerDTO {
+    fn from(s: Speaker) -> Self {
+        Self {
+            id: s.id,
+            interview_id: s.interview_id,
+            label_raw: s.label_raw,
+            display_name: s.display_name,
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn speaker_list_for_interview(
+    app: tauri::AppHandle,
+    interview_id: i64,
+) -> AppResult<Vec<SpeakerDTO>> {
+    let conn = project_conn(&app)?;
+    Ok(speaker::list_for_interview(&conn, interview_id)?
+        .into_iter()
+        .map(Into::into)
+        .collect())
+}
+
+#[tauri::command]
+pub async fn speaker_set_display_name(
+    app: tauri::AppHandle,
+    speaker_id: i64,
+    display_name: Option<String>,
+) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    speaker::set_display_name(&conn, speaker_id, display_name.as_deref())
+}
+
 #[tauri::command]
 pub async fn interview_import_audio_json(
     app: tauri::AppHandle,

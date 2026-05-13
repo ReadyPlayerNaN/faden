@@ -1,0 +1,43 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.label {
+  opacity: 0.7;
+}
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.raw {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+.name {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--fg);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+}
+.name:hover {
+  background: var(--bg-muted);
+}
+.input {
+  background: var(--bg-muted);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.85rem;
+}

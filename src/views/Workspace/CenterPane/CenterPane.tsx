@@ -6,6 +6,7 @@ import { spansForCurrentInterviewAtom } from "../../../state/tagging";
 import { spanListForInterview } from "../../../ipc/tagging";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { TagPopover } from "./TagPopover";
+import { SpeakerList } from "./SpeakerList";
 import styles from "./CenterPane.module.css";
 
 export const CenterPane = () => {
@@ -26,7 +27,10 @@ export const CenterPane = () => {
       {interviewId === null ? (
         <p className={styles.empty}>{t("workspace.selectInterview")}</p>
       ) : (
-        <TranscriptViewer interviewId={interviewId} />
+        <>
+          <SpeakerList interviewId={interviewId} />
+          <TranscriptViewer interviewId={interviewId} />
+        </>
       )}
       <TagPopover />
     </section>
