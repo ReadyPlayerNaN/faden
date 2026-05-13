@@ -33,6 +33,7 @@ type SegmentSpan = {
   startOffset: number;
   endOffset: number;
   tagIds: number[];
+  source: "manual" | "ai_suggested" | "ai_accepted";
 };
 
 const computeRangesForSegment = (text: string, spans: SegmentSpan[]) => {
@@ -113,6 +114,7 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
         startOffset: s.startOffset,
         endOffset: s.endOffset,
         tagIds: s.tags.map((tg) => tg.tagId),
+        source: s.tags[0]?.source ?? "manual",
       });
       map.set(s.segmentId, arr);
     }
@@ -227,10 +229,14 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                   firstTagId !== undefined
                     ? tagColorById.get(firstTagId)
                     : undefined;
+                const isSuggested = first.source === "ai_suggested";
+                const markClassName = isSuggested
+                  ? `${styles.mark} ${styles.markSuggested}`
+                  : styles.mark;
                 return (
                   <mark
                     key={i}
-                    className={styles.mark}
+                    className={markClassName}
                     style={{ background: (color ?? "#5b9aff") + "33" }}
                     data-span-id={first.spanId}
                     onClick={(e) => {
@@ -244,6 +250,7 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                     }
                   >
                     {slice}
+                    {isSuggested && <sup className={styles.aiBadge}>AI</sup>}
                   </mark>
                 );
               })}

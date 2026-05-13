@@ -20,3 +20,12 @@
 .mark:hover {
   filter: brightness(1.2);
 }
+.markSuggested {
+  border-bottom: 1px dashed currentColor;
+}
+.aiBadge {
+  font-size: 0.65em;
+  vertical-align: super;
+  margin-left: 1px;
+  color: var(--accent);
+}
