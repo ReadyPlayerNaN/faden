@@ -4,6 +4,7 @@ use rusqlite::{params, Connection};
 const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("m001_init.sql")),
     (2, include_str!("m002_main.sql")),
+    (3, include_str!("m003_ai_staging.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {
