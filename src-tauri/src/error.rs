@@ -23,6 +23,14 @@ pub enum AppError {
     Conflict(String),
     #[error("tauri: {0}")]
     Tauri(String),
+    #[error("csv: {0}")]
+    Csv(String),
+}
+
+impl From<csv::Error> for AppError {
+    fn from(e: csv::Error) -> Self {
+        AppError::Csv(e.to_string())
+    }
 }
 
 impl Serialize for AppError {
