@@ -2,7 +2,10 @@
 .empty { opacity: 0.6; font-style: italic; font-size: 0.9rem; }
 .list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.125rem; }
 .item {
-  display: block; width: 100%; text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   padding: 0.4rem 0.6rem;
   background: transparent;
   border: 1px solid transparent;
@@ -10,6 +13,24 @@
   color: var(--fg);
   cursor: pointer;
   font: inherit;
+  text-align: left;
+  gap: 0.5rem;
 }
 .item:hover { background: var(--bg-muted); }
 .selected { background: var(--bg-muted); border-color: var(--border); }
+.rowLeft { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowRight { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85em; }
+.progressLabel { opacity: 0.75; }
+.smallBtn {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 3px;
+  padding: 0.15rem 0.4rem;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.smallBtn:hover { filter: brightness(1.15); }
+.statusOk { color: #5bd17a; }
+.statusFailed { color: var(--danger); }

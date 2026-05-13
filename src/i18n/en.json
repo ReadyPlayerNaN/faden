@@ -14,7 +14,15 @@
     "codebook": "Codebook",
     "noInterviews": "No interviews yet",
     "addInterview": "+ New interview",
-    "newInterviewPrompt": "Name for the new interview:"
+    "newInterviewPrompt": "Name for the new interview:",
+    "addInterviewAudio": "+ From audio",
+    "transcribe": "Transcribe",
+    "cancel": "Cancel",
+    "transcribing": "Transcribing…",
+    "transcribingChunk": "Chunk {{index}}/{{total}}",
+    "transcriptComplete": "✓",
+    "transcriptFailed": "Failed",
+    "audioFilter": "Audio"
   },
   "codebook": {
     "addCluster": "+ Cluster",

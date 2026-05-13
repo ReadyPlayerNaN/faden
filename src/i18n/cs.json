@@ -14,7 +14,15 @@
     "codebook": "Číselník",
     "noInterviews": "Zatím žádné rozhovory",
     "addInterview": "+ Nový rozhovor",
-    "newInterviewPrompt": "Název nového rozhovoru:"
+    "newInterviewPrompt": "Název nového rozhovoru:",
+    "addInterviewAudio": "+ Ze zvuku",
+    "transcribe": "Přepsat",
+    "cancel": "Zrušit",
+    "transcribing": "Přepisuji…",
+    "transcribingChunk": "Část {{index}}/{{total}}",
+    "transcriptComplete": "✓",
+    "transcriptFailed": "Selhalo",
+    "audioFilter": "Zvuk"
   },
   "codebook": {
     "addCluster": "+ Cluster",
