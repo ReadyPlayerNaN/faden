@@ -12,6 +12,7 @@ import { Button } from "../../components/Button/Button";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
+import { AudioPlayer } from "./AudioPlayer/AudioPlayer";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -63,6 +64,7 @@ export const Workspace = () => {
         <CenterPane />
         <RightPane />
       </div>
+      <AudioPlayer />
     </div>
   );
 };

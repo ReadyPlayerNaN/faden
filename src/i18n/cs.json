@@ -27,7 +27,8 @@
     "noSegments": "Tento rozhovor zatím nemá přepis. Klikněte na „Přepsat\" v seznamu rozhovorů.",
     "speaker": "Mluvčí",
     "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
-    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište."
+    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište.",
+    "loopSpan": "Smyčka výběru"
   },
   "codebook": {
     "addCluster": "+ Cluster",

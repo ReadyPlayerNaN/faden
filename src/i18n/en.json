@@ -27,7 +27,8 @@
     "noSegments": "This interview has no transcript yet. Click \"Transcribe\" in the interview list to start.",
     "speaker": "Speaker",
     "selectionMissing": "Select text within a single segment to tag it.",
-    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first."
+    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first.",
+    "loopSpan": "Loop span"
   },
   "codebook": {
     "addCluster": "+ Cluster",
