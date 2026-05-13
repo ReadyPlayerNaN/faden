@@ -11,3 +11,12 @@
 .timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
 .speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; }
 .text { word-wrap: break-word; }
+.mark {
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+  border-bottom: 1px solid currentColor;
+}
+.mark:hover {
+  filter: brightness(1.2);
+}

@@ -25,7 +25,9 @@
     "audioFilter": "Zvuk",
     "selectInterview": "Vyberte rozhovor pro zobrazení přepisu.",
     "noSegments": "Tento rozhovor zatím nemá přepis. Klikněte na „Přepsat\" v seznamu rozhovorů.",
-    "speaker": "Mluvčí"
+    "speaker": "Mluvčí",
+    "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
+    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište."
   },
   "codebook": {
     "addCluster": "+ Cluster",

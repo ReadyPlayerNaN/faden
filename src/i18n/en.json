@@ -25,7 +25,9 @@
     "audioFilter": "Audio",
     "selectInterview": "Select an interview to view its transcript.",
     "noSegments": "This interview has no transcript yet. Click \"Transcribe\" in the interview list to start.",
-    "speaker": "Speaker"
+    "speaker": "Speaker",
+    "selectionMissing": "Select text within a single segment to tag it.",
+    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first."
   },
   "codebook": {
     "addCluster": "+ Cluster",
