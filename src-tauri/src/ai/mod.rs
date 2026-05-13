@@ -1,5 +1,6 @@
 pub mod codebook_gen;
 pub mod cost;
+pub mod find_more;
 pub mod pretag;
 pub mod prompts;
 pub mod text;
