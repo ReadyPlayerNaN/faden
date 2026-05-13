@@ -39,6 +39,8 @@ async-trait = "0.1"
 tokio-util = "0.7"
 tauri-plugin-shell = "2"
 rand = "0.8"
+csv = "1"
+quick-xml = "0.31"
 
 [dev-dependencies]
 tempfile = "3"
