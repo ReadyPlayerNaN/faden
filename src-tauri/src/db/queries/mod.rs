@@ -7,3 +7,4 @@ pub mod segment;
 pub mod speaker;
 pub mod stats;
 pub mod tag;
+pub mod tagged_span;
