@@ -1,3 +1,4 @@
+use crate::commands::util::project_conn;
 use crate::db;
 use crate::db::queries::project_meta;
 use crate::error::{AppError, AppResult};
@@ -63,4 +64,10 @@ pub async fn project_open(app: tauri::AppHandle, path: String) -> AppResult<Proj
     app.state::<crate::app_state::AppState>()
         .set_current(PathBuf::from(&path));
     Ok(info)
+}
+
+#[tauri::command]
+pub async fn project_rename(app: tauri::AppHandle, name: String) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    project_meta::rename(&conn, &name)
 }

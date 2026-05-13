@@ -27,6 +27,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::project::project_create,
             commands::project::project_open,
+            commands::project::project_rename,
             commands::settings::settings_get,
             commands::settings::settings_set,
             commands::settings::settings_add_recent,

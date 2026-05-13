@@ -34,6 +34,17 @@ pub fn read(conn: &Connection) -> AppResult<ProjectMeta> {
     .ok_or_else(|| AppError::NotFound("project_meta".into()))
 }
 
+pub fn rename(conn: &Connection, name: &str) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE project_meta SET name = ?1 WHERE id = 1",
+        params![name],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound("project_meta".into()));
+    }
+    Ok(())
+}
+
 pub fn read_settings(conn: &Connection) -> AppResult<ProjectSettings> {
     let raw: String = conn.query_row(
         "SELECT settings_json FROM project_meta WHERE id = 1",
