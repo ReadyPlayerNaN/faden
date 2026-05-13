@@ -1,3 +1,5 @@
+pub mod project;
+
 use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

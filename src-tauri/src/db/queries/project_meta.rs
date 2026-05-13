@@ -1,4 +1,5 @@
 use crate::error::{AppError, AppResult};
+use crate::settings::project::ProjectSettings;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
@@ -31,4 +32,28 @@ pub fn read(conn: &Connection) -> AppResult<ProjectMeta> {
     )
     .optional()?
     .ok_or_else(|| AppError::NotFound("project_meta".into()))
+}
+
+pub fn read_settings(conn: &Connection) -> AppResult<ProjectSettings> {
+    let raw: String = conn.query_row(
+        "SELECT settings_json FROM project_meta WHERE id = 1",
+        [],
+        |r| r.get(0),
+    )?;
+    if raw.trim().is_empty() || raw.trim() == "{}" {
+        return Ok(ProjectSettings::default());
+    }
+    Ok(serde_json::from_str(&raw)?)
+}
+
+pub fn write_settings(conn: &Connection, settings: &ProjectSettings) -> AppResult<()> {
+    let json = serde_json::to_string(settings)?;
+    let affected = conn.execute(
+        "UPDATE project_meta SET settings_json = ?1 WHERE id = 1",
+        params![json],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound("project_meta".into()));
+    }
+    Ok(())
 }
