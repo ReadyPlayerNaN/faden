@@ -84,6 +84,11 @@ pub fn run() {
             commands::ai::ai_proposal_accept,
             commands::ai::ai_proposal_reject,
             commands::ai::ai_cost_estimate,
+            commands::export::export_csv,
+            commands::export::export_markdown,
+            commands::export::export_refi,
+            commands::export::export_stats,
+            commands::export::export_codebook,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
