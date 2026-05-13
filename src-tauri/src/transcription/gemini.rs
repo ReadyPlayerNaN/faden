@@ -162,6 +162,39 @@ impl GeminiClient {
         Ok(())
     }
 
+    pub fn text_generate_url(&self, model: &str) -> String {
+        format!(
+            "{}/v1beta/models/{}:generateContent?key={}",
+            self.base_url, model, self.api_key
+        )
+    }
+
+    pub async fn post_generate(
+        &self,
+        url: &str,
+        body: &serde_json::Value,
+    ) -> AppResult<String> {
+        let resp = self
+            .http
+            .post(url)
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| AppError::Invalid(format!("generate: {e}")))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(Self::map_status(status.as_u16(), &text));
+        }
+        let parsed: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| AppError::Invalid(format!("generate json: {e}")))?;
+        let inner = parsed
+            .pointer("/candidates/0/content/parts/0/text")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AppError::Invalid("no text in candidate".into()))?;
+        Ok(inner.to_string())
+    }
+
     pub async fn generate_content(
         &self,
         model: &str,
