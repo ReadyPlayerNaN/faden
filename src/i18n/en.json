@@ -22,7 +22,10 @@
     "transcribingChunk": "Chunk {{index}}/{{total}}",
     "transcriptComplete": "✓",
     "transcriptFailed": "Failed",
-    "audioFilter": "Audio"
+    "audioFilter": "Audio",
+    "selectInterview": "Select an interview to view its transcript.",
+    "noSegments": "This interview has no transcript yet. Click \"Transcribe\" in the interview list to start.",
+    "speaker": "Speaker"
   },
   "codebook": {
     "addCluster": "+ Cluster",

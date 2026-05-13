@@ -1,8 +1,52 @@
 use crate::commands::util::project_conn;
 use crate::db;
 use crate::db::queries::interview::{self, Interview};
+use crate::db::queries::segment;
+use crate::db::queries::speaker::{self, Speaker};
 use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SegmentDTO {
+    pub id: i64,
+    pub interview_id: i64,
+    pub speaker_id: i64,
+    pub speaker_label_raw: String,
+    pub speaker_display_name: Option<String>,
+    pub start_sec: f64,
+    pub end_sec: f64,
+    pub text: String,
+    pub order_index: i64,
+}
+
+#[tauri::command]
+pub async fn segment_list_for_interview(
+    app: tauri::AppHandle,
+    interview_id: i64,
+) -> AppResult<Vec<SegmentDTO>> {
+    let conn = project_conn(&app)?;
+    let segments = segment::list_for_interview(&conn, interview_id)?;
+    let speakers = speaker::list_for_interview(&conn, interview_id)?;
+    let by_speaker: std::collections::HashMap<i64, Speaker> =
+        speakers.into_iter().map(|s| (s.id, s)).collect();
+    let mut out = Vec::with_capacity(segments.len());
+    for s in segments {
+        let sp = by_speaker.get(&s.speaker_id);
+        out.push(SegmentDTO {
+            id: s.id,
+            interview_id: s.interview_id,
+            speaker_id: s.speaker_id,
+            speaker_label_raw: sp.map(|x| x.label_raw.clone()).unwrap_or_default(),
+            speaker_display_name: sp.and_then(|x| x.display_name.clone()),
+            start_sec: s.start_sec,
+            end_sec: s.end_sec,
+            text: s.text,
+            order_index: s.order_index,
+        });
+    }
+    Ok(out)
+}
 
 #[tauri::command]
 pub async fn interview_create(app: tauri::AppHandle, name: String) -> AppResult<Interview> {

@@ -54,6 +54,7 @@ pub fn run() {
             commands::interview::interview_rename,
             commands::interview::interview_delete,
             commands::interview::interview_create_with_audio,
+            commands::interview::segment_list_for_interview,
             commands::transcribe::transcribe_start,
             commands::transcribe::transcribe_cancel,
             commands::transcribe::transcribe_status,

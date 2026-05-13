@@ -1,0 +1,13 @@
+.transcript { display: flex; flex-direction: column; gap: 0.5rem; }
+.empty { opacity: 0.6; font-style: italic; }
+.segment {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
+.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; }
+.text { word-wrap: break-word; }

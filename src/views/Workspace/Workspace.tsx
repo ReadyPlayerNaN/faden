@@ -10,6 +10,7 @@ import { onTranscriptionProgress } from "../../ipc/transcribe";
 import { transcriptionRunsAtom } from "../../state/transcription";
 import { Button } from "../../components/Button/Button";
 import { LeftPane } from "./LeftPane/LeftPane";
+import { CenterPane } from "./CenterPane/CenterPane";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -58,9 +59,7 @@ export const Workspace = () => {
       </header>
       <div className={styles.panes}>
         <LeftPane />
-        <section className={styles.center}>
-          <p className={styles.empty}>{t("workspace.centerPaneEmpty")}</p>
-        </section>
+        <CenterPane />
         <aside className={styles.right}>
           <p className={styles.empty}>{t("workspace.rightPaneEmpty")}</p>
         </aside>

@@ -22,7 +22,10 @@
     "transcribingChunk": "Část {{index}}/{{total}}",
     "transcriptComplete": "✓",
     "transcriptFailed": "Selhalo",
-    "audioFilter": "Zvuk"
+    "audioFilter": "Zvuk",
+    "selectInterview": "Vyberte rozhovor pro zobrazení přepisu.",
+    "noSegments": "Tento rozhovor zatím nemá přepis. Klikněte na „Přepsat\" v seznamu rozhovorů.",
+    "speaker": "Mluvčí"
   },
   "codebook": {
     "addCluster": "+ Cluster",
