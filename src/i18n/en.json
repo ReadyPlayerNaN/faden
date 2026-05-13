@@ -64,6 +64,9 @@
     "projectName": "Project name",
     "renameProject": "Rename project",
     "rename": "Rename",
+    "updates": "Updates",
+    "updatesNote": "Auto-update is not yet supported. Check the releases page periodically.",
+    "checkForUpdates": "Check for updates",
     "prompts": {
       "title": "Prompts",
       "transcriptionSystem": "Transcription — system instruction",

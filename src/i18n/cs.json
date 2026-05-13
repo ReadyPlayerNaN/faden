@@ -64,6 +64,9 @@
     "projectName": "Název projektu",
     "renameProject": "Přejmenovat projekt",
     "rename": "Přejmenovat",
+    "updates": "Aktualizace",
+    "updatesNote": "Automatické aktualizace zatím nejsou podporovány. Sledujte stránku s vydáními.",
+    "checkForUpdates": "Zkontrolovat aktualizace",
     "prompts": {
       "title": "Prompty",
       "transcriptionSystem": "Přepis — systémová instrukce",

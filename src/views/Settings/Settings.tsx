@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { settingsGet, settingsSet } from "../../ipc/settings";
 import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
@@ -53,6 +54,10 @@ export const Settings = () => {
     await settingsSet(next);
     setSettings(next);
     setSavedAt(Date.now());
+  };
+
+  const onCheckForUpdates = () => {
+    void openUrl("https://github.com/just-paja/stt/releases");
   };
 
   const onRenameProject = async () => {
@@ -130,6 +135,14 @@ export const Settings = () => {
           </div>
         </section>
       )}
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{t("settings.updates")}</h2>
+        <p className={styles.note}>{t("settings.updatesNote")}</p>
+        <Button onClick={onCheckForUpdates}>
+          {t("settings.checkForUpdates")}
+        </Button>
+      </section>
 
       <PromptEditors />
     </div>
