@@ -125,3 +125,61 @@ pub async fn interview_create_with_audio(
     let project_dir = state.current_project()?;
     interview_create_with_audio_impl(project_dir, name, source_audio_path).await
 }
+
+#[tauri::command]
+pub async fn interview_import_text(
+    app: tauri::AppHandle,
+    name: String,
+    raw_text: String,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let project_dir = app
+        .state::<crate::app_state::AppState>()
+        .current_project()?;
+    let parsed = crate::import::plain_text::parse(&raw_text)?;
+    crate::import::ingest::ingest_impl(project_dir, name, None, Some(parsed)).await
+}
+
+#[tauri::command]
+pub async fn interview_import_json(
+    app: tauri::AppHandle,
+    name: String,
+    raw_json: String,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let project_dir = app
+        .state::<crate::app_state::AppState>()
+        .current_project()?;
+    let parsed = crate::import::json_schema::parse_json(&raw_json)?;
+    crate::import::ingest::ingest_impl(project_dir, name, None, Some(parsed)).await
+}
+
+#[tauri::command]
+pub async fn interview_import_audio_text(
+    app: tauri::AppHandle,
+    name: String,
+    audio_path: String,
+    raw_text: String,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let project_dir = app
+        .state::<crate::app_state::AppState>()
+        .current_project()?;
+    let parsed = crate::import::plain_text::parse(&raw_text)?;
+    crate::import::ingest::ingest_impl(project_dir, name, Some(audio_path), Some(parsed)).await
+}
+
+#[tauri::command]
+pub async fn interview_import_audio_json(
+    app: tauri::AppHandle,
+    name: String,
+    audio_path: String,
+    raw_json: String,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let project_dir = app
+        .state::<crate::app_state::AppState>()
+        .current_project()?;
+    let parsed = crate::import::json_schema::parse_json(&raw_json)?;
+    crate::import::ingest::ingest_impl(project_dir, name, Some(audio_path), Some(parsed)).await
+}
