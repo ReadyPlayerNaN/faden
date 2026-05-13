@@ -64,7 +64,14 @@
     "cancel": "Zrušit",
     "create": "Vytvořit",
     "error": "Chyba",
-    "loading": "Načítání…"
+    "loading": "Načítání…",
+    "close": "Zavřít",
+    "dismiss": "Zavřít",
+    "rename": "Přejmenovat",
+    "remove": "Odebrat",
+    "save": "Uložit",
+    "delete": "Smazat",
+    "open": "Otevřít"
   },
   "speakers": {
     "title": "Mluvčí",

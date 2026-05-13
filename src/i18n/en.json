@@ -64,7 +64,14 @@
     "cancel": "Cancel",
     "create": "Create",
     "error": "Error",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "rename": "Rename",
+    "remove": "Remove",
+    "save": "Save",
+    "delete": "Delete",
+    "open": "Open"
   },
   "speakers": {
     "title": "Speakers",
