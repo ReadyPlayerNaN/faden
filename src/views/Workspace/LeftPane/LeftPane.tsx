@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { InterviewList } from "./InterviewList";
 import { CodebookTree } from "./CodebookTree";
+import { AiPanel } from "../AI/AiPanel";
 import styles from "./LeftPane.module.css";
 
 export const LeftPane = () => {
@@ -15,6 +16,7 @@ export const LeftPane = () => {
         <h3 className={styles.title}>{t("workspace.codebook")}</h3>
         <CodebookTree />
       </section>
+      <AiPanel />
     </aside>
   );
 };

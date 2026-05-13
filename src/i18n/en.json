@@ -68,5 +68,33 @@
     "confirmDelete": "Delete this span?",
     "categoryRequired": "Pick a category for the new tag",
     "selectInterview": "Select an interview to view spans."
+  },
+  "ai": {
+    "panel": "AI",
+    "generateCodebook": "Generate codebook",
+    "preTag": "Pre-tag",
+    "findMore": "Find more",
+    "useExistingCodebook": "Extend existing codebook",
+    "selectInterviews": "Pick interviews",
+    "selectTag": "Select a tag in the codebook first",
+    "selectInterviewFirst": "Select an interview first",
+    "costPreviewTitle": "Cost preview",
+    "model": "Model",
+    "estimatedTokens": "Estimated tokens",
+    "estimatedCost": "Estimated cost",
+    "showPrompt": "Show prompt",
+    "send": "Send",
+    "dontAskAgain": "Don't ask again this session",
+    "staging": "Staged proposals ({{count}})",
+    "openProposal": "Open",
+    "reject": "Reject",
+    "accept": "Accept selected",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "noProposals": "No pending proposals",
+    "evidenceQuotes": "Evidence",
+    "running": "Running…",
+    "accepted": "Created {{created}} items ({{skipped}} skipped)",
+    "rejected": "Rejected"
   }
 }

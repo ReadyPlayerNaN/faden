@@ -1,0 +1,60 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "../../../components/Button/Button";
+import type { CostEstimate } from "../../../ipc/ai";
+import styles from "./CostPreviewModal.module.css";
+
+type Props = {
+  estimate: CostEstimate;
+  prompt: string;
+  onSend: (dontAsk: boolean) => void;
+  onCancel: () => void;
+};
+
+export const CostPreviewModal = ({
+  estimate,
+  prompt,
+  onSend,
+  onCancel,
+}: Props) => {
+  const { t } = useTranslation();
+  const [dontAsk, setDontAsk] = useState(false);
+  return (
+    <div className={styles.backdrop} onClick={onCancel}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <h2 className={styles.title}>{t("ai.costPreviewTitle")}</h2>
+        <dl className={styles.list}>
+          <dt>{t("ai.model")}</dt>
+          <dd>{estimate.model}</dd>
+          <dt>{t("ai.estimatedTokens")}</dt>
+          <dd>
+            {estimate.estimatedInputTokens.toLocaleString()} in /{" "}
+            {estimate.estimatedOutputTokens.toLocaleString()} out
+          </dd>
+          <dt>{t("ai.estimatedCost")}</dt>
+          <dd>~${estimate.estimatedUsd.toFixed(4)}</dd>
+        </dl>
+        {prompt && (
+          <details className={styles.details}>
+            <summary>{t("ai.showPrompt")}</summary>
+            <pre className={styles.prompt}>{prompt}</pre>
+          </details>
+        )}
+        <label className={styles.dontAsk}>
+          <input
+            type="checkbox"
+            checked={dontAsk}
+            onChange={(e) => setDontAsk(e.target.checked)}
+          />
+          {t("ai.dontAskAgain")}
+        </label>
+        <div className={styles.actions}>
+          <Button onClick={onCancel}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={() => onSend(dontAsk)}>
+            {t("ai.send")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

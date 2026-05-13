@@ -68,5 +68,33 @@
     "confirmDelete": "Smazat tento výběr?",
     "categoryRequired": "Vyberte kategorii pro nový štítek",
     "selectInterview": "Pro zobrazení výběrů zvolte rozhovor."
+  },
+  "ai": {
+    "panel": "AI",
+    "generateCodebook": "Vytvořit číselník",
+    "preTag": "Předpřiřadit štítky",
+    "findMore": "Najít další",
+    "useExistingCodebook": "Rozšířit stávající číselník",
+    "selectInterviews": "Vyberte rozhovory",
+    "selectTag": "Nejprve vyberte štítek v číselníku",
+    "selectInterviewFirst": "Nejprve vyberte rozhovor",
+    "costPreviewTitle": "Náhled nákladů",
+    "model": "Model",
+    "estimatedTokens": "Odhad tokenů",
+    "estimatedCost": "Odhad ceny",
+    "showPrompt": "Zobrazit prompt",
+    "send": "Odeslat",
+    "dontAskAgain": "Tuto relaci se už neptat",
+    "staging": "Návrhy ({{count}})",
+    "openProposal": "Otevřít",
+    "reject": "Zamítnout",
+    "accept": "Přijmout vybrané",
+    "acceptAll": "Přijmout vše",
+    "rejectAll": "Zamítnout vše",
+    "noProposals": "Žádné návrhy",
+    "evidenceQuotes": "Důkazy",
+    "running": "Zpracovává se…",
+    "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
+    "rejected": "Zamítnuto"
   }
 }
