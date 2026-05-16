@@ -39,11 +39,13 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn project_create_initializes_files() {
     let dir = tempdir().unwrap();
-    let info: ProjectInfo = project_create_impl(dir.path().to_path_buf(), "My Study".into())
-        .await
-        .unwrap();
+    let info: ProjectInfo =
+        project_create_impl(dir.path().to_path_buf(), "My Study".into(), "cs".into())
+            .await
+            .unwrap();
     let path = PathBuf::from(&info.path);
     assert_eq!(info.name, "My Study");
+    assert_eq!(info.language, "cs");
     assert_eq!(path.file_name().and_then(|n| n.to_str()), Some("my-study"));
     assert!(path.join("project.sqlite").exists());
     assert!(path.join("project.json").exists());
@@ -55,23 +57,29 @@ async fn project_create_initializes_files() {
 #[tokio::test]
 async fn project_open_reads_name_from_metadata_file() {
     let dir = tempdir().unwrap();
-    let info = project_create_impl(dir.path().to_path_buf(), "Žluťoučký kůň".into())
-        .await
-        .unwrap();
+    let info = project_create_impl(
+        dir.path().to_path_buf(),
+        "Žluťoučký kůň".into(),
+        "cs".into(),
+    )
+    .await
+    .unwrap();
     let path = PathBuf::from(&info.path);
     std::fs::write(path.join("project.json"), r#"{"name":"Readable Name"}"#).unwrap();
     let opened = project_open_impl(path.to_string_lossy().to_string())
         .await
         .unwrap();
     assert_eq!(opened.name, "Readable Name");
+    assert_eq!(opened.language, "cs");
 }
 
 #[tokio::test]
 async fn project_open_falls_back_to_db_name_when_metadata_is_missing() {
     let dir = tempdir().unwrap();
-    let info = project_create_impl(dir.path().to_path_buf(), "Legacy Project".into())
-        .await
-        .unwrap();
+    let info =
+        project_create_impl(dir.path().to_path_buf(), "Legacy Project".into(), "en".into())
+            .await
+            .unwrap();
     let path = PathBuf::from(&info.path);
     std::fs::remove_file(path.join("project.json")).unwrap();
 
@@ -80,16 +88,17 @@ async fn project_open_falls_back_to_db_name_when_metadata_is_missing() {
         .unwrap();
 
     assert_eq!(opened.name, "Legacy Project");
+    assert_eq!(opened.language, "en");
     assert!(path.join("project.json").exists());
 }
 
 #[tokio::test]
 async fn project_create_rejects_existing_project() {
     let dir = tempdir().unwrap();
-    project_create_impl(dir.path().to_path_buf(), "A".into())
+    project_create_impl(dir.path().to_path_buf(), "A".into(), "en".into())
         .await
         .unwrap();
-    let err = project_create_impl(dir.path().to_path_buf(), "A".into())
+    let err = project_create_impl(dir.path().to_path_buf(), "A".into(), "en".into())
         .await
         .unwrap_err();
     assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
@@ -102,4 +111,13 @@ async fn project_open_missing_returns_error() {
         .await
         .unwrap_err();
     assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
+}
+
+#[tokio::test]
+async fn project_create_rejects_unsupported_language() {
+    let dir = tempdir().unwrap();
+    let err = project_create_impl(dir.path().to_path_buf(), "Study".into(), "Klingon".into())
+        .await
+        .unwrap_err();
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }

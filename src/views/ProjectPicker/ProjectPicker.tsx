@@ -13,6 +13,7 @@ import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { resolveAppLanguage } from "../../i18n/language";
 import { ProjectCreateModal } from "./ProjectCreateModal";
 import styles from "./ProjectPicker.module.css";
 
@@ -29,8 +30,8 @@ export const ProjectPicker = () => {
     void settingsGet().then(setSettings);
   }, [setCurrent, setSettings]);
 
-  const goTo = (path: string, name: string) => {
-    setCurrent({ path, name });
+  const goTo = (path: string, name: string, language: string) => {
+    setCurrent({ path, name, language });
     void settingsAddRecent(path, name).then(setSettings);
     void navigate({
       to: "/workspace/$projectPath",
@@ -38,10 +39,10 @@ export const ProjectPicker = () => {
     });
   };
 
-  const onCreateProject = async (name: string) => {
+  const onCreateProject = async (name: string, language: string) => {
     setError(null);
-    const info = await projectCreate(name);
-    goTo(info.path, info.name);
+    const info = await projectCreate(name, language);
+    goTo(info.path, info.name, info.language);
   };
 
   const onOpenFolder = async () => {
@@ -50,7 +51,7 @@ export const ProjectPicker = () => {
     setError(null);
     try {
       const info = await projectOpen(dir);
-      goTo(info.path, info.name);
+      goTo(info.path, info.name, info.language);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : String(error));
     }
@@ -60,7 +61,7 @@ export const ProjectPicker = () => {
     setError(null);
     try {
       const info = await projectOpen(path);
-      goTo(info.path, info.name);
+      goTo(info.path, info.name, info.language);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : String(error));
     }
@@ -86,6 +87,7 @@ export const ProjectPicker = () => {
       </div>
       <ProjectCreateModal
         open={createOpen}
+        defaultLanguage={resolveAppLanguage(settings)}
         onClose={() => setCreateOpen(false)}
         onCreate={onCreateProject}
       />

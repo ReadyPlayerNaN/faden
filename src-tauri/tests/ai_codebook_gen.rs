@@ -66,6 +66,7 @@ async fn codebook_gen_persists_proposal_on_success() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "English",
     )
     .await
     .unwrap()
@@ -91,9 +92,11 @@ fn codebook_gen_prompt_prefers_enhancing_existing_codebook_without_duplicates() 
             include_existing_codebook: true,
         },
         None,
+        "Czech",
     )
     .unwrap();
 
+    assert!(prompt.contains("Produce all generated labels, descriptions, rationales, summaries, and other free-text output in Czech."));
     assert!(prompt.contains("starting point and improve it"));
     assert!(prompt.contains("Do not recreate existing tags"));
     assert!(prompt.contains("near-duplicates or semantically equivalent tags"));
@@ -135,6 +138,7 @@ async fn codebook_gen_skips_empty_proposals() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "English",
     )
     .await
     .unwrap();
@@ -175,6 +179,7 @@ async fn codebook_gen_invalid_json_marks_run_failed() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "English",
     )
     .await
     .unwrap_err();

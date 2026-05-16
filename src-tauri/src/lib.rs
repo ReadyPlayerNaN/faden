@@ -35,6 +35,7 @@ pub fn run() {
             commands::project::project_create,
             commands::project::project_open,
             commands::project::project_rename,
+            commands::project::project_update,
             commands::history::history_undo,
             commands::history::history_redo,
             commands::history::history_status,

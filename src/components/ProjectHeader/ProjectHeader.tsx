@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "../Button/Button";
-import { projectRename } from "../../ipc/project";
+import { projectUpdate } from "../../ipc/project";
 import { settingsRecentRename } from "../../ipc/settings";
 import { currentProjectAtom } from "../../state/project";
 import { EditProjectModal } from "../../views/Workspace/EditProjectModal";
@@ -54,11 +54,11 @@ export const ProjectHeader = ({
 		};
 	}, [projectMenuOpen, viewMenuOpen]);
 
-	const onEditProject = async (name: string) => {
+	const onEditProject = async (name: string, language: string) => {
 		if (!project) return;
-		await projectRename(name);
+		const updated = await projectUpdate(name, language);
 		await settingsRecentRename(project.path, name).catch(() => undefined);
-		setProject({ ...project, name });
+		setProject(updated);
 	};
 
 	return (
@@ -222,6 +222,7 @@ export const ProjectHeader = ({
 				<EditProjectModal
 					open={editProjectOpen}
 					initialName={project.name}
+					initialLanguage={project.language}
 					onClose={() => setEditProjectOpen(false)}
 					onSave={onEditProject}
 				/>

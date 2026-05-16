@@ -9,3 +9,4 @@
   font: inherit;
 }
 .input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.help { font-size: 0.8rem; color: var(--fg); opacity: 0.7; }

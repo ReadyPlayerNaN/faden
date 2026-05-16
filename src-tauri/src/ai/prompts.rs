@@ -1,3 +1,4 @@
+use crate::settings::{canonical_project_language, project_language_name};
 use std::collections::HashMap;
 
 pub const DEFAULT_CODEBOOK_GEN: &str = "You are helping a qualitative researcher derive and refine a codebook.\nRead the following interview(s) and propose a flat list of tags (codes)\ninferred from the transcript. Do not group them into clusters or categories.\nEach tag should have a short definition and optional evidence quotes taken\nfrom the interview text. Return JSON matching the provided schema. Do not\ninvent codes that aren't supported by the text. If an existing codebook is\nprovided, treat it as the starting point and improve it only where the new\ninterview(s) justify it. Do not recreate existing tags, do not propose near-duplicates or semantically equivalent tags with different wording, and prefer\nreusing or broadening an existing tag over adding a redundant new one. Only\npropose genuinely new tags when they add distinct analytical value beyond the\nexisting codebook.\n\nTranscripts:\n{{transcripts}}\n\nExisting codebook:\n{{existing_codebook}}";
@@ -13,4 +14,15 @@ pub fn render(template: &str, vars: &HashMap<&str, String>) -> String {
         out = out.replace(&placeholder, value);
     }
     out
+}
+
+pub fn with_project_language(prompt: &str, language: &str) -> String {
+    format!(
+        "Project output language requirement:\n- The interviews or transcript excerpts may be in different languages.\n- Produce all generated labels, descriptions, rationales, summaries, and other free-text output in {}.\n- Keep the required JSON schema, field names, and structure unchanged.\n- Do not translate verbatim quotations copied from the transcript unless explicitly asked to do so.\n\n{}",
+        canonical_project_language(language)
+            .as_deref()
+            .and_then(project_language_name)
+            .unwrap_or(language.trim()),
+        prompt
+    )
 }

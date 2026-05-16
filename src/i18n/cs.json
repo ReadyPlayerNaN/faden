@@ -69,6 +69,11 @@
     "languageCs": "Čeština",
     "projectSection": "Aktuální projekt",
     "projectName": "Název projektu",
+    "projectLanguage": "Jazyk projektu",
+    "projectLanguagePlaceholder": "Vyberte jazyk",
+    "projectLanguageSearch": "Hledat jazyk",
+    "projectLanguageEmpty": "Žádný jazyk neodpovídá",
+    "projectLanguageHelp": "Vyberte jazyk, ve kterém mají být psané výstupy AI analýzy.",
     "renameProject": "Přejmenovat projekt",
     "rename": "Přejmenovat",
     "prompts": {

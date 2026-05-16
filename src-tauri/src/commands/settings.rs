@@ -3,7 +3,7 @@ use crate::db::queries::project_meta;
 use crate::error::AppResult;
 use crate::secrets::{resolve_gemini_api_key, set_gemini_api_key};
 use crate::settings::project::ProjectSettings;
-use crate::settings::{GlobalSettings, SettingsStore};
+use crate::settings::{canonical_project_language, resolve_definitive_language, GlobalSettings, SettingsStore};
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -76,11 +76,23 @@ pub async fn settings_recent_remove(
 #[tauri::command]
 pub async fn project_settings_get(app: tauri::AppHandle) -> AppResult<ProjectSettings> {
     let conn = project_conn(&app)?;
-    project_meta::read_settings(&conn)
+    let mut settings = project_meta::read_settings(&conn)?;
+    if settings.language.is_none() {
+        let global = store_for(&app)?.load()?;
+        settings.language = Some(resolve_definitive_language(global.ui_language.as_deref()));
+    }
+    Ok(settings)
 }
 
 #[tauri::command]
-pub async fn project_settings_set(app: tauri::AppHandle, value: ProjectSettings) -> AppResult<()> {
+pub async fn project_settings_set(app: tauri::AppHandle, mut value: ProjectSettings) -> AppResult<()> {
+    let global = store_for(&app)?.load()?;
+    value.language = Some(match value.language.as_deref() {
+        Some(language) => canonical_project_language(language).ok_or_else(|| {
+            crate::error::AppError::Invalid(format!("unsupported project language: {language}"))
+        })?,
+        None => resolve_definitive_language(global.ui_language.as_deref()),
+    });
     let conn = project_conn(&app)?;
     project_meta::write_settings(&conn, &value)
 }

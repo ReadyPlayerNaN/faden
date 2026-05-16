@@ -16,6 +16,7 @@ fn default_when_unset() {
     let conn = fresh();
     let s = project_meta::read_settings(&conn).unwrap();
     assert_eq!(s.transcription.chunk_seconds, 420);
+    assert!(s.language.is_none());
     assert!(s.prompts.codebook_gen.is_none());
 }
 
@@ -23,10 +24,12 @@ fn default_when_unset() {
 fn round_trip() {
     let conn = fresh();
     let mut s = ProjectSettings::default();
+    s.language = Some("cs".into());
     s.prompts.codebook_gen = Some("custom prompt".into());
     s.transcription.chunk_seconds = 600;
     project_meta::write_settings(&conn, &s).unwrap();
     let loaded = project_meta::read_settings(&conn).unwrap();
+    assert_eq!(loaded.language.as_deref(), Some("cs"));
     assert_eq!(
         loaded.prompts.codebook_gen.as_deref(),
         Some("custom prompt")
@@ -44,4 +47,13 @@ fn partial_overrides_preserve_defaults() {
     assert_eq!(loaded.transcription.chunk_seconds, 420);
     assert!(loaded.prompts.codebook_gen.is_none());
     assert_eq!(loaded.prompts.pretag.as_deref(), Some("p"));
+}
+
+#[test]
+fn rejects_unsupported_project_language() {
+    let conn = fresh();
+    let mut s = ProjectSettings::default();
+    s.language = Some("Klingon".into());
+    let err = project_meta::write_settings(&conn, &s).unwrap_err();
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }

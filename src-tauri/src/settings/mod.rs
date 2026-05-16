@@ -63,6 +63,88 @@ fn default_ai_model() -> String {
     "gemini-3-flash-preview".into()
 }
 
+pub const PROJECT_LANGUAGES: &[(&str, &str)] = &[
+    ("ar", "Arabic"),
+    ("bg", "Bulgarian"),
+    ("bn", "Bengali"),
+    ("ca", "Catalan"),
+    ("cs", "Czech"),
+    ("da", "Danish"),
+    ("de", "German"),
+    ("el", "Greek"),
+    ("en", "English"),
+    ("es", "Spanish"),
+    ("et", "Estonian"),
+    ("fa", "Persian"),
+    ("fi", "Finnish"),
+    ("fr", "French"),
+    ("he", "Hebrew"),
+    ("hi", "Hindi"),
+    ("hr", "Croatian"),
+    ("hu", "Hungarian"),
+    ("id", "Indonesian"),
+    ("it", "Italian"),
+    ("ja", "Japanese"),
+    ("ko", "Korean"),
+    ("lt", "Lithuanian"),
+    ("lv", "Latvian"),
+    ("nl", "Dutch"),
+    ("no", "Norwegian"),
+    ("pl", "Polish"),
+    ("pt", "Portuguese"),
+    ("ro", "Romanian"),
+    ("ru", "Russian"),
+    ("sk", "Slovak"),
+    ("sl", "Slovenian"),
+    ("sr", "Serbian"),
+    ("sv", "Swedish"),
+    ("ta", "Tamil"),
+    ("th", "Thai"),
+    ("tr", "Turkish"),
+    ("uk", "Ukrainian"),
+    ("ur", "Urdu"),
+    ("vi", "Vietnamese"),
+    ("zh", "Chinese"),
+];
+
+pub fn project_language_name(code: &str) -> Option<&'static str> {
+    PROJECT_LANGUAGES
+        .iter()
+        .find(|(candidate, _)| *candidate == code)
+        .map(|(_, name)| *name)
+}
+
+pub fn canonical_project_language(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let normalized = trimmed.to_ascii_lowercase();
+    let primary = normalized
+        .split(['-', '_', '.'])
+        .next()
+        .unwrap_or_default()
+        .trim();
+    PROJECT_LANGUAGES
+        .iter()
+        .find(|(code, name)| {
+            *code == primary || name.to_ascii_lowercase() == normalized || (*code == "cs" && primary == "cz")
+        })
+        .map(|(code, _)| (*code).to_string())
+}
+
+pub fn resolve_definitive_language(preferred: Option<&str>) -> String {
+    preferred
+        .and_then(canonical_project_language)
+        .or_else(|| {
+            std::env::var("LANG")
+                .ok()
+                .as_deref()
+                .and_then(canonical_project_language)
+        })
+        .unwrap_or_else(|| "en".into())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalSettings {
     #[serde(default)]

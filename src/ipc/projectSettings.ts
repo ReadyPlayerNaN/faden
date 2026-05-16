@@ -16,6 +16,7 @@ export type TranscriptionParams = {
 };
 
 export type ProjectSettings = {
+  language: string | null;
   prompts: PromptOverrides;
   transcription: TranscriptionParams;
 };
@@ -33,9 +34,14 @@ type RawTranscription = {
   sample_rate: number;
   bitrate: string;
 };
-type RawSettings = { prompts: RawPrompts; transcription: RawTranscription };
+type RawSettings = {
+  language: string | null;
+  prompts: RawPrompts;
+  transcription: RawTranscription;
+};
 
 const fromRaw = (r: RawSettings): ProjectSettings => ({
+  language: r.language,
   prompts: {
     transcriptionSystem: r.prompts.transcription_system,
     transcriptionUser: r.prompts.transcription_user,
@@ -52,6 +58,7 @@ const fromRaw = (r: RawSettings): ProjectSettings => ({
 });
 
 const toRaw = (s: ProjectSettings): RawSettings => ({
+  language: s.language,
   prompts: {
     transcription_system: s.prompts.transcriptionSystem,
     transcription_user: s.prompts.transcriptionUser,

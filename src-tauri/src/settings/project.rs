@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProjectSettings {
     #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
     pub prompts: PromptOverrides,
     #[serde(default)]
     pub transcription: TranscriptionParams,

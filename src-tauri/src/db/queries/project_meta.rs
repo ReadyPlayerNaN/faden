@@ -1,5 +1,6 @@
 use crate::error::{AppError, AppResult};
 use crate::settings::project::ProjectSettings;
+use crate::settings::canonical_project_language;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
@@ -54,11 +55,23 @@ pub fn read_settings(conn: &Connection) -> AppResult<ProjectSettings> {
     if raw.trim().is_empty() || raw.trim() == "{}" {
         return Ok(ProjectSettings::default());
     }
-    Ok(serde_json::from_str(&raw)?)
+    let mut settings: ProjectSettings = serde_json::from_str(&raw)?;
+    settings.language = settings
+        .language
+        .as_deref()
+        .and_then(canonical_project_language);
+    Ok(settings)
 }
 
 pub fn write_settings(conn: &Connection, settings: &ProjectSettings) -> AppResult<()> {
-    let json = serde_json::to_string(settings)?;
+    let mut normalized = settings.clone();
+    normalized.language = match settings.language.as_deref() {
+        Some(language) => Some(canonical_project_language(language).ok_or_else(|| {
+            AppError::Invalid(format!("unsupported project language: {language}"))
+        })?),
+        None => None,
+    };
+    let json = serde_json::to_string(&normalized)?;
     let affected = conn.execute(
         "UPDATE project_meta SET settings_json = ?1 WHERE id = 1",
         params![json],

@@ -73,6 +73,7 @@ async fn find_more_persists_suggestions_with_target_tag() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "en",
     )
     .await
     .unwrap()
@@ -143,6 +144,7 @@ async fn find_more_skips_empty_filtered_suggestions() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "en",
     )
     .await
     .unwrap();
@@ -179,6 +181,7 @@ async fn find_more_invalid_json_fails_run() {
         &client,
         "gemini-3-flash-preview",
         None,
+        "en",
     )
     .await
     .unwrap_err();

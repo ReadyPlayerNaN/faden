@@ -11,7 +11,8 @@ use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
 use crate::error::{AppError, AppResult};
 use crate::secrets::resolve_gemini_api_key;
-use crate::settings::SettingsStore;
+use crate::settings::project::ProjectSettings;
+use crate::settings::{resolve_definitive_language, SettingsStore};
 use crate::transcription::gemini::GeminiClient;
 use crate::transcription::pipeline::PipelineConfig;
 use crate::transcription::prompts;
@@ -27,7 +28,25 @@ fn make_client_from_settings(app: &tauri::AppHandle) -> AppResult<(GeminiClient,
     if api_key.is_empty() {
         return Err(AppError::Invalid("no Gemini API key configured".into()));
     }
-    Ok((GeminiClient::new(api_key), DEFAULT_MODEL.to_string()))
+    let settings = store.load()?;
+    let model = if settings.default_ai_model.trim().is_empty() {
+        DEFAULT_MODEL.to_string()
+    } else {
+        settings.default_ai_model
+    };
+    Ok((GeminiClient::new(api_key), model))
+}
+
+fn effective_project_settings(
+    app: &tauri::AppHandle,
+    conn: &rusqlite::Connection,
+) -> AppResult<ProjectSettings> {
+    let mut settings = crate::db::queries::project_meta::read_settings(conn)?;
+    if settings.language.is_none() {
+        let global = SettingsStore::new(app.path().app_config_dir()?).load()?;
+        settings.language = Some(resolve_definitive_language(global.ui_language.as_deref()));
+    }
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -43,7 +62,15 @@ pub async fn ai_codebook_gen_start(
     };
     let (run_id, url, body) = {
         let conn = project_conn(&app)?;
-        codebook_gen::prepare(&conn, &input, &client, &model, None)?
+        let project_settings = effective_project_settings(&app, &conn)?;
+        codebook_gen::prepare(
+            &conn,
+            &input,
+            &client,
+            &model,
+            project_settings.prompts.codebook_gen.as_deref(),
+            project_settings.language.as_deref().unwrap_or("English"),
+        )?
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
@@ -57,7 +84,15 @@ pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppRes
     let input = pretag::PretagInput { interview_id };
     let (run_id, url, body) = {
         let conn = project_conn(&app)?;
-        pretag::prepare(&conn, &input, &client, &model, None)?
+        let project_settings = effective_project_settings(&app, &conn)?;
+        pretag::prepare(
+            &conn,
+            &input,
+            &client,
+            &model,
+            project_settings.prompts.pretag.as_deref(),
+            project_settings.language.as_deref().unwrap_or("English"),
+        )?
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
@@ -78,7 +113,15 @@ pub async fn ai_find_more_start(
     };
     let (run_id, url, body) = {
         let conn = project_conn(&app)?;
-        find_more::prepare(&conn, &input, &client, &model, None)?
+        let project_settings = effective_project_settings(&app, &conn)?;
+        find_more::prepare(
+            &conn,
+            &input,
+            &client,
+            &model,
+            project_settings.prompts.find_more.as_deref(),
+            project_settings.language.as_deref().unwrap_or("English"),
+        )?
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
@@ -559,13 +602,15 @@ pub async fn ai_cost_estimate(
                 .get("include_existing_codebook")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let project_settings = effective_project_settings(&app, &conn)?;
             codebook_gen::build_prompt(
                 &conn,
                 &codebook_gen::CodebookGenInput {
                     interview_ids,
                     include_existing_codebook: include,
                 },
-                None,
+                project_settings.prompts.codebook_gen.as_deref(),
+                project_settings.language.as_deref().unwrap_or("English"),
             )?
         }
         "pretag" => {
@@ -573,7 +618,13 @@ pub async fn ai_cost_estimate(
                 .get("interview_id")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(-1);
-            pretag::build_prompt(&conn, &pretag::PretagInput { interview_id: iid }, None)?
+            let project_settings = effective_project_settings(&app, &conn)?;
+            pretag::build_prompt(
+                &conn,
+                &pretag::PretagInput { interview_id: iid },
+                project_settings.prompts.pretag.as_deref(),
+                project_settings.language.as_deref().unwrap_or("English"),
+            )?
         }
         "find_more" => {
             let tag_id = args.get("tag_id").and_then(|v| v.as_i64()).unwrap_or(-1);
@@ -581,13 +632,15 @@ pub async fn ai_cost_estimate(
                 .get("interview_id")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(-1);
+            let project_settings = effective_project_settings(&app, &conn)?;
             find_more::build_prompt(
                 &conn,
                 &find_more::FindMoreInput {
                     tag_id,
                     interview_id: iid,
                 },
-                None,
+                project_settings.prompts.find_more.as_deref(),
+                project_settings.language.as_deref().unwrap_or("English"),
             )?
         }
         "transcribe" => {

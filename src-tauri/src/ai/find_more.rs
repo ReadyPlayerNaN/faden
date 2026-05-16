@@ -18,6 +18,7 @@ pub fn build_prompt(
     conn: &Connection,
     input: &FindMoreInput,
     override_template: Option<&str>,
+    project_language: &str,
 ) -> AppResult<String> {
     let template = override_template.unwrap_or(prompts::DEFAULT_FIND_MORE);
     let t = tag::get(conn, input.tag_id)?;
@@ -38,7 +39,10 @@ pub fn build_prompt(
     vars.insert("tag_description", t.description.unwrap_or_default());
     vars.insert("example_spans", example_spans);
     vars.insert("transcript", transcript);
-    Ok(prompts::render(template, &vars))
+    Ok(prompts::with_project_language(
+        &prompts::render(template, &vars),
+        project_language,
+    ))
 }
 
 fn build_request_body(prompt: &str) -> serde_json::Value {
@@ -59,8 +63,9 @@ pub fn prepare(
     client: &GeminiClient,
     model: &str,
     prompt_override: Option<&str>,
+    project_language: &str,
 ) -> AppResult<(i64, String, serde_json::Value)> {
-    let prompt = build_prompt(conn, input, prompt_override)?;
+    let prompt = build_prompt(conn, input, prompt_override, project_language)?;
     let url = client.text_generate_url(model);
     let body = build_request_body(&prompt);
     let input_json = serde_json::to_string(&body)?;
@@ -148,8 +153,16 @@ pub async fn run(
     client: &GeminiClient,
     model: &str,
     prompt_override: Option<&str>,
+    project_language: &str,
 ) -> AppResult<Option<i64>> {
-    let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
+    let (run_id, url, body) = prepare(
+        conn,
+        &input,
+        client,
+        model,
+        prompt_override,
+        project_language,
+    )?;
     let api_result = client.post_generate(&url, &body).await;
     finalize(conn, run_id, &input, api_result)
 }
