@@ -5,6 +5,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   activeTextSelectionAtom,
   spansForCurrentInterviewAtom,
+  selectedSpanIdAtom,
 } from "../../../state/tagging";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { selectedInterviewIdAtom } from "../../../state/interview";
@@ -26,6 +27,7 @@ export const TagPopover = () => {
   const interviewId = useAtomValue(selectedInterviewIdAtom);
   const [tree, setTree] = useAtom(codebookTreeAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
+  const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -117,7 +119,7 @@ export const TagPopover = () => {
   const applyTag = async (tagId: number) => {
     if (!selection || interviewId === null) return;
     try {
-      await spanCreate({
+      const createdSpan = await spanCreate({
         interviewId,
         segmentId: selection.segmentId,
         startOffset: selection.startOffset,
@@ -126,6 +128,7 @@ export const TagPopover = () => {
       });
       const refreshed = await spanListForInterview(interviewId);
       setSpans(refreshed);
+      setSelectedSpan(createdSpan.id);
       close();
     } catch (e) {
       setError(String((e as { message?: string }).message ?? e));
