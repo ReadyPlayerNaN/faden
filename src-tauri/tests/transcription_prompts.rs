@@ -34,5 +34,5 @@ fn context_line_format() {
         text: "abych byl upřímný".into(),
     }];
     let prompt = build_prompt(&segs);
-    assert!(prompt.contains("[00:12.000 - 00:47.000] Speaker B: abych byl upřímný"));
+    assert!(prompt.contains("[00:12.000 - 00:47.000] B: abych byl upřímný"));
 }

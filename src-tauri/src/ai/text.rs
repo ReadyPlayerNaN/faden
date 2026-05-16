@@ -68,7 +68,7 @@ pub fn format_transcript(conn: &Connection, interview_id: i64) -> AppResult<Stri
             .unwrap_or("?");
         writeln!(
             out,
-            "[segment_id={}] [{:.1}-{:.1}] Speaker {}: {}",
+            "[segment_id={}] [{:.1}-{:.1}] {}: {}",
             s.id, s.start_sec, s.end_sec, label, s.text
         )
         .ok();

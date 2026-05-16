@@ -54,10 +54,12 @@ fn does_not_rescale_normal_speech() {
 #[test]
 fn canonicalizes_speaker_prefix() {
     let json = r#"{"segments":[
-        {"speaker":"Speaker A:","start":0.0,"end":1.0,"text":"hi"}
+        {"speaker":"Speaker A:","start":0.0,"end":1.0,"text":"hi"},
+        {"speaker":"Mluvčí B:","start":1.0,"end":2.0,"text":"ahoj"}
     ]}"#;
     let segs = parse_response(json, 60.0).unwrap();
     assert_eq!(segs[0].speaker, "A");
+    assert_eq!(segs[1].speaker, "B");
 }
 
 #[test]

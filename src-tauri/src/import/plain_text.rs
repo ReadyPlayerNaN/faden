@@ -22,7 +22,7 @@ pub struct ParsedSegment {
     pub text: String,
 }
 
-/// Recognize lines like `Speaker A: text`, `Interviewer: text`, `A: text`.
+/// Recognize lines like `Speaker A: text`, `Mluvčí A: text`, `Interviewer: text`, `A: text`.
 /// Pattern: starts with non-whitespace, up to 30 chars before ':', then whitespace.
 fn split_speaker_prefix(line: &str) -> Option<(String, String)> {
     if let Some(colon_idx) = line.find(':') {
@@ -77,10 +77,12 @@ pub fn parse(raw: &str) -> AppResult<ParsedTranscript> {
         }
         if let Some((prefix, rest)) = split_speaker_prefix(line) {
             flush(&mut segments, &current_speaker, &mut buffer);
-            // canonicalize speaker label: strip "Speaker " prefix
+            // canonicalize speaker label: strip known speaker prefixes
             let mut label = prefix
                 .replace("Speaker", "")
                 .replace("speaker", "")
+                .replace("Mluvčí", "")
+                .replace("mluvčí", "")
                 .trim()
                 .to_string();
             label = label.trim_end_matches(':').trim().to_string();

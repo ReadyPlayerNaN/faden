@@ -31,6 +31,8 @@ fn canonicalize_speaker(raw: &serde_json::Value) -> String {
     let s = s
         .replace("Speaker", "")
         .replace("speaker", "")
+        .replace("Mluvčí", "")
+        .replace("mluvčí", "")
         .trim()
         .to_string();
     let s = s.trim_end_matches(':').trim().to_string();

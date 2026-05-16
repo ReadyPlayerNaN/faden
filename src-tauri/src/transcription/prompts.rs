@@ -52,7 +52,7 @@ pub fn build_prompt(previous_segments: &[ParsedSegment]) -> String {
     let mut ctx = String::new();
     for s in recent {
         ctx.push_str(&format!(
-            "[{} - {}] Speaker {}: {}\n",
+            "[{} - {}] {}: {}\n",
             format_timestamp(s.start),
             format_timestamp(s.end),
             s.speaker,
