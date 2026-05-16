@@ -540,6 +540,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
   const requestSegmentPlayback = (segment: SegmentDTO, loop: boolean) => {
     setSegmentPlaybackRequest({
       requestId: Date.now(),
+      interviewId,
       segmentId: segment.id,
       startSec: segment.startSec,
       endSec: segment.endSec,

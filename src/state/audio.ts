@@ -2,6 +2,7 @@ import { atom } from "jotai";
 
 export type SegmentPlaybackRequest = {
   requestId: number;
+  interviewId: number;
   segmentId: number;
   startSec: number;
   endSec: number;

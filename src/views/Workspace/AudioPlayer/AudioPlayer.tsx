@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { selectedInterviewAtom } from "../../../state/interview";
 import {
   segmentPlaybackRequestAtom,
@@ -32,6 +32,7 @@ export const AudioPlayer = () => {
   const { t } = useTranslation();
   const interview = useAtomValue(selectedInterviewAtom);
   const segmentPlaybackRequest = useAtomValue(segmentPlaybackRequestAtom);
+  const setSegmentPlaybackRequest = useSetAtom(segmentPlaybackRequestAtom);
   const [segmentPlaybackState, setSegmentPlaybackState] = useAtom(
     segmentPlaybackStateAtom,
   );
@@ -89,11 +90,18 @@ export const AudioPlayer = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const el = audioElRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+    }
     setSrc(null);
     setPlaybackError(null);
     setPlaying(false);
     setTime(0);
     setDuration(0);
+    setSegmentPlaybackRequest(null);
     setSegmentPlaybackState({
       activeSegmentId: null,
       startSec: null,
@@ -117,7 +125,7 @@ export const AudioPlayer = () => {
     return () => {
       cancelled = true;
     };
-  }, [interview?.audioPath, interview?.id, resolveStreamUrl, setSegmentPlaybackState]);
+  }, [interview?.audioPath, interview?.id, resolveStreamUrl, setSegmentPlaybackRequest, setSegmentPlaybackState]);
 
   useEffect(() => {
     srcRef.current = src;
@@ -138,7 +146,14 @@ export const AudioPlayer = () => {
   }, [audioEl, speed]);
 
   useEffect(() => {
-    if (!segmentPlaybackRequest || !audioEl || !interview?.audioPath) return;
+    if (
+      !segmentPlaybackRequest ||
+      !audioEl ||
+      !interview?.audioPath ||
+      segmentPlaybackRequest.interviewId !== interview.id
+    ) {
+      return;
+    }
 
     const current = segmentPlaybackStateRef.current;
     if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
