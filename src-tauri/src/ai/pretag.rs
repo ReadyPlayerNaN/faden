@@ -20,9 +20,11 @@ pub fn build_prompt(
     let template = override_template.unwrap_or(prompts::DEFAULT_PRETAG);
     let transcript = text::format_transcript(conn, input.interview_id)?;
     let codebook = text::format_codebook(conn)?;
+    let existing_tagged_spans = text::format_existing_tagged_spans(conn, input.interview_id)?;
     let mut vars = HashMap::new();
     vars.insert("transcript", transcript);
     vars.insert("codebook", codebook);
+    vars.insert("existing_tagged_spans", existing_tagged_spans);
     Ok(prompts::render(template, &vars))
 }
 
@@ -82,6 +84,7 @@ pub fn finalize(
 
     let known_tags: HashSet<String> = tag::list_all(conn)?.into_iter().map(|t| t.name).collect();
     let mut valid_suggestions: Vec<SpanSuggestion> = Vec::new();
+    let mut seen = HashSet::new();
     let mut skipped = 0_usize;
     for s in parsed.suggestions {
         let seg = match segment::get(conn, s.segment_id) {
@@ -102,6 +105,19 @@ pub fn finalize(
             .filter(|n| known_tags.contains(n))
             .collect();
         if tag_names.is_empty() {
+            skipped += 1;
+            continue;
+        }
+        let mut dedup_key_tags = tag_names.clone();
+        dedup_key_tags.sort();
+        let dedup_key = format!(
+            "{}:{}:{}:{}",
+            s.segment_id,
+            s.start_offset,
+            s.end_offset,
+            dedup_key_tags.join("|")
+        );
+        if !seen.insert(dedup_key) {
             skipped += 1;
             continue;
         }

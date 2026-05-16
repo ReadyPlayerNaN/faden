@@ -75,6 +75,33 @@ async fn pretag_persists_filtered_suggestions() {
     assert_eq!(n, 1, "unknown-tag suggestion should be filtered");
 }
 
+#[test]
+fn pretag_prompt_uses_existing_tags_only_and_avoids_duplicates() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: "hello world".into(),
+        }],
+    )
+    .unwrap();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let prompt = pretag::build_prompt(&conn, &PretagInput { interview_id: i.id }, None).unwrap();
+    assert!(prompt.contains("Use only existing tags"));
+    assert!(prompt.contains("do not suggest new ones"));
+    assert!(prompt.contains("Avoid unnecessary duplication"));
+    assert!(prompt.contains("Already tagged spans in this interview"));
+}
+
 #[tokio::test]
 async fn pretag_invalid_json_fails_run() {
     let mut server = Server::new_async().await;

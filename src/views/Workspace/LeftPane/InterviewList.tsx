@@ -3,11 +3,26 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
+  aiCodebookGenStart,
+  aiCostEstimate,
+  aiPretagStart,
+  aiProposalList,
+  aiRunList,
+  type CostEstimate,
+  type ProposalKind,
+} from "../../../ipc/ai";
+import {
   interviewDelete,
   interviewList as fetchList,
   interviewSetAudio,
 } from "../../../ipc/interview";
 import { transcribeStart, transcribeCancel } from "../../../ipc/transcribe";
+import {
+  activeAiOperationsAtom,
+  aiRunHistoryAtom,
+  pendingProposalsAtom,
+  skipCostConfirmAtom,
+} from "../../../state/ai";
 import {
   interviewListAtom,
   selectedInterviewIdAtom,
@@ -15,6 +30,7 @@ import {
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
+import { CostPreviewModal } from "../AI/CostPreviewModal";
 import { AddInterviewModal } from "./AddInterviewModal";
 import { EditInterviewModal } from "./EditInterviewModal";
 import styles from "./InterviewList.module.css";
@@ -25,12 +41,106 @@ export const InterviewList = () => {
   const [list, setList] = useAtom(interviewListAtom);
   const [selected, setSelected] = useAtom(selectedInterviewIdAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
+  const skip = useAtomValue(skipCostConfirmAtom);
+  const setSkip = useSetAtom(skipCostConfirmAtom);
+  const setProposals = useSetAtom(pendingProposalsAtom);
+  const setAiRuns = useSetAtom(aiRunHistoryAtom);
+  const setActiveOps = useSetAtom(activeAiOperationsAtom);
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    interview: Interview;
+    kind: ProposalKind;
+  } | null>(null);
+  const [estimate, setEstimate] = useState<CostEstimate | null>(null);
 
   useEffect(() => {
     void fetchList().then(setList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refreshProposals = async () => setProposals(await aiProposalList());
+  const refreshRuns = async () => setAiRuns(await aiRunList());
+
+  const startLocalOperation = (
+    kind: ProposalKind,
+    interviewId: number,
+    interviewName: string,
+  ): string => {
+    const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setActiveOps((prev) => [
+      {
+        id,
+        kind,
+        startedAt: new Date().toISOString(),
+        interviewId,
+        label: t("ai.operationWithInterview", {
+          kind: t(`ai.kinds.${kind}`),
+          name: interviewName,
+        }),
+      },
+      ...prev,
+    ]);
+    return id;
+  };
+
+  const finishLocalOperation = (id: string) => {
+    setActiveOps((prev) => prev.filter((op) => op.id !== id));
+  };
+
+  const startInterviewAiAction = async (
+    interview: Interview,
+    kind: ProposalKind,
+  ) => {
+    const localId = startLocalOperation(kind, interview.id, interview.name);
+    try {
+      if (kind === "codebook_gen") {
+        await aiCodebookGenStart([interview.id], true);
+      } else if (kind === "pretag") {
+        await aiPretagStart(interview.id);
+      }
+      await Promise.all([refreshProposals(), refreshRuns()]);
+    } catch (e) {
+      await refreshRuns().catch(() => undefined);
+      window.alert(String((e as { message?: string }).message ?? e));
+    } finally {
+      finishLocalOperation(localId);
+    }
+  };
+
+  const onInterviewAiAction = async (interview: Interview, kind: ProposalKind) => {
+    setSelected(interview.id);
+    if (skip[kind]) {
+      await startInterviewAiAction(interview, kind);
+      return;
+    }
+    try {
+      const args =
+        kind === "codebook_gen"
+          ? { interview_ids: [interview.id], include_existing_codebook: true }
+          : { interview_id: interview.id };
+      const nextEstimate = await aiCostEstimate(kind, args);
+      setPendingAction({ interview, kind });
+      setEstimate(nextEstimate);
+    } catch (e) {
+      window.alert(String((e as { message?: string }).message ?? e));
+    }
+  };
+
+  const onCancelModal = () => {
+    setPendingAction(null);
+    setEstimate(null);
+  };
+
+  const onSendFromModal = async (dontAsk: boolean) => {
+    const action = pendingAction;
+    setPendingAction(null);
+    setEstimate(null);
+    if (!action) return;
+    if (dontAsk) {
+      setSkip({ ...skip, [action.kind]: true });
+    }
+    await startInterviewAiAction(action.interview, action.kind);
+  };
 
   return (
     <div className={styles.wrap}>
@@ -45,12 +155,22 @@ export const InterviewList = () => {
               iv={i}
               selected={selected === i.id}
               onSelect={() => setSelected(i.id)}
+              onDeriveCodebook={() => void onInterviewAiAction(i, "codebook_gen")}
+              onPretag={() => void onInterviewAiAction(i, "pretag")}
               progress={runs[i.id]}
             />
           ))}
         </ul>
       )}
       {modalOpen && <AddInterviewModal onClose={() => setModalOpen(false)} />}
+      {pendingAction && estimate && (
+        <CostPreviewModal
+          estimate={estimate}
+          prompt=""
+          onSend={onSendFromModal}
+          onCancel={onCancelModal}
+        />
+      )}
     </div>
   );
 };
@@ -59,10 +179,12 @@ type RowProps = {
   iv: Interview;
   selected: boolean;
   onSelect: () => void;
+  onDeriveCodebook: () => void;
+  onPretag: () => void;
   progress?: import("../../../state/transcription").RunSnapshot;
 };
 
-const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
+const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, progress }: RowProps) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
   const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
@@ -201,6 +323,32 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
                   {t("audio.add", { defaultValue: "Add audio…" })}
                 </button>
               )}
+              <button
+                type="button"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onSelect();
+                  onDeriveCodebook();
+                }}
+              >
+                {t("ai.generateCodebook")}
+              </button>
+              <button
+                type="button"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onSelect();
+                  onPretag();
+                }}
+              >
+                {t("ai.preTag")}
+              </button>
               <button
                 type="button"
                 className={styles.menuItem}

@@ -77,6 +77,24 @@ async fn codebook_gen_persists_proposal_on_success() {
     let _ = _proposal_alias::list_pending(&conn, None).unwrap();
 }
 
+#[test]
+fn codebook_gen_prompt_prefers_enhancing_existing_codebook_without_duplicates() {
+    let conn = fresh();
+    let prompt = codebook_gen::build_prompt(
+        &conn,
+        &CodebookGenInput {
+            interview_ids: vec![],
+            include_existing_codebook: true,
+        },
+        None,
+    )
+    .unwrap();
+
+    assert!(prompt.contains("starting point and improve it"));
+    assert!(prompt.contains("Do not recreate existing tags"));
+    assert!(prompt.contains("near-duplicates or semantically equivalent tags"));
+}
+
 #[tokio::test]
 async fn codebook_gen_invalid_json_marks_run_failed() {
     let mut server = Server::new_async().await;

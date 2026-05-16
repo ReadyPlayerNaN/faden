@@ -303,6 +303,32 @@ pub async fn ai_proposal_accept(
                         continue;
                     }
                 };
+                let existing_spans = tagged_span::list_for_interview(&conn, seg.interview_id)?;
+                if let Some(existing_span) = existing_spans.into_iter().find(|span| {
+                    span.segment_id == s.segment_id
+                        && span.start_offset == s.start_offset
+                        && span.end_offset == s.end_offset
+                }) {
+                    let existing_tag_ids: std::collections::HashSet<i64> =
+                        span_tag::list_for_span(&conn, existing_span.id)?
+                            .into_iter()
+                            .map(|st| st.0)
+                            .collect();
+                    let mut attached_any = false;
+                    for tid in tag_ids {
+                        if existing_tag_ids.contains(&tid) {
+                            continue;
+                        }
+                        span_tag::attach(&conn, existing_span.id, tid, SpanTagSource::AiAccepted)?;
+                        attached_any = true;
+                    }
+                    if attached_any {
+                        created += 1;
+                    } else {
+                        skipped.push(format!("index {idx}: duplicate existing span/tag assignment"));
+                    }
+                    continue;
+                }
                 let text_len = seg.text.chars().count();
                 let snapshot: String = seg
                     .text

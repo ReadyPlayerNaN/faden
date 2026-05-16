@@ -200,33 +200,6 @@ export const AiMenu = () => {
     setEstimate(null);
   };
 
-  const onGenerateCodebook = () => {
-    setOpen(false);
-    if (interviews.length === 0) {
-      setStatus(t("ai.selectInterviewFirst"));
-      return;
-    }
-    const ids =
-      selectedInterviewId !== null
-        ? [selectedInterviewId]
-        : interviews.map((i) => i.id);
-    void launch({
-      kind: "codebook_gen",
-      args: { interview_ids: ids, include_existing_codebook: true },
-    });
-  };
-
-  const onPreTag = () => {
-    setOpen(false);
-    if (selectedInterviewId === null) {
-      setStatus(t("ai.selectInterviewFirst"));
-      return;
-    }
-    void launch({
-      kind: "pretag",
-      args: { interview_id: selectedInterviewId },
-    });
-  };
 
   const onFindMore = () => {
     setOpen(false);
@@ -274,24 +247,6 @@ export const AiMenu = () => {
       </Button>
       {open && (
         <div className={styles.menu} role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.item}
-            onClick={onGenerateCodebook}
-            disabled={busy}
-          >
-            {t("ai.generateCodebook")}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.item}
-            onClick={onPreTag}
-            disabled={busy || selectedInterviewId === null}
-          >
-            {t("ai.preTag")}
-          </button>
           <button
             type="button"
             role="menuitem"
