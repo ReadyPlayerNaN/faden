@@ -3,7 +3,9 @@ import {
 	createRoute,
 	createRootRoute,
 	Outlet,
+	useLocation,
 } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
 import { ProjectPicker } from "./views/ProjectPicker/ProjectPicker";
 import { Workspace } from "./views/Workspace/Workspace";
 import { Settings } from "./views/Settings/Settings";
@@ -12,9 +14,33 @@ import { PeopleView } from "./views/People/PeopleView";
 import { AiOpsView } from "./views/AI/AiOpsView";
 import { AiOpDetailView } from "./views/AI/AiOpDetailView";
 import { SuggestionsView } from "./views/AI/SuggestionsView";
+import { AudioPlayer } from "./views/Workspace/AudioPlayer/AudioPlayer";
+import { currentProjectAtom } from "./state/project";
+
+const isProjectRoute = (pathname: string) =>
+	pathname === "/tags" ||
+	pathname === "/people" ||
+	pathname.startsWith("/workspace/") ||
+	(pathname.startsWith("/settings/") && pathname !== "/settings");
+
+const RootLayout = () => {
+	const location = useLocation();
+	const project = useAtomValue(currentProjectAtom);
+	const showProjectStatusBar = Boolean(project) && isProjectRoute(location.pathname);
+	const showAudioControls = location.pathname.startsWith("/workspace/");
+
+	return (
+		<div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+			<div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+				<Outlet />
+			</div>
+			{showProjectStatusBar ? <AudioPlayer showAudioControls={showAudioControls} /> : null}
+		</div>
+	);
+};
 
 const rootRoute = createRootRoute({
-	component: () => <Outlet />,
+	component: RootLayout,
 });
 
 const pickerRoute = createRoute({

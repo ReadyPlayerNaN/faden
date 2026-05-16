@@ -23,7 +23,6 @@ import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
-import { AudioPlayer } from "./AudioPlayer/AudioPlayer";
 import { ExportMenu } from "./Export/ExportMenu";
 import styles from "./Workspace.module.css";
 
@@ -219,7 +218,6 @@ export const Workspace = () => {
           <RightPane />
         </div>
       </div>
-      <AudioPlayer />
       {exportOpen && project && (
         <ExportMenu
           projectName={project.name}

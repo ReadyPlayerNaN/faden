@@ -31,7 +31,11 @@ const isAbortError = (error: unknown): boolean =>
 const isAbortedMediaError = (error: MediaError | null | undefined): boolean =>
   error?.code === 1;
 
-export const AudioPlayer = () => {
+type AudioPlayerProps = {
+  showAudioControls?: boolean;
+};
+
+export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   const { t } = useTranslation();
   const interview = useAtomValue(selectedInterviewAtom);
   const segmentPlaybackRequest = useAtomValue(segmentPlaybackRequestAtom);
@@ -337,6 +341,18 @@ export const AudioPlayer = () => {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [speedMenuOpen]);
+
+  if (!showAudioControls) {
+    return (
+      <div className={styles.bar}>
+        <div className={styles.audioPanelPlaceholder} aria-hidden="true" />
+        <div className={styles.statusArea}>
+          <SuggestionMenu />
+          <AiMenu />
+        </div>
+      </div>
+    );
+  }
 
   if (!interview?.audioPath) {
     return (
