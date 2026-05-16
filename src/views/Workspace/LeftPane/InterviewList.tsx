@@ -154,7 +154,7 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
       );
     }
     if (status === "complete") {
-      return <span className={styles.rowRight + " " + styles.statusOk}>{t("workspace.transcriptComplete")}</span>;
+      return null;
     }
     if (hasAudio && (status === "none" || status === "failed")) {
       return (
