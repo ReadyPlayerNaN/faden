@@ -1,3 +1,4 @@
+use crate::db::queries::{ai_run_ops, interview};
 use crate::error::{AppError, AppResult};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -199,4 +200,27 @@ pub fn list_for_interview(conn: &Connection, interview_id: i64) -> AppResult<Vec
         out.push(row?);
     }
     Ok(out)
+}
+
+pub fn reconcile_interrupted_runs(conn: &Connection) -> AppResult<usize> {
+    let interrupted = list_all(conn)?
+        .into_iter()
+        .filter(|run| run.status == AiRunStatus::Running)
+        .collect::<Vec<_>>();
+    if interrupted.is_empty() {
+        return Ok(0);
+    }
+
+    for run in &interrupted {
+        let message = "operation interrupted because the app closed unexpectedly; retry to continue";
+        ai_run_ops::recover_interrupted_run(conn, run.id, message)?;
+        fail(conn, run.id, message, None)?;
+        if run.kind == AiRunKind::Transcribe {
+            if let Some(interview_id) = run.interview_id {
+                interview::set_status(conn, interview_id, interview::TranscriptStatus::Failed)?;
+            }
+        }
+    }
+
+    Ok(interrupted.len())
 }

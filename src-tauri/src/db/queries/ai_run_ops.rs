@@ -423,3 +423,34 @@ pub fn mark_pending_tasks_cancelled(
     )?;
     Ok(())
 }
+
+pub fn recover_interrupted_run(conn: &Connection, ai_run_id: i64, error: &str) -> AppResult<()> {
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE ai_run_task
+         SET status = 'failed', completed_at = COALESCE(completed_at, ?1), error = COALESCE(error, ?2)
+         WHERE ai_run_stage_id IN (SELECT id FROM ai_run_stage WHERE ai_run_id = ?3)
+           AND status IN ('running', 'retrying')",
+        params![now, error, ai_run_id],
+    )?;
+    conn.execute(
+        "UPDATE ai_run_task
+         SET status = 'cancelled', completed_at = COALESCE(completed_at, ?1)
+         WHERE ai_run_stage_id IN (SELECT id FROM ai_run_stage WHERE ai_run_id = ?2)
+           AND status = 'pending'",
+        params![now, ai_run_id],
+    )?;
+    conn.execute(
+        "UPDATE ai_run_stage
+         SET status = 'failed', completed_at = COALESCE(completed_at, ?1), error = COALESCE(error, ?2)
+         WHERE ai_run_id = ?3 AND status IN ('running', 'retrying')",
+        params![now, error, ai_run_id],
+    )?;
+    conn.execute(
+        "UPDATE ai_run_stage
+         SET status = 'cancelled', completed_at = COALESCE(completed_at, ?1)
+         WHERE ai_run_id = ?2 AND status = 'pending'",
+        params![now, ai_run_id],
+    )?;
+    Ok(())
+}

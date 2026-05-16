@@ -1,6 +1,6 @@
 use crate::commands::util::project_conn;
 use crate::db;
-use crate::db::queries::project_meta;
+use crate::db::queries::{ai_run, project_meta};
 use crate::error::{AppError, AppResult};
 use deunicode::deunicode;
 use serde::{Deserialize, Serialize};
@@ -147,6 +147,8 @@ pub async fn project_open(app: tauri::AppHandle, path: String) -> AppResult<Proj
     let info = project_open_impl(path.clone()).await?;
     app.state::<crate::app_state::AppState>()
         .set_current(PathBuf::from(&path));
+    let conn = project_conn(&app)?;
+    ai_run::reconcile_interrupted_runs(&conn)?;
     Ok(info)
 }
 
