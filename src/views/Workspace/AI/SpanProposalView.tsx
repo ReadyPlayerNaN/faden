@@ -4,7 +4,12 @@ import { aiProposalAccept, type ProposalDTO } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
 import styles from "./SpanProposalView.module.css";
 
-type Props = { proposal: ProposalDTO; onDone: () => void };
+type Props = {
+  proposal: ProposalDTO;
+  onAccepted?: () => Promise<void> | void;
+  onReject?: () => Promise<void> | void;
+  onDone: () => void;
+};
 
 type Suggestion = {
   segment_id: number;
@@ -24,7 +29,12 @@ const errorMessage = (e: unknown): string => {
   return String(e);
 };
 
-export const SpanProposalView = ({ proposal, onDone }: Props) => {
+export const SpanProposalView = ({
+  proposal,
+  onAccepted,
+  onReject,
+  onDone,
+}: Props) => {
   const { t } = useTranslation();
   const payload = (proposal.payload ?? {}) as SpanPayload;
   const suggestions: Suggestion[] = payload.suggestions ?? [];
@@ -33,6 +43,7 @@ export const SpanProposalView = ({ proposal, onDone }: Props) => {
   );
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const isPending = proposal.status === "pending";
 
   const toggle = (i: number) => {
     setSelected((prev) => {
@@ -50,6 +61,7 @@ export const SpanProposalView = ({ proposal, onDone }: Props) => {
       .filter((i) => i >= 0);
     try {
       const r = await aiProposalAccept(proposal.id, { span_indices: indices });
+      await onAccepted?.();
       setResult(
         t("ai.accepted", {
           created: r.created_count,
@@ -64,15 +76,31 @@ export const SpanProposalView = ({ proposal, onDone }: Props) => {
     }
   };
 
+  const onDecline = async () => {
+    setBusy(true);
+    try {
+      await onReject?.();
+      setResult(t("ai.rejected"));
+      setTimeout(onDone, 1000);
+    } catch (e) {
+      setResult(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className={styles.wrap}>
       <h2>
         {proposal.kind === "pretag" ? t("ai.preTag") : t("ai.findMore")}
       </h2>
-      <div className={styles.bulk}>
-        <Button onClick={() => setAll(true)}>{t("ai.acceptAll")}</Button>
-        <Button onClick={() => setAll(false)}>{t("ai.rejectAll")}</Button>
-      </div>
+      <p>{t(`ai.proposalStatus.${proposal.status === "pending" ? "new" : proposal.status}`)}</p>
+      {isPending && (
+        <div className={styles.bulk}>
+          <Button onClick={() => setAll(true)}>{t("ai.acceptAll")}</Button>
+          <Button onClick={() => setAll(false)}>{t("ai.rejectAll")}</Button>
+        </div>
+      )}
       <ul className={styles.list}>
         {suggestions.map((s, i) => (
           <li key={i} className={styles.item}>
@@ -81,6 +109,7 @@ export const SpanProposalView = ({ proposal, onDone }: Props) => {
                 type="checkbox"
                 checked={selected[i] ?? false}
                 onChange={() => toggle(i)}
+                disabled={!isPending}
               />
               <span className={styles.tags}>
                 {s.tag_names.map((n) => (
@@ -100,13 +129,20 @@ export const SpanProposalView = ({ proposal, onDone }: Props) => {
       <div className={styles.actions}>
         {result && <span className={styles.result}>{result}</span>}
         <Button onClick={onDone}>{t("common.cancel")}</Button>
-        <Button
-          variant="primary"
-          onClick={() => void onAccept()}
-          disabled={busy}
-        >
-          {t("ai.accept")}
-        </Button>
+        {isPending && (
+          <Button variant="danger" onClick={() => void onDecline()} disabled={busy}>
+            {t("ai.reject")}
+          </Button>
+        )}
+        {isPending && (
+          <Button
+            variant="primary"
+            onClick={() => void onAccept()}
+            disabled={busy}
+          >
+            {t("ai.accept")}
+          </Button>
+        )}
       </div>
     </div>
   );

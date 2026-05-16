@@ -15,6 +15,7 @@ type RawCostEstimate = {
 };
 
 export type ProposalKind = "codebook_gen" | "pretag" | "find_more";
+export type ProposalStatus = "pending" | "accepted" | "rejected";
 export type AiRunKind = ProposalKind | "transcribe";
 export type AiRunStatus = "running" | "complete" | "failed" | "cancelled";
 
@@ -22,6 +23,9 @@ export type ProposalDTO = {
   id: number;
   kind: ProposalKind;
   payload: unknown;
+  status: ProposalStatus;
+  createdAt: string;
+  decidedAt: string | null;
 };
 
 export type AiRunDTO = {
@@ -63,8 +67,10 @@ export const aiFindMoreStart = (
 ): Promise<number> =>
   invoke<number>("ai_find_more_start", { tagId, interviewId });
 
-export const aiProposalList = (): Promise<ProposalDTO[]> =>
-  invoke<ProposalDTO[]>("ai_proposal_list");
+export const aiProposalList = (
+  statuses?: ProposalStatus[],
+): Promise<ProposalDTO[]> =>
+  invoke<ProposalDTO[]>("ai_proposal_list", { statuses });
 
 export const aiProposalGet = (proposalId: number): Promise<ProposalDTO> =>
   invoke<ProposalDTO>("ai_proposal_get", { proposalId });

@@ -4,7 +4,12 @@ import { aiProposalAccept, type ProposalDTO } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
 import styles from "./CodebookProposalView.module.css";
 
-type Props = { proposal: ProposalDTO; onDone: () => void };
+type Props = {
+  proposal: ProposalDTO;
+  onAccepted?: () => Promise<void> | void;
+  onReject?: () => Promise<void> | void;
+  onDone: () => void;
+};
 
 type SelTagNode = {
   name: string;
@@ -78,17 +83,25 @@ const initialSelection = (payload: unknown): SelectionState => {
   };
 };
 
-export const CodebookProposalView = ({ proposal, onDone }: Props) => {
+export const CodebookProposalView = ({
+  proposal,
+  onAccepted,
+  onReject,
+  onDone,
+}: Props) => {
   const { t } = useTranslation();
   const [sel, setSel] = useState<SelectionState>(initialSelection(proposal.payload));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const isPending = proposal.status === "pending";
 
   const onAccept = async () => {
     setBusy(true);
     try {
-      const payload = sel.mode === "flat" ? { tags: sel.tags } : { clusters: sel.clusters };
+      const payload =
+        sel.mode === "flat" ? { tags: sel.tags } : { clusters: sel.clusters };
       const r = await aiProposalAccept(proposal.id, payload);
+      await onAccepted?.();
       setResult(
         t("ai.accepted", {
           created: r.created_count,
@@ -96,6 +109,19 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
         }),
       );
       setTimeout(onDone, 1500);
+    } catch (e) {
+      setResult(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDecline = async () => {
+    setBusy(true);
+    try {
+      await onReject?.();
+      setResult(t("ai.rejected"));
+      setTimeout(onDone, 1000);
     } catch (e) {
       setResult(errorMessage(e));
     } finally {
@@ -179,6 +205,7 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
   return (
     <div className={styles.wrap}>
       <h2>{t("ai.generateCodebook")}</h2>
+      <p>{t(`ai.proposalStatus.${proposal.status === "pending" ? "new" : proposal.status}`)}</p>
       {sel.mode === "flat"
         ? sel.tags.map((tag, i) => (
             <div key={`${tag.name}-${i}`} className={styles.tag}>
@@ -187,6 +214,7 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
                   type="checkbox"
                   checked={tag.accept}
                   onChange={() => toggleFlatTag(i)}
+                  disabled={!isPending}
                 />
                 {tag.name}
                 {tag.description && <span className={styles.desc}> — {tag.description}</span>}
@@ -200,6 +228,7 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
                   type="checkbox"
                   checked={cluster.accept}
                   onChange={() => toggleCluster(i)}
+                  disabled={!isPending}
                 />
                 <strong>{cluster.name}</strong>
                 {cluster.description && (
@@ -214,6 +243,7 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
                         type="checkbox"
                         checked={category.accept}
                         onChange={() => toggleCategory(i, j)}
+                        disabled={!isPending}
                       />
                       {category.name}
                       {category.description && (
@@ -228,6 +258,7 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
                               type="checkbox"
                               checked={tag.accept}
                               onChange={() => toggleLegacyTag(i, j, k)}
+                              disabled={!isPending}
                             />
                             {tag.name}
                             {tag.description && (
@@ -245,9 +276,16 @@ export const CodebookProposalView = ({ proposal, onDone }: Props) => {
       <div className={styles.actions}>
         {result && <span className={styles.result}>{result}</span>}
         <Button onClick={onDone}>{t("common.cancel")}</Button>
-        <Button variant="primary" onClick={() => void onAccept()} disabled={busy}>
-          {t("ai.accept")}
-        </Button>
+        {isPending && (
+          <Button variant="danger" onClick={() => void onDecline()} disabled={busy}>
+            {t("ai.reject")}
+          </Button>
+        )}
+        {isPending && (
+          <Button variant="primary" onClick={() => void onAccept()} disabled={busy}>
+            {t("ai.accept")}
+          </Button>
+        )}
       </div>
     </div>
   );

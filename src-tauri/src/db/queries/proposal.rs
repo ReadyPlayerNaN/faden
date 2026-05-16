@@ -29,7 +29,7 @@ impl ProposalKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposalStatus {
     Pending,
@@ -121,27 +121,56 @@ pub fn get(conn: &Connection, id: i64) -> AppResult<StoredProposal> {
     .ok_or_else(|| AppError::NotFound(format!("proposal {id}")))
 }
 
+pub fn list(
+    conn: &Connection,
+    kind: Option<ProposalKind>,
+    statuses: &[ProposalStatus],
+) -> AppResult<Vec<StoredProposal>> {
+    let mut out = Vec::new();
+    let mut all = Vec::new();
+    if let Some(k) = kind {
+        let mut stmt = conn.prepare(
+            "SELECT id, ai_run_id, kind, payload_json, status, created_at, decided_at FROM proposal WHERE kind = ?1 ORDER BY created_at DESC",
+        )?;
+        for r in stmt.query_map(params![k.as_str()], map_row)? {
+            all.push(r?);
+        }
+    } else {
+        let mut stmt = conn.prepare(
+            "SELECT id, ai_run_id, kind, payload_json, status, created_at, decided_at FROM proposal ORDER BY created_at DESC",
+        )?;
+        for r in stmt.query_map([], map_row)? {
+            all.push(r?);
+        }
+    }
+
+    let status_filter: std::collections::HashSet<ProposalStatus> =
+        statuses.iter().copied().collect();
+    for proposal in all {
+        if status_filter.contains(&proposal.status) {
+            out.push(proposal);
+        }
+    }
+    Ok(out)
+}
+
+pub fn list_for_run(
+    conn: &Connection,
+    ai_run_id: i64,
+    kind: Option<ProposalKind>,
+    statuses: &[ProposalStatus],
+) -> AppResult<Vec<StoredProposal>> {
+    Ok(list(conn, kind, statuses)?
+        .into_iter()
+        .filter(|proposal| proposal.ai_run_id == ai_run_id)
+        .collect())
+}
+
 pub fn list_pending(
     conn: &Connection,
     kind: Option<ProposalKind>,
 ) -> AppResult<Vec<StoredProposal>> {
-    let mut out = Vec::new();
-    if let Some(k) = kind {
-        let mut stmt = conn.prepare(
-            "SELECT id, ai_run_id, kind, payload_json, status, created_at, decided_at FROM proposal WHERE status = 'pending' AND kind = ?1 ORDER BY created_at DESC",
-        )?;
-        for r in stmt.query_map(params![k.as_str()], map_row)? {
-            out.push(r?);
-        }
-    } else {
-        let mut stmt = conn.prepare(
-            "SELECT id, ai_run_id, kind, payload_json, status, created_at, decided_at FROM proposal WHERE status = 'pending' ORDER BY created_at DESC",
-        )?;
-        for r in stmt.query_map([], map_row)? {
-            out.push(r?);
-        }
-    }
-    Ok(out)
+    list(conn, kind, &[ProposalStatus::Pending])
 }
 
 pub fn mark_accepted(conn: &Connection, id: i64) -> AppResult<()> {

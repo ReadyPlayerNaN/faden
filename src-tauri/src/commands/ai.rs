@@ -2,7 +2,7 @@ use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions};
 use crate::commands::util::project_conn;
 use crate::db::queries::ai_run;
-use crate::db::queries::proposal::{self, ProposalKind};
+use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
 use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
 use crate::error::{AppError, AppResult};
@@ -43,7 +43,8 @@ pub async fn ai_codebook_gen_start(
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
-    codebook_gen::finalize(&conn, run_id, api_result)
+    codebook_gen::finalize(&conn, run_id, api_result)?;
+    Ok(run_id)
 }
 
 #[tauri::command]
@@ -56,7 +57,8 @@ pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppRes
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
-    pretag::finalize(&conn, run_id, interview_id, api_result)
+    pretag::finalize(&conn, run_id, interview_id, api_result)?;
+    Ok(run_id)
 }
 
 #[tauri::command]
@@ -76,14 +78,20 @@ pub async fn ai_find_more_start(
     };
     let api_result = client.post_generate(&url, &body).await;
     let conn = project_conn(&app)?;
-    find_more::finalize(&conn, run_id, &input, api_result)
+    find_more::finalize(&conn, run_id, &input, api_result)?;
+    Ok(run_id)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProposalDTO {
     pub id: i64,
+    pub ai_run_id: i64,
     pub kind: String,
     pub payload: Value,
+    pub status: String,
+    pub created_at: String,
+    pub decided_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -100,6 +108,24 @@ pub struct AiRunDTO {
     pub error: Option<String>,
     pub token_usage_json: Option<String>,
     pub result_summary: Option<String>,
+    pub raw_output: Option<String>,
+}
+
+fn ai_run_to_dto(run: ai_run::AiRun) -> AiRunDTO {
+    AiRunDTO {
+        id: run.id,
+        kind: run.kind.as_str().to_string(),
+        interview_id: run.interview_id,
+        model: run.model,
+        prompt: run.prompt,
+        started_at: run.started_at,
+        completed_at: run.completed_at,
+        status: run.status.as_str().to_string(),
+        error: run.error,
+        token_usage_json: run.token_usage_json,
+        result_summary: run.result_summary,
+        raw_output: run.raw_output,
+    }
 }
 
 #[tauri::command]
@@ -107,20 +133,14 @@ pub async fn ai_run_list(app: tauri::AppHandle) -> AppResult<Vec<AiRunDTO>> {
     let conn = project_conn(&app)?;
     Ok(ai_run::list_all(&conn)?
         .into_iter()
-        .map(|run| AiRunDTO {
-            id: run.id,
-            kind: run.kind.as_str().to_string(),
-            interview_id: run.interview_id,
-            model: run.model,
-            prompt: run.prompt,
-            started_at: run.started_at,
-            completed_at: run.completed_at,
-            status: run.status.as_str().to_string(),
-            error: run.error,
-            token_usage_json: run.token_usage_json,
-            result_summary: run.result_summary,
-        })
+        .map(ai_run_to_dto)
         .collect())
+}
+
+#[tauri::command]
+pub async fn ai_run_get(app: tauri::AppHandle, run_id: i64) -> AppResult<AiRunDTO> {
+    let conn = project_conn(&app)?;
+    Ok(ai_run_to_dto(ai_run::get(&conn, run_id)?))
 }
 
 #[tauri::command]
@@ -129,21 +149,47 @@ pub async fn ai_proposal_get(app: tauri::AppHandle, proposal_id: i64) -> AppResu
     let p = proposal::get(&conn, proposal_id)?;
     Ok(ProposalDTO {
         id: p.id,
+        ai_run_id: p.ai_run_id,
         kind: p.kind.as_str().to_string(),
         payload: p.payload,
+        status: p.status.as_str().to_string(),
+        created_at: p.created_at,
+        decided_at: p.decided_at,
     })
 }
 
 #[tauri::command]
-pub async fn ai_proposal_list(app: tauri::AppHandle) -> AppResult<Vec<ProposalDTO>> {
+pub async fn ai_proposal_list(
+    app: tauri::AppHandle,
+    statuses: Option<Vec<String>>,
+    ai_run_id: Option<i64>,
+) -> AppResult<Vec<ProposalDTO>> {
     let conn = project_conn(&app)?;
-    let list = proposal::list_pending(&conn, None)?;
+    let parsed_statuses = match statuses {
+        Some(statuses) if !statuses.is_empty() => statuses
+            .into_iter()
+            .map(|status| ProposalStatus::parse(&status))
+            .collect::<AppResult<Vec<_>>>()?,
+        _ => vec![
+            ProposalStatus::Pending,
+            ProposalStatus::Accepted,
+            ProposalStatus::Rejected,
+        ],
+    };
+    let list = match ai_run_id {
+        Some(ai_run_id) => proposal::list_for_run(&conn, ai_run_id, None, &parsed_statuses)?,
+        None => proposal::list(&conn, None, &parsed_statuses)?,
+    };
     Ok(list
         .into_iter()
         .map(|p| ProposalDTO {
             id: p.id,
+            ai_run_id: p.ai_run_id,
             kind: p.kind.as_str().to_string(),
             payload: p.payload,
+            status: p.status.as_str().to_string(),
+            created_at: p.created_at,
+            decided_at: p.decided_at,
         })
         .collect())
 }
@@ -325,7 +371,9 @@ pub async fn ai_proposal_accept(
                     if attached_any {
                         created += 1;
                     } else {
-                        skipped.push(format!("index {idx}: duplicate existing span/tag assignment"));
+                        skipped.push(format!(
+                            "index {idx}: duplicate existing span/tag assignment"
+                        ));
                     }
                     continue;
                 }

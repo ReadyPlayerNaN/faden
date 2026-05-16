@@ -42,6 +42,49 @@ fn list_pending_filters_by_kind() {
 }
 
 #[test]
+fn list_filters_by_status() {
+    let conn = fresh();
+    let run_id = make_run(&conn);
+    let pending_id = proposal::create(
+        &conn,
+        run_id,
+        ProposalKind::Pretag,
+        &json!({"name":"pending"}),
+    )
+    .unwrap();
+    let accepted_id = proposal::create(
+        &conn,
+        run_id,
+        ProposalKind::CodebookGen,
+        &json!({"name":"accepted"}),
+    )
+    .unwrap();
+    let rejected_id = proposal::create(
+        &conn,
+        run_id,
+        ProposalKind::FindMore,
+        &json!({"name":"rejected"}),
+    )
+    .unwrap();
+    proposal::mark_accepted(&conn, accepted_id).unwrap();
+    proposal::mark_rejected(&conn, rejected_id).unwrap();
+
+    let pending_only = proposal::list(&conn, None, &[ProposalStatus::Pending]).unwrap();
+    assert_eq!(pending_only.len(), 1);
+    assert_eq!(pending_only[0].id, pending_id);
+
+    let decided = proposal::list(
+        &conn,
+        None,
+        &[ProposalStatus::Accepted, ProposalStatus::Rejected],
+    )
+    .unwrap();
+    assert_eq!(decided.len(), 2);
+    assert!(decided.iter().any(|proposal| proposal.id == accepted_id));
+    assert!(decided.iter().any(|proposal| proposal.id == rejected_id));
+}
+
+#[test]
 fn mark_accepted_transitions() {
     let conn = fresh();
     let run_id = make_run(&conn);
