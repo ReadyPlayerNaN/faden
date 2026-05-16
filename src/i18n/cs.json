@@ -90,7 +90,17 @@
   },
   "speakers": {
     "title": "Mluvčí",
-    "rename": "Přejmenovat"
+    "rename": "Přejmenovat",
+    "add": "Přidat mluvčího",
+    "merge": "Sloučit",
+    "mergeTitle": "Sloučit mluvčího",
+    "mergeHelp": "Přesune všechny promluvy tohoto mluvčího na jiného mluvčího a potom zdrojového mluvčího odstraní.",
+    "label": "Štítek",
+    "labelPlaceholder": "např. S3",
+    "displayName": "Zobrazované jméno",
+    "displayNamePlaceholder": "Volitelné",
+    "source": "Zdroj",
+    "target": "Sloučit do"
   },
   "import": {
     "title": "Přidat rozhovor",

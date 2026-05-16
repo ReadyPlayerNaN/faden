@@ -90,7 +90,17 @@
   },
   "speakers": {
     "title": "Speakers",
-    "rename": "Rename"
+    "rename": "Rename",
+    "add": "Add speaker",
+    "merge": "Merge",
+    "mergeTitle": "Merge speaker",
+    "mergeHelp": "Move all turns from this speaker to another speaker, then remove the source speaker.",
+    "label": "Label",
+    "labelPlaceholder": "e.g. S3",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "Optional",
+    "source": "Source",
+    "target": "Merge into"
   },
   "import": {
     "title": "Add interview",

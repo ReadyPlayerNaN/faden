@@ -20,7 +20,9 @@
   font-family: ui-monospace, monospace;
   font-weight: 600;
 }
-.name {
+.name,
+.action,
+.addBtn {
   background: transparent;
   border: 1px dashed var(--border);
   color: var(--fg);
@@ -29,15 +31,38 @@
   font: inherit;
   cursor: pointer;
 }
-.name:hover {
+.name:hover,
+.action:hover,
+.addBtn:hover {
   background: var(--bg-muted);
 }
-.input {
+.input,
+.field input,
+.field select {
   background: var(--bg-muted);
   border: 1px solid var(--accent);
   color: var(--fg);
-  padding: 0.1rem 0.4rem;
+  padding: 0.25rem 0.4rem;
   border-radius: 3px;
   font: inherit;
   font-size: 0.85rem;
+}
+.error {
+  color: #d04848;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.modalFields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.help {
+  margin: 0;
+  opacity: 0.8;
 }

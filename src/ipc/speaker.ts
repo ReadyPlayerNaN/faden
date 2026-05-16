@@ -37,3 +37,9 @@ export const speakerCreate = async (
   fromRaw(
     await invoke<Raw>("speaker_create", { interviewId, labelRaw, displayName }),
   );
+
+export const speakerMerge = (
+  sourceSpeakerId: number,
+  targetSpeakerId: number,
+): Promise<void> =>
+  invoke("speaker_merge", { sourceSpeakerId, targetSpeakerId });
