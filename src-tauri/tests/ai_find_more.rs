@@ -19,7 +19,7 @@ fn fresh() -> Connection {
 async fn find_more_persists_suggestions_with_target_tag() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         &mut conn,
         i.id,
@@ -91,7 +91,7 @@ async fn find_more_persists_suggestions_with_target_tag() {
 async fn find_more_skips_empty_filtered_suggestions() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         &mut conn,
         i.id,

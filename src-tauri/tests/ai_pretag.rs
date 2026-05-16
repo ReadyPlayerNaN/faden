@@ -19,7 +19,7 @@ fn fresh() -> Connection {
 async fn pretag_persists_filtered_suggestions() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         &mut conn,
         i.id,
@@ -85,7 +85,7 @@ async fn pretag_persists_filtered_suggestions() {
 async fn pretag_skips_empty_filtered_suggestions() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         &mut conn,
         i.id,
@@ -146,7 +146,7 @@ async fn pretag_skips_empty_filtered_suggestions() {
 fn pretag_prompt_includes_all_available_tags_with_descriptions() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,

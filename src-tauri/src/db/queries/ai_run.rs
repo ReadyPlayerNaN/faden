@@ -212,7 +212,8 @@ pub fn reconcile_interrupted_runs(conn: &Connection) -> AppResult<usize> {
     }
 
     for run in &interrupted {
-        let message = "operation interrupted because the app closed unexpectedly; retry to continue";
+        let message =
+            "operation interrupted because the app closed unexpectedly; retry to continue";
         ai_run_ops::recover_interrupted_run(conn, run.id, message)?;
         fail(conn, run.id, message, None)?;
         if run.kind == AiRunKind::Transcribe {

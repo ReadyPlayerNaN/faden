@@ -14,7 +14,7 @@ fn fresh() -> Connection {
 
 fn make_span_and_tag(conn: &mut Connection) -> (i64, i64) {
     let i = interview::create(conn, "I").unwrap();
-    let sp = speaker::create_or_get(conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(conn, i.id, "A", None, None).unwrap();
     let seg_ids = segment::insert_batch(
         conn,
         i.id,

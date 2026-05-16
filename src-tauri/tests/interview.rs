@@ -1,7 +1,7 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::interview::{self, TranscriptStatus};
-use faden_app_lib::db::queries::{segment, speaker};
+use faden_app_lib::db::queries::{person, segment, speaker};
+use rusqlite::Connection;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -82,8 +82,8 @@ fn delete_cascades_speakers_and_segments() {
 fn speaker_create_or_get_idempotent() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let a = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
-    let b = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let a = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let b = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     assert_eq!(a.id, b.id);
 }
 
@@ -91,8 +91,8 @@ fn speaker_create_or_get_idempotent() {
 fn speaker_list_for_interview() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    speaker::create_or_get(&conn, i.id, "A", None).unwrap();
-    speaker::create_or_get(&conn, i.id, "B", None).unwrap();
+    speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    speaker::create_or_get(&conn, i.id, "B", None, None).unwrap();
     assert_eq!(speaker::list_for_interview(&conn, i.id).unwrap().len(), 2);
 }
 
@@ -100,7 +100,7 @@ fn speaker_list_for_interview() {
 fn speaker_set_display_name() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let s = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let s = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     speaker::set_display_name(&conn, s.id, Some("Interviewer")).unwrap();
     assert_eq!(
         speaker::get(&conn, s.id).unwrap().display_name.as_deref(),
@@ -109,12 +109,42 @@ fn speaker_set_display_name() {
 }
 
 #[test]
+fn speaker_can_link_to_person_and_inherit_name() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let p = person::create(&conn, "Alice").unwrap();
+    let s = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+
+    speaker::set_person(&conn, s.id, Some(p.id)).unwrap();
+
+    let linked = speaker::get(&conn, s.id).unwrap();
+    assert_eq!(linked.person_id, Some(p.id));
+    assert_eq!(linked.person_name.as_deref(), Some("Alice"));
+    assert_eq!(linked.effective_display_name(), Some("Alice"));
+}
+
+#[test]
+fn create_speaker_for_person_generates_unique_label() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let p = person::create(&conn, "Alice").unwrap();
+    speaker::create_or_get(&conn, i.id, "Alice", None, None).unwrap();
+
+    let linked = speaker::create_for_person(&conn, i.id, p.id, None, None).unwrap();
+
+    assert_eq!(linked.person_id, Some(p.id));
+    assert_eq!(linked.person_name.as_deref(), Some("Alice"));
+    assert_eq!(linked.effective_display_name(), Some("Alice"));
+    assert_eq!(linked.label_raw, "Alice 2");
+}
+
+#[test]
 fn speaker_merge_reassigns_segments_and_deletes_sources() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let a = speaker::create_or_get(&conn, i.id, "A", Some("Alice")).unwrap();
-    let b = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
-    let c = speaker::create_or_get(&conn, i.id, "C", Some("Carol")).unwrap();
+    let a = speaker::create_or_get(&conn, i.id, "A", Some("Alice"), None).unwrap();
+    let b = speaker::create_or_get(&conn, i.id, "B", Some("Bob"), None).unwrap();
+    let c = speaker::create_or_get(&conn, i.id, "C", Some("Carol"), None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,
@@ -162,11 +192,28 @@ fn speaker_merge_reassigns_segments_and_deletes_sources() {
 }
 
 #[test]
+fn speaker_merge_preserves_person_link() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let p = person::create(&conn, "Alice").unwrap();
+    let linked = speaker::create_or_get(&conn, i.id, "A", None, Some(p.id)).unwrap();
+    let other = speaker::create_or_get(&conn, i.id, "B", Some("Bob"), None).unwrap();
+
+    let merged =
+        speaker::merge_many_into_new(&mut conn, i.id, &[linked.id, other.id], "Merged").unwrap();
+
+    assert_eq!(merged.person_id, Some(p.id));
+    assert_eq!(merged.person_name.as_deref(), Some("Alice"));
+    assert_eq!(merged.display_name, None);
+    assert_eq!(merged.effective_display_name(), Some("Alice"));
+}
+
+#[test]
 fn speaker_merge_can_reuse_selected_speaker_name() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let main = speaker::create_or_get(&conn, i.id, "Main guy", Some("Main guy")).unwrap();
-    let other = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
+    let main = speaker::create_or_get(&conn, i.id, "Main guy", Some("Main guy"), None).unwrap();
+    let other = speaker::create_or_get(&conn, i.id, "B", Some("Bob"), None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,
@@ -203,8 +250,8 @@ fn speaker_merge_rejects_cross_interview_merge() {
     let mut conn = fresh_conn();
     let i1 = interview::create(&conn, "I1").unwrap();
     let i2 = interview::create(&conn, "I2").unwrap();
-    let a = speaker::create_or_get(&conn, i1.id, "A", None).unwrap();
-    let b = speaker::create_or_get(&conn, i2.id, "B", None).unwrap();
+    let a = speaker::create_or_get(&conn, i1.id, "A", None, None).unwrap();
+    let b = speaker::create_or_get(&conn, i2.id, "B", None, None).unwrap();
 
     let err = speaker::merge_many_into_new(&mut conn, i1.id, &[a.id, b.id], "Merged").unwrap_err();
     assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
@@ -214,7 +261,7 @@ fn speaker_merge_rejects_cross_interview_merge() {
 fn speaker_delete_unassigns_segments() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,
@@ -246,7 +293,7 @@ fn speaker_delete_unassigns_segments() {
 fn segment_insert_batch_and_list() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         &mut conn,
         i.id,
@@ -276,7 +323,7 @@ fn segment_insert_batch_and_list() {
 fn segment_list_ordered_by_order_index() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,
@@ -305,7 +352,7 @@ fn segment_list_ordered_by_order_index() {
 fn segment_delete_all_for_interview() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,

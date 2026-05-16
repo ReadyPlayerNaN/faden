@@ -12,6 +12,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("m008_ai_run_input_json.sql")),
     (9, include_str!("m009_ai_run_ops.sql")),
     (10, include_str!("m010_history.sql")),
+    (11, include_str!("m011_people.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {

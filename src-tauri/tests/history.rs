@@ -20,7 +20,7 @@ struct Setup {
 
 fn setup(conn: &mut Connection) -> Setup {
     let interview = interview::create(conn, "Interview").unwrap();
-    let speaker = speaker::create_or_get(conn, interview.id, "S1", None).unwrap();
+    let speaker = speaker::create_or_get(conn, interview.id, "S1", None, None).unwrap();
     let seg_ids = segment::insert_batch(
         conn,
         interview.id,

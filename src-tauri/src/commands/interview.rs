@@ -40,7 +40,7 @@ pub async fn segment_list_for_interview(
             interview_id: s.interview_id,
             speaker_id: s.speaker_id,
             speaker_label_raw: sp.map(|x| x.label_raw.clone()),
-            speaker_display_name: sp.and_then(|x| x.display_name.clone()),
+            speaker_display_name: sp.and_then(|x| x.effective_display_name().map(str::to_owned)),
             start_sec: s.start_sec,
             end_sec: s.end_sec,
             text: s.text,
@@ -178,12 +178,13 @@ fn replace_transcript(
             interview_id,
             &sp.label_raw,
             sp.display_name.as_deref(),
+            None,
         )?;
         speaker_map.insert(sp.label_raw.clone(), s.id);
     }
     for seg in &parsed.segments {
         if !speaker_map.contains_key(&seg.speaker_label) {
-            let s = speaker::create_or_get(conn, interview_id, &seg.speaker_label, None)?;
+            let s = speaker::create_or_get(conn, interview_id, &seg.speaker_label, None, None)?;
             speaker_map.insert(seg.speaker_label.clone(), s.id);
         }
     }
@@ -256,6 +257,8 @@ pub struct SpeakerDTO {
     pub interview_id: i64,
     pub label_raw: String,
     pub display_name: Option<String>,
+    pub person_id: Option<i64>,
+    pub person_name: Option<String>,
 }
 
 impl From<Speaker> for SpeakerDTO {
@@ -265,6 +268,8 @@ impl From<Speaker> for SpeakerDTO {
             interview_id: s.interview_id,
             label_raw: s.label_raw,
             display_name: s.display_name,
+            person_id: s.person_id,
+            person_name: s.person_name,
         }
     }
 }
@@ -285,11 +290,27 @@ pub async fn speaker_list_for_interview(
 pub async fn speaker_create(
     app: tauri::AppHandle,
     interview_id: i64,
-    label_raw: String,
+    label_raw: Option<String>,
     display_name: Option<String>,
+    person_id: Option<i64>,
 ) -> AppResult<SpeakerDTO> {
     let conn = project_conn(&app)?;
-    let sp = speaker::create_or_get(&conn, interview_id, &label_raw, display_name.as_deref())?;
+    let sp = if let Some(pid) = person_id {
+        speaker::create_for_person(
+            &conn,
+            interview_id,
+            pid,
+            label_raw.as_deref(),
+            display_name.as_deref(),
+        )?
+    } else {
+        let label = label_raw
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| AppError::Invalid("speaker label is required".into()))?;
+        speaker::create_or_get(&conn, interview_id, label, display_name.as_deref(), None)?
+    };
     Ok(sp.into())
 }
 
@@ -301,6 +322,16 @@ pub async fn speaker_set_display_name(
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     speaker::set_display_name(&conn, speaker_id, display_name.as_deref())
+}
+
+#[tauri::command]
+pub async fn speaker_set_person(
+    app: tauri::AppHandle,
+    speaker_id: i64,
+    person_id: Option<i64>,
+) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    speaker::set_person(&conn, speaker_id, person_id)
 }
 
 #[tauri::command]

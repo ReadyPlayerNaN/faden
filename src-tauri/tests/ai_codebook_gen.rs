@@ -43,7 +43,7 @@ async fn codebook_gen_persists_proposal_on_success() {
 
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
-    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,

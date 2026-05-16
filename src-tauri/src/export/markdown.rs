@@ -31,7 +31,7 @@ pub fn write_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
         speaker_list.sort_by_key(|s| s.id);
         let mut s_strs = Vec::new();
         for sp in &speaker_list {
-            let name = sp.display_name.as_deref().unwrap_or("?");
+            let name = sp.effective_display_name().unwrap_or("?");
             s_strs.push(format!("{} = {}", sp.label_raw, name));
         }
         writeln!(writer, "**Speakers:** {}", s_strs.join(", "))?;

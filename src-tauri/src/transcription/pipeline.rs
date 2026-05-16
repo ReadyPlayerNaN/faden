@@ -582,8 +582,13 @@ pub async fn run_pipeline(
         let new_segments: Vec<segment_q::NewSegment> = {
             let mut out = Vec::with_capacity(segments_for_chunk.len());
             for segment in &segments_for_chunk {
-                let speaker =
-                    speaker_q::create_or_get(&conn, interview_id, &segment.speaker, None)?;
+                let speaker = speaker_q::create_or_get(
+                    &conn,
+                    interview_id,
+                    &segment.speaker,
+                    None,
+                    None,
+                )?;
                 out.push(segment_q::NewSegment {
                     speaker_id: Some(speaker.id),
                     start_sec: segment.start + plan.offset_seconds,

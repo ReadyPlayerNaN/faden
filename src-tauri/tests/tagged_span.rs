@@ -11,7 +11,7 @@ fn fresh() -> Connection {
 
 fn setup_segment(conn: &mut Connection) -> (i64, i64) {
     let i = interview::create(conn, "I").unwrap();
-    let sp = speaker::create_or_get(conn, i.id, "A", None).unwrap();
+    let sp = speaker::create_or_get(conn, i.id, "A", None, None).unwrap();
     let ids = segment::insert_batch(
         conn,
         i.id,

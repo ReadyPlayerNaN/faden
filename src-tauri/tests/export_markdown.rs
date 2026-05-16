@@ -33,7 +33,7 @@ fn md_writes_segments_and_tags_and_memos() {
     let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
     let iv = interview::create(&conn, "I1").unwrap();
-    let sp = speaker::create_or_get(&conn, iv.id, "A", Some("Alice")).unwrap();
+    let sp = speaker::create_or_get(&conn, iv.id, "A", Some("Alice"), None).unwrap();
     let seg_ids = segment::insert_batch(
         &mut conn,
         iv.id,

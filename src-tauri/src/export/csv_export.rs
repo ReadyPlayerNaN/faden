@@ -60,7 +60,7 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
                     iv.interview.name.as_str(),
                     speaker.map(|s| s.label_raw.as_str()).unwrap_or(""),
                     speaker
-                        .and_then(|s| s.display_name.as_deref())
+                        .and_then(|s| s.effective_display_name())
                         .unwrap_or(""),
                     seg_start.as_str(),
                     seg_end.as_str(),

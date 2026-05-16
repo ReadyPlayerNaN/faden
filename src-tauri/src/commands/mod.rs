@@ -3,6 +3,7 @@ pub mod codebook;
 pub mod export;
 pub mod history;
 pub mod interview;
+pub mod person;
 pub mod project;
 pub mod segment;
 pub mod settings;
