@@ -87,6 +87,59 @@ const deriveConfiguredProviders = (
   return PROVIDERS.map((provider) => provider.id).filter((id) => selected.has(id));
 };
 
+const resetProviderConfig = (
+  providers: ProviderState,
+  provider: LlmProvider,
+): ProviderState => {
+  switch (provider) {
+    case "gemini":
+      return { ...providers, gemini: { apiKey: "" } };
+    case "openai":
+      return {
+        ...providers,
+        openai: { apiKey: "", baseUrl: DEFAULT_OPENAI_BASE_URL },
+      };
+    case "anthropic":
+      return {
+        ...providers,
+        anthropic: { apiKey: "", baseUrl: DEFAULT_ANTHROPIC_BASE_URL },
+      };
+    case "ollama":
+      return {
+        ...providers,
+        ollama: {
+          baseUrl: DEFAULT_OLLAMA_BASE_URL,
+          username: "",
+          password: "",
+        },
+      };
+  }
+};
+
+const fallbackSelectionForTask = (
+  task: TaskKind,
+  removedProvider: LlmProvider,
+  configuredProviders: LlmProvider[],
+): TaskModelSelection => {
+  const fallbackProvider =
+    configuredProviders.find(
+      (provider) =>
+        provider !== removedProvider &&
+        providerById(provider).models.some((model) => model.tasks.includes(task)),
+    ) ??
+    PROVIDERS.find(
+      (provider) =>
+        provider.id !== removedProvider &&
+        provider.models.some((model) => model.tasks.includes(task)),
+    )?.id ??
+    removedProvider;
+
+  return {
+    provider: fallbackProvider,
+    model: firstModelForTask(fallbackProvider, task),
+  };
+};
+
 const TaskSelector = ({ task, label, value, onChange }: TaskSelectorProps) => {
   const { t } = useTranslation();
   const activeProvider = providerById(value.provider);
@@ -251,6 +304,46 @@ export const Settings = () => {
     setProviderDrafts(null);
   };
 
+  const removeProvider = (provider: LlmProvider) => {
+    if (!providers) return;
+    const confirmed = window.confirm(
+      t("settings.removeProviderConfirm", {
+        defaultValue:
+          "Remove {{provider}} configuration? If this provider is used for task routing, routing will switch to another provider.",
+        provider: providerById(provider).label,
+      }),
+    );
+    if (!confirmed) return;
+
+    const nextProviders = resetProviderConfig(providers, provider);
+    const nextConfiguredProviders = configuredProviders.filter((id) => id !== provider);
+
+    setProviders(nextProviders);
+    setConfiguredProviders(nextConfiguredProviders);
+    setTestResults((prev) => {
+      const next = { ...prev };
+      delete next[provider];
+      return next;
+    });
+    if (transcription.provider === provider) {
+      setTranscription(
+        fallbackSelectionForTask(
+          "transcription",
+          provider,
+          nextConfiguredProviders,
+        ),
+      );
+    }
+    if (generalAi.provider === provider) {
+      setGeneralAi(
+        fallbackSelectionForTask("general", provider, nextConfiguredProviders),
+      );
+    }
+    if (editorProvider === provider) {
+      closeEditor();
+    }
+  };
+
   const onSave = async () => {
     if (!settings || !providers || isLoading || isSaving) return;
     const next: GlobalSettings = {
@@ -386,6 +479,12 @@ export const Settings = () => {
                             ? t("common.loading")
                             : t("settings.testConnection")}
                         </Button>
+                        <Button
+                          className={styles.removeProviderButton}
+                          onClick={() => removeProvider(providerId)}
+                        >
+                          {t("settings.removeProvider", { defaultValue: "Remove" })}
+                        </Button>
                       </div>
                       {testResult && (
                         <div className={styles.testResult}>
@@ -474,6 +573,12 @@ export const Settings = () => {
         footer={
           editorProvider ? (
             <>
+              <Button
+                className={styles.removeProviderButton}
+                onClick={() => removeProvider(editorProvider)}
+              >
+                {t("settings.removeProvider", { defaultValue: "Remove" })}
+              </Button>
               <Button onClick={closeEditor}>{t("common.cancel")}</Button>
               <Button
                 variant="primary"
