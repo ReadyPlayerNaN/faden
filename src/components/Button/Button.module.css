@@ -4,11 +4,11 @@
   border-radius: 4px;
   background: var(--bg-muted);
   color: var(--fg);
-  cursor: pointer;
   font-size: 0.9rem;
 }
 .btn:hover { filter: brightness(1.1); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:active:not(:disabled) { filter: brightness(0.94); }
+.btn:disabled { opacity: 0.5; }
 .primary { background: var(--accent); border-color: var(--accent); color: #000; }
 .secondary { /* default */ }
 .danger { background: var(--danger); border-color: var(--danger); color: #000; }

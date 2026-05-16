@@ -12,4 +12,13 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--fg); }
-button { font-family: inherit; }
+button {
+  font-family: inherit;
+  cursor: default;
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease, transform 60ms ease, filter 120ms ease;
+}
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.94);
+}

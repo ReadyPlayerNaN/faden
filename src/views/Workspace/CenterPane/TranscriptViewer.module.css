@@ -23,7 +23,6 @@
   border: 1px solid var(--border);
   background: var(--bg-muted);
   color: var(--fg);
-  cursor: pointer;
   border-radius: 999px;
   width: 1.9rem;
   height: 1.9rem;
@@ -35,6 +34,10 @@
 .segmentPlayButton:hover,
 .segmentLoopButton:hover {
   border-color: var(--accent);
+}
+.segmentPlayButton:active,
+.segmentLoopButton:active {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
 }
 .segmentLoopButtonActive {
   border-color: var(--accent);

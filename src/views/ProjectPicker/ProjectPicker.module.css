@@ -15,9 +15,9 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--fg);
-  cursor: pointer;
 }
 .recentItem:hover { background: var(--bg-muted); }
+.recentItem:active { background: color-mix(in srgb, var(--bg-muted) 92%, transparent); }
 .recentName { font-size: 0.95rem; }
 .recentPath {
   font-family: ui-monospace, monospace;
@@ -33,9 +33,9 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--fg);
-  cursor: pointer;
   font-size: 0.8rem;
   opacity: 0.7;
 }
 .recentAction:hover { opacity: 1; background: var(--bg-muted); }
+.recentAction:active { opacity: 0.88; }
 .empty { opacity: 0.6; font-style: italic; }

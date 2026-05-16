@@ -58,7 +58,6 @@
   padding: 0.45rem 0.85rem;
   font: inherit;
   font-size: 0.9rem;
-  cursor: pointer;
 }
 
 .item:hover:not(:disabled),
@@ -66,10 +65,14 @@
   background: var(--bg-muted);
 }
 
+.item:active:not(:disabled),
+.linkBtn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
+}
+
 .item:disabled,
 .linkBtn:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .separator {
@@ -102,7 +105,6 @@
   border-radius: 4px;
   font: inherit;
   font-size: 0.78rem;
-  cursor: pointer;
 }
 
 .emptyOps {

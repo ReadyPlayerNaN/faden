@@ -13,8 +13,9 @@
 }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .quote { font-style: italic; opacity: 0.85; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.closeBtn { background: transparent; border: none; color: var(--fg); font-size: 1.2rem; cursor: pointer; opacity: 0.6; }
+.closeBtn { background: transparent; border: none; color: var(--fg); font-size: 1.2rem; opacity: 0.6; }
 .closeBtn:hover { opacity: 1; }
+.closeBtn:active { opacity: 0.82; }
 .search {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -31,11 +32,11 @@
   border: 1px solid transparent;
   color: var(--fg);
   border-radius: 4px;
-  cursor: pointer;
   font: inherit;
   text-align: left;
 }
 .tagBtn:hover { background: rgba(255,255,255,0.05); }
+.tagBtn:active { background: rgba(255,255,255,0.09); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
 .tagName { flex: 1; }
 .tagPath { opacity: 0.55; font-size: 0.8em; }
@@ -45,10 +46,10 @@
   border: 1px solid var(--accent);
   padding: 0.35rem 0.6rem;
   border-radius: 4px;
-  cursor: pointer;
   font: inherit;
 }
 .newBtn:hover { filter: brightness(1.1); }
+.newBtn:active { filter: brightness(0.94); }
 .noResults { opacity: 0.5; font-style: italic; font-size: 0.9rem; }
 .createForm { display: flex; flex-direction: column; gap: 0.4rem; }
 .formActions { display: flex; justify-content: flex-end; gap: 0.4rem; }

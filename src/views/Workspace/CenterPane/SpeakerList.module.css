@@ -48,16 +48,18 @@
   padding: 0.4rem 0.75rem;
   font: inherit;
   font-size: 0.9rem;
-  cursor: pointer;
 }
 
 .menuItem:hover:not(:disabled) {
   background: var(--bg-muted);
 }
 
+.menuItem:active:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
+}
+
 .menuItem:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .input,
@@ -90,11 +92,14 @@
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
   font: inherit;
-  cursor: pointer;
 }
 
 .name:hover {
   background: var(--bg-muted);
+}
+
+.name:active {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
 }
 
 .error {

@@ -67,7 +67,6 @@
   background: transparent;
   border: 1px solid var(--border);
   color: var(--fg);
-  cursor: pointer;
   padding: 0.2rem 0.45rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -76,6 +75,10 @@
 .manageBtn:hover {
   opacity: 1;
   border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, transparent);
+}
+.manageBtn:active {
+  opacity: 0.92;
 }
 
 .delBtn {
@@ -83,11 +86,11 @@
   border: none;
   color: var(--fg);
   opacity: 0.5;
-  cursor: pointer;
   padding: 0 0.4rem;
   font-size: 1.1rem;
 }
 .delBtn:hover { opacity: 1; color: var(--danger); }
+.delBtn:active { opacity: 0.82; }
 
 .count { opacity: 0.6; font-size: 0.85em; }
 
