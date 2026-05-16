@@ -3,6 +3,7 @@ use crate::commands::util::project_conn;
 use crate::db::queries::interview::{self, TranscriptStatus};
 use crate::db::queries::project_meta;
 use crate::error::{AppError, AppResult};
+use crate::secrets::resolve_gemini_api_key;
 use crate::settings::SettingsStore;
 use crate::transcription::pipeline::{run_pipeline, PipelineConfig};
 use crate::transcription::{ffmpeg, prompts};
@@ -10,8 +11,9 @@ use tauri::Manager;
 use tokio_util::sync::CancellationToken;
 
 fn build_config(app: &tauri::AppHandle) -> AppResult<PipelineConfig> {
-    let settings = SettingsStore::new(app.path().app_config_dir()?).load()?;
-    let api_key = settings.gemini_api_key;
+    let store = SettingsStore::new(app.path().app_config_dir()?);
+    let settings = store.load()?;
+    let api_key = resolve_gemini_api_key(app, &store)?;
     if api_key.is_empty() {
         return Err(AppError::Invalid("no Gemini API key configured".into()));
     }

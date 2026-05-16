@@ -23,5 +23,4 @@ fn full_pipeline_runs_against_mocked_gemini() {
     // The orchestrator needs significant refactoring to be testable from outside
     // a running Tauri app (factor out the parts that need AppHandle vs the parts
     // that are pure). Deferred to a later polish task.
-    assert!(true);
 }

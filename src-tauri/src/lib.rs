@@ -8,6 +8,7 @@ pub mod export;
 pub mod history;
 pub mod import;
 pub mod media_server;
+pub mod secrets;
 pub mod settings;
 pub mod transcription;
 

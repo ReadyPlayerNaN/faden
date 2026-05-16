@@ -77,6 +77,18 @@ pub struct GlobalSettings {
     pub default_ai_model: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredSettings {
+    #[serde(default, deserialize_with = "deserialize_recents")]
+    recent_projects: Vec<RecentProject>,
+    #[serde(default)]
+    ui_language: Option<String>,
+    #[serde(default = "default_transcription_model")]
+    default_transcription_model: String,
+    #[serde(default = "default_ai_model")]
+    default_ai_model: String,
+}
+
 impl Default for GlobalSettings {
     fn default() -> Self {
         Self {
@@ -85,6 +97,40 @@ impl Default for GlobalSettings {
             ui_language: None,
             default_transcription_model: default_transcription_model(),
             default_ai_model: default_ai_model(),
+        }
+    }
+}
+
+impl Default for StoredSettings {
+    fn default() -> Self {
+        Self {
+            recent_projects: Vec::new(),
+            ui_language: None,
+            default_transcription_model: default_transcription_model(),
+            default_ai_model: default_ai_model(),
+        }
+    }
+}
+
+impl From<StoredSettings> for GlobalSettings {
+    fn from(value: StoredSettings) -> Self {
+        Self {
+            gemini_api_key: String::new(),
+            recent_projects: value.recent_projects,
+            ui_language: value.ui_language,
+            default_transcription_model: value.default_transcription_model,
+            default_ai_model: value.default_ai_model,
+        }
+    }
+}
+
+impl From<&GlobalSettings> for StoredSettings {
+    fn from(value: &GlobalSettings) -> Self {
+        Self {
+            recent_projects: value.recent_projects.clone(),
+            ui_language: value.ui_language.clone(),
+            default_transcription_model: value.default_transcription_model.clone(),
+            default_ai_model: value.default_ai_model.clone(),
         }
     }
 }
@@ -119,13 +165,26 @@ impl SettingsStore {
             return Ok(GlobalSettings::default());
         }
         let raw = std::fs::read_to_string(&f)?;
-        Ok(serde_json::from_str(&raw)?)
+        Ok(serde_json::from_str::<StoredSettings>(&raw)?.into())
     }
 
     pub fn save(&self, settings: &GlobalSettings) -> AppResult<()> {
         std::fs::create_dir_all(&self.dir)?;
-        let raw = serde_json::to_string_pretty(settings)?;
+        let raw = serde_json::to_string_pretty(&StoredSettings::from(settings))?;
         std::fs::write(self.file(), raw)?;
         Ok(())
+    }
+
+    pub fn legacy_gemini_api_key(&self) -> AppResult<Option<String>> {
+        let f = self.file();
+        if !f.exists() {
+            return Ok(None);
+        }
+        let raw = std::fs::read_to_string(&f)?;
+        let value: serde_json::Value = serde_json::from_str(&raw)?;
+        Ok(value
+            .get("gemini_api_key")
+            .and_then(|v| v.as_str())
+            .map(ToOwned::to_owned))
     }
 }

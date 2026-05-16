@@ -118,7 +118,7 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
     let mut co: HashMap<(i64, i64), i64> = HashMap::new();
     for iv in &data.interviews {
         for span in &iv.spans {
-            let mut tags: Vec<i64> = span.tags.iter().copied().collect();
+            let mut tags: Vec<i64> = span.tags.to_vec();
             tags.sort();
             for i in 0..tags.len() {
                 for j in (i + 1)..tags.len() {

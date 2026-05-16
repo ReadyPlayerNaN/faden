@@ -10,5 +10,4 @@
 fn probe_duration_integration() {
     // Placeholder: see comment above.
     // The real implementation needs a mock Tauri app handle and a sample fixture.
-    assert!(true);
 }

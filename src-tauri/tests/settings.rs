@@ -11,16 +11,18 @@ fn default_settings_have_empty_api_key_and_recents() {
 }
 
 #[test]
-fn save_and_load_round_trip() {
+fn save_and_load_round_trip_keeps_non_secret_settings_only() {
     let dir = tempdir().unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
-    let mut s = GlobalSettings::default();
-    s.gemini_api_key = "k-123".into();
+    let mut s = GlobalSettings {
+        gemini_api_key: "k-123".into(),
+        ..GlobalSettings::default()
+    };
     s.add_recent("/a".into(), None);
     s.add_recent("/b".into(), None);
     store.save(&s).unwrap();
     let loaded = store.load().unwrap();
-    assert_eq!(loaded.gemini_api_key, "k-123");
+    assert_eq!(loaded.gemini_api_key, "");
     assert_eq!(
         loaded
             .recent_projects
@@ -29,6 +31,20 @@ fn save_and_load_round_trip() {
             .collect::<Vec<_>>(),
         vec!["/b".to_string(), "/a".into()]
     );
+}
+
+#[test]
+fn saved_settings_file_does_not_contain_api_key() {
+    let dir = tempdir().unwrap();
+    let store = SettingsStore::new(dir.path().to_path_buf());
+    let s = GlobalSettings {
+        gemini_api_key: "k-123".into(),
+        ..GlobalSettings::default()
+    };
+    store.save(&s).unwrap();
+    let raw = std::fs::read_to_string(dir.path().join("settings.json")).unwrap();
+    assert!(!raw.contains("gemini_api_key"));
+    assert!(!raw.contains("k-123"));
 }
 
 #[test]
@@ -44,7 +60,7 @@ fn add_recent_dedupes_and_prepends() {
     let mut s = GlobalSettings::default();
     s.add_recent("/a".into(), None);
     s.add_recent("/b".into(), None);
-    s.add_recent("/a".into(), None); // bumps to top
+    s.add_recent("/a".into(), None);
     let paths: Vec<String> = s.recent_projects.iter().map(|r| r.path.clone()).collect();
     assert_eq!(paths, vec!["/a".to_string(), "/b".into()]);
 }
@@ -75,7 +91,7 @@ fn add_recent_uses_explicit_display_name_when_provided() {
 }
 
 #[test]
-fn legacy_string_recents_are_migrated_on_load() {
+fn legacy_plaintext_key_is_detected_but_not_loaded_into_settings_file_model() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("settings.json");
     std::fs::write(
@@ -85,6 +101,8 @@ fn legacy_string_recents_are_migrated_on_load() {
     .unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
     let s = store.load().unwrap();
+    assert_eq!(store.legacy_gemini_api_key().unwrap().as_deref(), Some("k"));
+    assert_eq!(s.gemini_api_key, "");
     assert_eq!(s.recent_projects.len(), 2);
     assert_eq!(s.recent_projects[0].path, "/foo/bar");
     assert_eq!(s.recent_projects[0].display_name, "bar");
@@ -97,8 +115,10 @@ fn struct_recents_round_trip() {
         path: "/x/y".into(),
         display_name: "Renamed".into(),
     };
-    let mut s = GlobalSettings::default();
-    s.recent_projects = vec![r.clone()];
+    let s = GlobalSettings {
+        recent_projects: vec![r.clone()],
+        ..GlobalSettings::default()
+    };
     let dir = tempdir().unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
     store.save(&s).unwrap();

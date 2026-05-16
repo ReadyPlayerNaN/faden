@@ -10,6 +10,7 @@ use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
 use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
 use crate::error::{AppError, AppResult};
+use crate::secrets::resolve_gemini_api_key;
 use crate::settings::SettingsStore;
 use crate::transcription::gemini::GeminiClient;
 use crate::transcription::pipeline::PipelineConfig;
@@ -22,14 +23,11 @@ const DEFAULT_MODEL: &str = "gemini-3-flash-preview";
 
 fn make_client_from_settings(app: &tauri::AppHandle) -> AppResult<(GeminiClient, String)> {
     let store = SettingsStore::new(app.path().app_config_dir()?);
-    let s = store.load()?;
-    if s.gemini_api_key.is_empty() {
+    let api_key = resolve_gemini_api_key(app, &store)?;
+    if api_key.is_empty() {
         return Err(AppError::Invalid("no Gemini API key configured".into()));
     }
-    Ok((
-        GeminiClient::new(s.gemini_api_key.clone()),
-        DEFAULT_MODEL.to_string(),
-    ))
+    Ok((GeminiClient::new(api_key), DEFAULT_MODEL.to_string()))
 }
 
 #[tauri::command]

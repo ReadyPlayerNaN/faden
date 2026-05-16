@@ -67,8 +67,9 @@ or platform-specific installers).
    choose an empty folder. The picker also lists recent projects with
    inline rename / remove.
 2. **Add your API key**. Open Settings (gear icon in the workspace). Paste
-   your Gemini key. Optionally set the default transcription / AI model
-   and UI language.
+   your Gemini key. Faden stores it in your OS keychain / credential
+   store, not in plaintext project settings. Optionally set the default
+   transcription / AI model and UI language.
 3. **Import an interview**. In the left pane click **+ From audio**, pick
    an audio file. The app transcodes a working copy via the system
    `ffmpeg` and creates a new interview row.
@@ -89,7 +90,8 @@ or platform-specific installers).
 
 ## Settings overview
 
-- **Gemini API key** - required for any AI feature.
+- **Gemini API key** - required for any AI feature. Stored in the OS
+  keychain / credential store.
 - **Default transcription model** / **Default AI tagging model** - the
   model identifiers to pass to Gemini. Default is `gemini-3-flash-preview`.
 - **UI language** - Auto (OS default), English, or Czech.

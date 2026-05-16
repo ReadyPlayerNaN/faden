@@ -35,16 +35,15 @@ pub fn insert_batch(
     interview_id: i64,
     segments: &[NewSegment],
 ) -> AppResult<Vec<i64>> {
-    let mut next = next_order_for_interview(conn, interview_id)?;
+    let start_order = next_order_for_interview(conn, interview_id)?;
     let tx = conn.transaction()?;
     let mut ids = Vec::with_capacity(segments.len());
-    for seg in segments {
+    for (order_index, seg) in (start_order..).zip(segments.iter()) {
         tx.execute(
             "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![interview_id, seg.speaker_id, seg.start_sec, seg.end_sec, seg.text, next],
+            params![interview_id, seg.speaker_id, seg.start_sec, seg.end_sec, seg.text, order_index],
         )?;
         ids.push(tx.last_insert_rowid());
-        next += 1;
     }
     tx.commit()?;
     Ok(ids)
