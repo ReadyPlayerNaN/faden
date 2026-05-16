@@ -64,9 +64,6 @@
     "projectName": "Název projektu",
     "renameProject": "Přejmenovat projekt",
     "rename": "Přejmenovat",
-    "updates": "Aktualizace",
-    "updatesNote": "Automatické aktualizace zatím nejsou podporovány. Sledujte stránku s vydáními.",
-    "checkForUpdates": "Zkontrolovat aktualizace",
     "prompts": {
       "title": "Prompty",
       "transcriptionSystem": "Přepis — systémová instrukce",
@@ -100,7 +97,8 @@
       "audio": "Pouze zvuk",
       "text": "Přepis (text)",
       "json": "Přepis (JSON)",
-      "audioText": "Zvuk + přepis"
+      "audioText": "Zvuk + přepis",
+      "audioJson": "Zvuk + přepis (JSON)"
     },
     "name": "Název",
     "pasteText": "Vložte přepis sem",
@@ -122,9 +120,57 @@
     "deleteSpan": "Smazat výběr",
     "confirmDelete": "Smazat tento výběr?",
     "categoryRequired": "Vyberte kategorii pro nový štítek",
-    "selectInterview": "Pro zobrazení výběrů zvolte rozhovor."
+    "selectInterview": "Pro zobrazení výběrů zvolte rozhovor.",
+    "standalone": "Samostatný (bez kategorie)"
+  },
+  "tags": {
+    "title": "Štítky",
+    "addCluster": "Přidat klastr",
+    "addCategory": "Přidat kategorii",
+    "addTag": "Přidat štítek",
+    "addTagToCategory": "Přidat štítek do kategorie",
+    "standalone": "Samostatný (bez kategorie)",
+    "standaloneSection": "Samostatné štítky",
+    "clustersSection": "Klastry",
+    "noStandalone": "Žádné samostatné štítky",
+    "noClusters": "Zatím žádné klastry",
+    "movePrompt": "Přesunout do...",
+    "color": "Barva",
+    "description": "Popis",
+    "name": "Název",
+    "cluster": "Klastr",
+    "category": "Kategorie",
+    "create": "Vytvořit",
+    "delete": "Smazat",
+    "confirmDelete": "Smazat {{name}}?",
+    "confirmDeleteTitle": "Potvrdit smazání",
+    "errorInUse": "Nelze smazat: položka je stále používána",
+    "errorDuplicate": "Položka s tímto názvem již existuje",
+    "errorNameRequired": "Název je povinný",
+    "errorClusterRequired": "Klastr je povinný",
+    "doubleClickRename": "Dvojklik pro přejmenování"
+  },
+  "transcript": {
+    "editMode": "Upravit přepis",
+    "delete": "Smazat",
+    "split": "Rozdělit zde",
+    "mergeNext": "Sloučit s následujícím",
+    "confirmDelete": "Smazat segment?",
+    "confirmDeleteBody": "Tento segment a všechny štítkované úseky v něm budou trvale odstraněny.",
+    "addSpeaker": "Přidat mluvčího...",
+    "splitAtEdge": "Nelze rozdělit na okraji segmentu",
+    "spanCrosses": "Nelze rozdělit: štítkovaný úsek překračuje bod rozdělení"
+  },
+  "audio": {
+    "menu": "Akce zvuku",
+    "attach": "Připojit zvuk…",
+    "replace": "Nahradit zvuk…",
+    "remove": "Odebrat zvuk",
+    "confirmRemove": "Odebrat zvuk?",
+    "confirmRemoveBody": "Zvukový soubor bude smazán z projektu. Přepis bude zachován."
   },
   "ai": {
+    "menuLabel": "AI",
     "panel": "AI",
     "generateCodebook": "Vytvořit číselník",
     "preTag": "Předpřiřadit štítky",

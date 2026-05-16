@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useSetAtom } from "jotai";
 import { Button } from "../../../components/Button/Button";
+import { Modal } from "../../../components/Modal/Modal";
 import { TextField } from "../../../components/TextField/TextField";
 import {
   interviewCreateWithAudio,
   interviewImportText,
   interviewImportJson,
   interviewImportAudioText,
+  interviewImportAudioJson,
   interviewList as fetchList,
 } from "../../../ipc/interview";
 import { interviewListAtom, selectedInterviewIdAtom } from "../../../state/interview";
 import styles from "./AddInterviewModal.module.css";
 
-type Tab = "audio" | "text" | "json" | "audioText";
+type Tab = "audio" | "text" | "json" | "audioText" | "audioJson";
 type Props = { onClose: () => void };
 
 export const AddInterviewModal = ({ onClose }: Props) => {
@@ -26,8 +29,13 @@ export const AddInterviewModal = ({ onClose }: Props) => {
   const [audioPath, setAudioPath] = useState<string | null>(null);
   const [bodyText, setBodyText] = useState("");
   const [bodyJson, setBodyJson] = useState("");
+  const [bodyTextPath, setBodyTextPath] = useState<string | null>(null);
+  const [bodyJsonPath, setBodyJsonPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const basenameWithoutExt = (path: string) =>
+    path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? path;
 
   const pickAudio = async () => {
     const p = await openDialog({
@@ -36,7 +44,35 @@ export const AddInterviewModal = ({ onClose }: Props) => {
         { name: "Audio", extensions: ["mp3", "m4a", "wav", "ogg", "flac", "aac"] },
       ],
     });
-    if (p && !Array.isArray(p)) setAudioPath(p);
+    if (p && !Array.isArray(p)) {
+      setAudioPath(p);
+      if (!name.trim()) setName(basenameWithoutExt(p));
+    }
+  };
+
+  const pickTranscriptTextFile = async () => {
+    const p = await openDialog({
+      multiple: false,
+      filters: [{ name: "Transcript text", extensions: ["txt", "md"] }],
+    });
+    if (!p || Array.isArray(p)) return;
+    const text = await readTextFile(p);
+    setBodyText(text);
+    setBodyTextPath(p);
+    if (!name.trim()) setName(basenameWithoutExt(p));
+  };
+
+  const pickTranscriptJsonFile = async () => {
+    const p = await openDialog({
+      multiple: false,
+      filters: [{ name: "Transcript JSON", extensions: ["json"] }],
+    });
+    if (!p || Array.isArray(p)) return;
+    const text = await readTextFile(p);
+    JSON.parse(text);
+    setBodyJson(text);
+    setBodyJsonPath(p);
+    if (!name.trim()) setName(basenameWithoutExt(p));
   };
 
   const refresh = async (newId: number) => {
@@ -65,9 +101,17 @@ export const AddInterviewModal = ({ onClose }: Props) => {
           throw new Error(t("import.errorParse") as string);
         }
         created = await interviewImportJson(name, bodyJson);
-      } else {
+      } else if (tab === "audioText") {
         if (!audioPath || !bodyText.trim()) throw new Error(t("import.errorEmpty") as string);
         created = await interviewImportAudioText(name, audioPath, bodyText);
+      } else {
+        if (!audioPath || !bodyJson.trim()) throw new Error(t("import.errorEmpty") as string);
+        try {
+          JSON.parse(bodyJson);
+        } catch {
+          throw new Error(t("import.errorParse") as string);
+        }
+        created = await interviewImportAudioJson(name, audioPath, bodyJson);
       }
       await refresh(created.id);
     } catch (e) {
@@ -78,32 +122,48 @@ export const AddInterviewModal = ({ onClose }: Props) => {
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2>{t("import.title")}</h2>
-        <div className={styles.tabs}>
-          {(["audio", "text", "json", "audioText"] as Tab[]).map((k) => (
-            <button
-              key={k}
-              className={`${styles.tab} ${tab === k ? styles.tabActive : ""}`}
-              onClick={() => setTab(k)}
-            >
-              {t(`import.tabs.${k}`)}
-            </button>
-          ))}
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={t("import.title")}
+      size="lg"
+      footer={
+        <>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={() => void onSubmit()} disabled={busy}>
+            {t("import.submit")}
+          </Button>
+        </>
+      }
+    >
+      <div className={styles.tabs}>
+        {(["audio", "text", "json", "audioText", "audioJson"] as Tab[]).map((k) => (
+          <button
+            key={k}
+            className={`${styles.tab} ${tab === k ? styles.tabActive : ""}`}
+            onClick={() => setTab(k)}
+          >
+            {t(`import.tabs.${k}`)}
+          </button>
+        ))}
+      </div>
+      <TextField
+        label={t("import.name") as string}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      {(tab === "audio" || tab === "audioText") && (
+        <div className={styles.audioRow}>
+          <Button onClick={() => void pickAudio()}>{t("import.pickAudio")}</Button>
+          {audioPath && <span className={styles.path}>{audioPath}</span>}
         </div>
-        <TextField
-          label={t("import.name") as string}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        {(tab === "audio" || tab === "audioText") && (
+      )}
+      {(tab === "text" || tab === "audioText") && (
+        <>
           <div className={styles.audioRow}>
-            <Button onClick={() => void pickAudio()}>{t("import.pickAudio")}</Button>
-            {audioPath && <span className={styles.path}>{audioPath}</span>}
+            <Button onClick={() => void pickTranscriptTextFile()}>{t("import.pickFile")}</Button>
+            {bodyTextPath && <span className={styles.path}>{bodyTextPath}</span>}
           </div>
-        )}
-        {(tab === "text" || tab === "audioText") && (
           <textarea
             className={styles.area}
             rows={8}
@@ -111,8 +171,14 @@ export const AddInterviewModal = ({ onClose }: Props) => {
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
           />
-        )}
-        {tab === "json" && (
+        </>
+      )}
+      {(tab === "json" || tab === "audioJson") && (
+        <>
+          <div className={styles.audioRow}>
+            <Button onClick={() => void pickTranscriptJsonFile()}>{t("import.pickFile")}</Button>
+            {bodyJsonPath && <span className={styles.path}>{bodyJsonPath}</span>}
+          </div>
           <textarea
             className={styles.area}
             rows={8}
@@ -120,15 +186,9 @@ export const AddInterviewModal = ({ onClose }: Props) => {
             value={bodyJson}
             onChange={(e) => setBodyJson(e.target.value)}
           />
-        )}
-        {error && <p className={styles.error}>{error}</p>}
-        <div className={styles.actions}>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={() => void onSubmit()} disabled={busy}>
-            {t("import.submit")}
-          </Button>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+      {error && <p className={styles.error}>{error}</p>}
+    </Modal>
   );
 };

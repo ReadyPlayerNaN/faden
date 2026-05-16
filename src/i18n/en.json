@@ -64,9 +64,6 @@
     "projectName": "Project name",
     "renameProject": "Rename project",
     "rename": "Rename",
-    "updates": "Updates",
-    "updatesNote": "Auto-update is not yet supported. Check the releases page periodically.",
-    "checkForUpdates": "Check for updates",
     "prompts": {
       "title": "Prompts",
       "transcriptionSystem": "Transcription — system instruction",
@@ -100,7 +97,8 @@
       "audio": "Audio only",
       "text": "Transcript text",
       "json": "Transcript JSON",
-      "audioText": "Audio + transcript"
+      "audioText": "Audio + transcript",
+      "audioJson": "Audio + transcript JSON"
     },
     "name": "Name",
     "pasteText": "Paste transcript here",
@@ -122,9 +120,57 @@
     "deleteSpan": "Delete span",
     "confirmDelete": "Delete this span?",
     "categoryRequired": "Pick a category for the new tag",
-    "selectInterview": "Select an interview to view spans."
+    "selectInterview": "Select an interview to view spans.",
+    "standalone": "Standalone (no category)"
+  },
+  "tags": {
+    "title": "Tags",
+    "addCluster": "Add cluster",
+    "addCategory": "Add category",
+    "addTag": "Add tag",
+    "addTagToCategory": "Add tag to category",
+    "standalone": "Standalone (no category)",
+    "standaloneSection": "Standalone tags",
+    "clustersSection": "Clusters",
+    "noStandalone": "No standalone tags",
+    "noClusters": "No clusters yet",
+    "movePrompt": "Move to...",
+    "color": "Color",
+    "description": "Description",
+    "name": "Name",
+    "cluster": "Cluster",
+    "category": "Category",
+    "create": "Create",
+    "delete": "Delete",
+    "confirmDelete": "Delete {{name}}?",
+    "confirmDeleteTitle": "Confirm delete",
+    "errorInUse": "Cannot delete: this item is still in use",
+    "errorDuplicate": "An item with that name already exists",
+    "errorNameRequired": "Name is required",
+    "errorClusterRequired": "Cluster is required",
+    "doubleClickRename": "Double-click to rename"
+  },
+  "transcript": {
+    "editMode": "Edit transcript",
+    "delete": "Delete",
+    "split": "Split here",
+    "mergeNext": "Merge with next",
+    "confirmDelete": "Delete segment?",
+    "confirmDeleteBody": "This segment and any tagged spans on it will be permanently removed.",
+    "addSpeaker": "Add speaker...",
+    "splitAtEdge": "Cannot split at edge of segment",
+    "spanCrosses": "Cannot split: a tagged span crosses the split point"
+  },
+  "audio": {
+    "menu": "Audio actions",
+    "attach": "Attach audio…",
+    "replace": "Replace audio…",
+    "remove": "Remove audio",
+    "confirmRemove": "Remove audio?",
+    "confirmRemoveBody": "The audio file will be deleted from the project. The transcript will be kept."
   },
   "ai": {
+    "menuLabel": "AI",
     "panel": "AI",
     "generateCodebook": "Generate codebook",
     "preTag": "Pre-tag",
