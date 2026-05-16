@@ -1,13 +1,13 @@
 .dock {
-  position: fixed;
-  right: 12px;
-  bottom: 64px;
-  width: 280px;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 10rem;
+  max-height: min(40vh, 22rem);
   background: var(--bg-muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  z-index: 800;
+  border-top: 1px solid var(--border);
   font-size: 0.9rem;
+  overflow: hidden;
 }
 .header {
   padding: 0.5rem 0.75rem;
@@ -26,6 +26,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  overflow: auto;
 }
 .list li {
   display: flex;

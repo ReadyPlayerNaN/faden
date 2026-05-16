@@ -11,9 +11,10 @@
 }
 .menu {
   position: absolute;
-  top: calc(100% + 4px);
   right: 0;
+  bottom: calc(100% + 4px);
   min-width: 220px;
+  max-height: min(50vh, 18rem);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -22,6 +23,7 @@
   z-index: 50;
   display: flex;
   flex-direction: column;
+  overflow: auto;
 }
 .item {
   background: transparent;

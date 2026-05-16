@@ -1,7 +1,17 @@
 .pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border-left: 1px solid var(--border);
+  height: 100%;
+  overflow: hidden;
+}
+
+.detail {
+  flex: 1;
+  min-height: 0;
   padding: 0.75rem;
   overflow: auto;
-  height: 100%;
 }
+
 .empty { opacity: 0.6; font-style: italic; }
