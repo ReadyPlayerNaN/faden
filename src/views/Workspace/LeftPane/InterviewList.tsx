@@ -35,7 +35,11 @@ import { EditInterviewModal } from "./EditInterviewModal";
 import styles from "./InterviewList.module.css";
 import type { Interview } from "../../../ipc/interview";
 
-export const InterviewList = () => {
+type InterviewListProps = {
+  onAddInterview: () => void;
+};
+
+export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
   const { t } = useTranslation();
   const [list, setList] = useAtom(interviewListAtom);
   const [selected, setSelected] = useAtom(selectedInterviewIdAtom);
@@ -161,7 +165,12 @@ export const InterviewList = () => {
   return (
     <div className={styles.wrap}>
       {list.length === 0 ? (
-        <p className={styles.empty}>{t("workspace.noInterviews")}</p>
+        <div className={styles.emptyState}>
+          <p className={styles.empty}>{t("workspace.noInterviews")}</p>
+          <Button variant="primary" onClick={onAddInterview}>
+            {t("workspace.createInterview", { defaultValue: "Add interview" })}
+          </Button>
+        </div>
       ) : (
         <ul className={styles.list}>
           {list.map((i) => (

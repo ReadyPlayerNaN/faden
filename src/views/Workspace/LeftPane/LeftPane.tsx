@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAtomValue } from "jotai";
 import { Button } from "../../../components/Button/Button";
+import { interviewListAtom } from "../../../state/interview";
 import { AddInterviewModal } from "./AddInterviewModal";
 import { InterviewList } from "./InterviewList";
 import styles from "./LeftPane.module.css";
@@ -9,6 +11,7 @@ export const LeftPane = () => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const interviews = useAtomValue(interviewListAtom);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -32,35 +35,37 @@ export const LeftPane = () => {
   return (
     <aside className={styles.pane}>
       <section className={styles.section}>
-        <div className={styles.menuWrap} ref={menuRef}>
-          <Button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className={styles.titleButton}
-          >
-            <span className={styles.titleButtonContent}>
-              <span>{t("workspace.interviews")}</span>
-              <span aria-hidden="true">▾</span>
-            </span>
-          </Button>
-          {menuOpen && (
-            <div className={styles.menuDropdown} role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.menuItem}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setModalOpen(true);
-                }}
-              >
-                {t("workspace.createInterview", { defaultValue: "Create interview" })}
-              </button>
-            </div>
-          )}
-        </div>
-        <InterviewList />
+        {interviews.length > 0 && (
+          <div className={styles.menuWrap} ref={menuRef}>
+            <Button
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className={styles.titleButton}
+            >
+              <span className={styles.titleButtonContent}>
+                <span>{t("workspace.interviews")}</span>
+                <span aria-hidden="true">▾</span>
+              </span>
+            </Button>
+            {menuOpen && (
+              <div className={styles.menuDropdown} role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setModalOpen(true);
+                  }}
+                >
+                  {t("workspace.createInterview", { defaultValue: "Add interview" })}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <InterviewList onAddInterview={() => setModalOpen(true)} />
       </section>
       {modalOpen && <AddInterviewModal onClose={() => setModalOpen(false)} />}
     </aside>
