@@ -64,6 +64,12 @@ const peopleRoute = createRoute({
 	component: PeopleView,
 });
 
+const peopleProjectRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/people",
+	component: PeopleView,
+});
+
 const routeTree = rootRoute.addChildren([
 	pickerRoute,
 	workspaceRoute,
@@ -73,6 +79,7 @@ const routeTree = rootRoute.addChildren([
 	aiOpDetailRoute,
 	tagsRoute,
 	peopleRoute,
+	peopleProjectRoute,
 ]);
 
 export const router = createRouter({ routeTree });

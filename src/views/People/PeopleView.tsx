@@ -1,25 +1,49 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAtom } from "jotai";
+import { useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { TextField } from "../../components/TextField/TextField";
+import { projectOpen } from "../../ipc/project";
 import {
 	personCreate,
 	personDelete,
 	personList,
 	personRename,
 	type Person,
+	type PersonInput,
 } from "../../ipc/person";
+import { currentProjectAtom } from "../../state/project";
 import styles from "./PeopleView.module.css";
 
 type DeleteTarget = Person | null;
 
+type PersonDraft = {
+	name: string;
+	email: string;
+	phone: string;
+};
+
+const emptyDraft = (): PersonDraft => ({ name: "", email: "", phone: "" });
+
+const toInput = (draft: PersonDraft): PersonInput => ({
+	name: draft.name.trim(),
+	email: draft.email.trim() || null,
+	phone: draft.phone.trim() || null,
+});
+
 export const PeopleView = () => {
 	const { t } = useTranslation();
+	const { projectPath } = useParams({ strict: false }) as {
+		projectPath?: string;
+	};
+	const [project, setProject] = useAtom(currentProjectAtom);
 	const [people, setPeople] = useState<Person[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [addOpen, setAddOpen] = useState(false);
-	const [draftName, setDraftName] = useState("");
+	const [draft, setDraft] = useState<PersonDraft>(emptyDraft());
 	const [editingPerson, setEditingPerson] = useState<Person | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 	const [busy, setBusy] = useState(false);
@@ -33,32 +57,48 @@ export const PeopleView = () => {
 	};
 
 	useEffect(() => {
+		if (!projectPath) return;
+		const path = decodeURIComponent(projectPath);
+		if (!project || project.path !== path) {
+			void projectOpen(path).then(setProject);
+		}
+	}, [projectPath, project, setProject]);
+
+	useEffect(() => {
 		void reload();
 	}, []);
 
 	const closeAdd = () => {
 		setAddOpen(false);
-		setDraftName("");
+		setDraft(emptyDraft());
 	};
 
 	const openEdit = (person: Person) => {
 		setError(null);
 		setEditingPerson(person);
-		setDraftName(person.name);
+		setDraft({
+			name: person.name,
+			email: person.email ?? "",
+			phone: person.phone ?? "",
+		});
 	};
 
 	const closeEdit = () => {
 		setEditingPerson(null);
-		setDraftName("");
+		setDraft(emptyDraft());
+	};
+
+	const setDraftField = (field: keyof PersonDraft, value: string) => {
+		setDraft((current) => ({ ...current, [field]: value }));
 	};
 
 	const submitAdd = async () => {
-		const name = draftName.trim();
-		if (!name) return;
+		const input = toInput(draft);
+		if (!input.name) return;
 		setBusy(true);
 		setError(null);
 		try {
-			await personCreate(name);
+			await personCreate(input);
 			closeAdd();
 			await reload();
 		} catch (e) {
@@ -70,12 +110,12 @@ export const PeopleView = () => {
 
 	const submitEdit = async () => {
 		if (!editingPerson) return;
-		const name = draftName.trim();
-		if (!name) return;
+		const input = toInput(draft);
+		if (!input.name) return;
 		setBusy(true);
 		setError(null);
 		try {
-			await personRename(editingPerson.id, name);
+			await personRename(editingPerson.id, input);
 			closeEdit();
 			await reload();
 		} catch (e) {
@@ -133,6 +173,10 @@ export const PeopleView = () => {
 							<div key={person.id} className={styles.row}>
 								<div className={styles.meta}>
 									<div className={styles.name}>{person.name}</div>
+									<div className={styles.details}>
+										{person.email ? <span>{person.email}</span> : null}
+										{person.phone ? <span>{person.phone}</span> : null}
+									</div>
 									<div className={styles.count}>
 										{t("people.linkedSpeakers", {
 											defaultValue: "Linked speakers: {{count}}",
@@ -142,9 +186,12 @@ export const PeopleView = () => {
 								</div>
 								<div className={styles.actions}>
 									<Button onClick={() => openEdit(person)}>
-										{t("common.rename", { defaultValue: "Rename" })}
+										{t("common.edit", { defaultValue: "Edit" })}
 									</Button>
-									<Button onClick={() => setDeleteTarget(person)}>
+									<Button
+										variant="danger"
+										onClick={() => setDeleteTarget(person)}
+									>
 										{t("common.delete", { defaultValue: "Delete" })}
 									</Button>
 								</div>
@@ -161,57 +208,77 @@ export const PeopleView = () => {
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={closeAdd}>
+						<Button onClick={closeAdd} disabled={busy}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="primary"
 							onClick={() => void submitAdd()}
-							disabled={busy || !draftName.trim()}
+							disabled={busy || !draft.name.trim()}
 						>
 							{t("common.create", { defaultValue: "Create" })}
-						</button>
+						</Button>
 					</>
 				}
 			>
-				<label className={styles.field}>
-					<span>{t("people.name", { defaultValue: "Name" })}</span>
-					<input
-						value={draftName}
+				<div className={styles.form}>
+					<TextField
+						label={t("people.name", { defaultValue: "Name" }) as string}
+						value={draft.name}
 						autoFocus
-						onChange={(e) => setDraftName(e.target.value)}
+						onChange={(e) => setDraftField("name", e.target.value)}
 					/>
-				</label>
+					<TextField
+						label={t("people.email", { defaultValue: "Email" }) as string}
+						value={draft.email}
+						onChange={(e) => setDraftField("email", e.target.value)}
+					/>
+					<TextField
+						label={t("people.phone", { defaultValue: "Phone" }) as string}
+						value={draft.phone}
+						onChange={(e) => setDraftField("phone", e.target.value)}
+					/>
+				</div>
 			</Modal>
 
 			<Modal
 				open={editingPerson !== null}
 				onClose={closeEdit}
-				title={t("people.rename", { defaultValue: "Rename person" })}
+				title={t("people.edit", { defaultValue: "Edit person" })}
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={closeEdit}>
+						<Button onClick={closeEdit} disabled={busy}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="primary"
 							onClick={() => void submitEdit()}
-							disabled={busy || !draftName.trim()}
+							disabled={busy || !draft.name.trim()}
 						>
 							{t("common.save", { defaultValue: "Save" })}
-						</button>
+						</Button>
 					</>
 				}
 			>
-				<label className={styles.field}>
-					<span>{t("people.name", { defaultValue: "Name" })}</span>
-					<input
-						value={draftName}
+				<div className={styles.form}>
+					<TextField
+						label={t("people.name", { defaultValue: "Name" }) as string}
+						value={draft.name}
 						autoFocus
-						onChange={(e) => setDraftName(e.target.value)}
+						onChange={(e) => setDraftField("name", e.target.value)}
 					/>
-				</label>
+					<TextField
+						label={t("people.email", { defaultValue: "Email" }) as string}
+						value={draft.email}
+						onChange={(e) => setDraftField("email", e.target.value)}
+					/>
+					<TextField
+						label={t("people.phone", { defaultValue: "Phone" }) as string}
+						value={draft.phone}
+						onChange={(e) => setDraftField("phone", e.target.value)}
+					/>
+				</div>
 			</Modal>
 
 			<Modal
@@ -221,16 +288,16 @@ export const PeopleView = () => {
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={() => setDeleteTarget(null)}>
+						<Button onClick={() => setDeleteTarget(null)} disabled={busy}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="danger"
 							onClick={() => void confirmDelete()}
 							disabled={busy}
 						>
 							{t("common.delete", { defaultValue: "Delete" })}
-						</button>
+						</Button>
 					</>
 				}
 			>

@@ -10,7 +10,7 @@ fn applies_initial_migration_on_empty_db() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn is_idempotent() {
     apply_migrations(&mut conn).unwrap();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn applies_m002_main_schema() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 
     let expected_tables = [
         "interview",
@@ -79,7 +79,7 @@ fn applies_m003_proposal_table() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     let count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='proposal'",

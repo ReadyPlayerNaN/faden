@@ -63,10 +63,20 @@
 
 .meta {
 	min-width: 0;
+	flex: 1;
 }
 
 .name {
 	font-weight: 600;
+}
+
+.details {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	opacity: 0.78;
+	font-size: 0.9rem;
+	margin-top: 0.15rem;
 }
 
 .count {
@@ -80,19 +90,10 @@
 	gap: 0.5rem;
 }
 
-.field {
+.form {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
-}
-
-.field input {
-	background: var(--bg-muted);
-	border: 1px solid var(--border);
-	color: var(--fg);
-	padding: 0.4rem 0.5rem;
-	border-radius: 4px;
-	font: inherit;
+	gap: 0.75rem;
 }
 
 .confirmText {

@@ -112,7 +112,7 @@ fn speaker_set_display_name() {
 fn speaker_can_link_to_person_and_inherit_name() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let p = person::create(&conn, "Alice").unwrap();
+    let p = person::create(&conn, "Alice", None, None).unwrap();
     let s = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
 
     speaker::set_person(&conn, s.id, Some(p.id)).unwrap();
@@ -127,7 +127,7 @@ fn speaker_can_link_to_person_and_inherit_name() {
 fn create_speaker_for_person_generates_unique_label() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let p = person::create(&conn, "Alice").unwrap();
+    let p = person::create(&conn, "Alice", None, None).unwrap();
     speaker::create_or_get(&conn, i.id, "Alice", None, None).unwrap();
 
     let linked = speaker::create_for_person(&conn, i.id, p.id, None, None).unwrap();
@@ -136,6 +136,21 @@ fn create_speaker_for_person_generates_unique_label() {
     assert_eq!(linked.person_name.as_deref(), Some("Alice"));
     assert_eq!(linked.effective_display_name(), Some("Alice"));
     assert_eq!(linked.label_raw, "Alice 2");
+}
+
+#[test]
+fn person_contact_details_round_trip() {
+    let conn = fresh_conn();
+    let p = person::create(&conn, "Alice", Some("alice@example.com"), Some("123456")).unwrap();
+
+    assert_eq!(p.email.as_deref(), Some("alice@example.com"));
+    assert_eq!(p.phone.as_deref(), Some("123456"));
+
+    person::rename(&conn, p.id, "Alice B", Some("b@example.com"), None).unwrap();
+    let updated = person::get(&conn, p.id).unwrap();
+    assert_eq!(updated.name, "Alice B");
+    assert_eq!(updated.email.as_deref(), Some("b@example.com"));
+    assert_eq!(updated.phone, None);
 }
 
 #[test]
@@ -195,7 +210,7 @@ fn speaker_merge_reassigns_segments_and_deletes_sources() {
 fn speaker_merge_preserves_person_link() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let p = person::create(&conn, "Alice").unwrap();
+    let p = person::create(&conn, "Alice", None, None).unwrap();
     let linked = speaker::create_or_get(&conn, i.id, "A", None, Some(p.id)).unwrap();
     let other = speaker::create_or_get(&conn, i.id, "B", Some("Bob"), None).unwrap();
 

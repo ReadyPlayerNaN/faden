@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct PersonDTO {
     pub id: i64,
     pub name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
     pub linked_speaker_count: i64,
 }
 
@@ -15,6 +17,8 @@ impl From<Person> for PersonDTO {
         Self {
             id: value.id,
             name: value.name,
+            email: value.email,
+            phone: value.phone,
             linked_speaker_count: value.linked_speaker_count,
         }
     }
@@ -27,9 +31,14 @@ pub async fn person_list(app: tauri::AppHandle) -> AppResult<Vec<PersonDTO>> {
 }
 
 #[tauri::command]
-pub async fn person_create(app: tauri::AppHandle, name: String) -> AppResult<PersonDTO> {
+pub async fn person_create(
+    app: tauri::AppHandle,
+    name: String,
+    email: Option<String>,
+    phone: Option<String>,
+) -> AppResult<PersonDTO> {
     let conn = project_conn(&app)?;
-    Ok(person::create(&conn, &name)?.into())
+    Ok(person::create(&conn, &name, email.as_deref(), phone.as_deref())?.into())
 }
 
 #[tauri::command]
@@ -37,9 +46,11 @@ pub async fn person_rename(
     app: tauri::AppHandle,
     person_id: i64,
     name: String,
+    email: Option<String>,
+    phone: Option<String>,
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
-    person::rename(&conn, person_id, &name)
+    person::rename(&conn, person_id, &name, email.as_deref(), phone.as_deref())
 }
 
 #[tauri::command]

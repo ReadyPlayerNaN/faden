@@ -184,6 +184,19 @@
     "editCategory": "Edit category",
     "editTag": "Edit tag"
   },
+  "people": {
+    "title": "People",
+    "subtitle": "Manage people shared across interviews. Speakers can link to a person and inherit their name.",
+    "add": "Add person",
+    "edit": "Edit person",
+    "delete": "Delete person",
+    "empty": "No people yet.",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "linkedSpeakers": "Linked speakers: {{count}}",
+    "confirmDelete": "Delete \"{{name}}\"? Linked speakers will stay in interviews but become unlinked."
+  },
   "transcript": {
     "editMode": "Edit transcript",
     "delete": "Delete",

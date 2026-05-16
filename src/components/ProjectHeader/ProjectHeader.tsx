@@ -191,7 +191,16 @@ export const ProjectHeader = ({
 										className={styles.projectMenuItem}
 										onClick={() => {
 											setViewMenuOpen(false);
-											void navigate({ to: "/people" });
+											void navigate(
+												project
+													? {
+															to: "/workspace/$projectPath/people",
+															params: {
+																projectPath: encodeURIComponent(project.path),
+															},
+														}
+													: { to: "/people" },
+											);
 										}}
 									>
 										{t("people.title", { defaultValue: "People" })}

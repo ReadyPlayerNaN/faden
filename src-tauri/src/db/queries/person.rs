@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct Person {
     pub id: i64,
     pub name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
     pub linked_speaker_count: i64,
 }
 
@@ -27,32 +29,44 @@ fn get_with_query(conn: &Connection, sql: &str, id: i64) -> AppResult<Person> {
         Ok(Person {
             id: r.get(0)?,
             name: r.get(1)?,
-            linked_speaker_count: r.get(2)?,
+            email: r.get(2)?,
+            phone: r.get(3)?,
+            linked_speaker_count: r.get(4)?,
         })
     })
     .optional()?
     .ok_or_else(|| AppError::NotFound(format!("person {id}")))
 }
 
-pub fn create(conn: &Connection, name: &str) -> AppResult<Person> {
-    conn.execute("INSERT INTO person (name) VALUES (?1)", params![name])
-        .map_err(|e| map_constraint(e, "person"))?;
+pub fn create(
+    conn: &Connection,
+    name: &str,
+    email: Option<&str>,
+    phone: Option<&str>,
+) -> AppResult<Person> {
+    conn.execute(
+        "INSERT INTO person (name, email, phone) VALUES (?1, ?2, ?3)",
+        params![name, email, phone],
+    )
+    .map_err(|e| map_constraint(e, "person"))?;
     get(conn, conn.last_insert_rowid())
 }
 
 pub fn list(conn: &Connection) -> AppResult<Vec<Person>> {
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.name, COUNT(s.id) AS linked_speaker_count
+        "SELECT p.id, p.name, p.email, p.phone, COUNT(s.id) AS linked_speaker_count
          FROM person p
          LEFT JOIN speaker s ON s.person_id = p.id
-         GROUP BY p.id, p.name
+         GROUP BY p.id, p.name, p.email, p.phone
          ORDER BY LOWER(p.name) ASC, p.id ASC",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok(Person {
             id: r.get(0)?,
             name: r.get(1)?,
-            linked_speaker_count: r.get(2)?,
+            email: r.get(2)?,
+            phone: r.get(3)?,
+            linked_speaker_count: r.get(4)?,
         })
     })?;
     let mut out = Vec::new();
@@ -65,20 +79,26 @@ pub fn list(conn: &Connection) -> AppResult<Vec<Person>> {
 pub fn get(conn: &Connection, id: i64) -> AppResult<Person> {
     get_with_query(
         conn,
-        "SELECT p.id, p.name, COUNT(s.id) AS linked_speaker_count
+        "SELECT p.id, p.name, p.email, p.phone, COUNT(s.id) AS linked_speaker_count
          FROM person p
          LEFT JOIN speaker s ON s.person_id = p.id
          WHERE p.id = ?1
-         GROUP BY p.id, p.name",
+         GROUP BY p.id, p.name, p.email, p.phone",
         id,
     )
 }
 
-pub fn rename(conn: &Connection, id: i64, name: &str) -> AppResult<()> {
+pub fn rename(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    email: Option<&str>,
+    phone: Option<&str>,
+) -> AppResult<()> {
     let affected = conn
         .execute(
-            "UPDATE person SET name = ?1 WHERE id = ?2",
-            params![name, id],
+            "UPDATE person SET name = ?1, email = ?2, phone = ?3 WHERE id = ?4",
+            params![name, email, phone, id],
         )
         .map_err(|e| map_constraint(e, "person"))?;
     if affected == 0 {
