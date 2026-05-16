@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { projectOpen, projectRename } from "../../ipc/project";
+import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
 import { interviewList as fetchInterviews } from "../../ipc/interview";
 import { historyRedo, historyStatus, historyUndo } from "../../ipc/history";
@@ -18,13 +18,12 @@ import {
   selectedSpanIdAtom,
 } from "../../state/tagging";
 import { Button } from "../../components/Button/Button";
-import { settingsRecentRename } from "../../ipc/settings";
+import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
 import { AudioPlayer } from "./AudioPlayer/AudioPlayer";
 import { ExportMenu } from "./Export/ExportMenu";
-import { EditProjectModal } from "./EditProjectModal";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -39,9 +38,6 @@ export const Workspace = () => {
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [exportOpen, setExportOpen] = useState(false);
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const [editProjectOpen, setEditProjectOpen] = useState(false);
-  const projectMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -147,119 +143,36 @@ export const Workspace = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
 
-  useEffect(() => {
-    if (!projectMenuOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!projectMenuRef.current?.contains(e.target as Node)) {
-        setProjectMenuOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setProjectMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [projectMenuOpen]);
-
-  const onEditProject = async (name: string) => {
-    if (!project) return;
-    await projectRename(name);
-    await settingsRecentRename(project.path, name).catch(() => undefined);
-    setProject({ ...project, name });
-  };
-
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <div className={styles.projectMenuWrap} ref={projectMenuRef}>
-          <Button
-            onClick={() => setProjectMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={projectMenuOpen}
-            className={styles.projectMenuTrigger}
-          >
-            <span className={styles.projectMenuTriggerContent}>
-              <span className={styles.title}>{project?.name ?? t("common.loading")}</span>
-              <span aria-hidden="true">▾</span>
-            </span>
-          </Button>
-          {projectMenuOpen && (
-            <div className={styles.projectMenuDropdown} role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.projectMenuItem}
-                onClick={() => {
-                  setProjectMenuOpen(false);
-                  setEditProjectOpen(true);
-                }}
-              >
-                {t("workspace.editProject", { defaultValue: "Edit project" })}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.projectMenuItem}
-                onClick={() => {
-                  setProjectMenuOpen(false);
-                  void navigate(
-                    project
-                      ? {
-                          to: "/settings/$projectPath",
-                          params: { projectPath: encodeURIComponent(project.path) },
-                        }
-                      : { to: "/settings" },
-                  );
-                }}
-              >
-                {t("workspace.settings", { defaultValue: "Settings" })}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className={styles.projectMenuItem}
-                onClick={() => {
-                  setProjectMenuOpen(false);
-                  setProject(null);
-                  void navigate({ to: "/" });
-                }}
-              >
-                {t("workspace.openAnotherProject", { defaultValue: "Open another project" })}
-              </button>
-            </div>
-          )}
-        </div>
-        <div className={styles.headerActions}>
-          <Button
-            onClick={() => void onUndo()}
-            disabled={!historyState.canUndo}
-            className={styles.iconButton}
-            title={t("workspace.undo", { defaultValue: "Undo" })}
-            aria-label={t("workspace.undo", { defaultValue: "Undo" })}
-          >
-            <span aria-hidden="true">↶</span>
-          </Button>
-          <Button
-            onClick={() => void onRedo()}
-            disabled={!historyState.canRedo}
-            className={styles.iconButton}
-            title={t("workspace.redo", { defaultValue: "Redo" })}
-            aria-label={t("workspace.redo", { defaultValue: "Redo" })}
-          >
-            <span aria-hidden="true">↷</span>
-          </Button>
-          <Button onClick={() => setExportOpen(true)}>
-            {t("export.title")}
-          </Button>
-          <Button onClick={() => void navigate({ to: "/tags" })}>
-            {t("tags.title", { defaultValue: "Tags" })}
-          </Button>
-        </div>
-      </header>
+      <ProjectHeader
+        actions={
+          <>
+            <Button
+              onClick={() => void onUndo()}
+              disabled={!historyState.canUndo}
+              className={styles.iconButton}
+              title={t("workspace.undo", { defaultValue: "Undo" })}
+              aria-label={t("workspace.undo", { defaultValue: "Undo" })}
+            >
+              <span aria-hidden="true">↶</span>
+            </Button>
+            <Button
+              onClick={() => void onRedo()}
+              disabled={!historyState.canRedo}
+              className={styles.iconButton}
+              title={t("workspace.redo", { defaultValue: "Redo" })}
+              aria-label={t("workspace.redo", { defaultValue: "Redo" })}
+            >
+              <span aria-hidden="true">↷</span>
+            </Button>
+            <Button onClick={() => setExportOpen(true)}>{t("export.title")}</Button>
+            <Button onClick={() => void navigate({ to: "/tags" })}>
+              {t("tags.title", { defaultValue: "Tags" })}
+            </Button>
+          </>
+        }
+      />
       <div className={styles.panes}>
         <LeftPane />
         <CenterPane />
@@ -270,14 +183,6 @@ export const Workspace = () => {
         <ExportMenu
           projectName={project.name}
           onClose={() => setExportOpen(false)}
-        />
-      )}
-      {project && (
-        <EditProjectModal
-          open={editProjectOpen}
-          initialName={project.name}
-          onClose={() => setEditProjectOpen(false)}
-          onSave={onEditProject}
         />
       )}
     </div>

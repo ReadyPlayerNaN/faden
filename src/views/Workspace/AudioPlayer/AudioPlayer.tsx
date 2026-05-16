@@ -340,71 +340,78 @@ export const AudioPlayer = () => {
   if (!interview?.audioPath) {
     return (
       <div className={styles.bar}>
-        <span className={styles.empty}>{t("workspace.audioFilter")}</span>
-        <span className={styles.spacer} />
-        <AiMenu />
+        <div className={styles.audioPanel}>
+          <span className={styles.empty}>{t("workspace.audioFilter")}</span>
+        </div>
+        <div className={styles.statusArea}>
+          <AiMenu />
+        </div>
       </div>
     );
   }
 
   return (
     <div className={styles.bar}>
-      <button
-        className={styles.playBtn}
-        onClick={() => void togglePlay()}
-        aria-label="play/pause"
-        data-audio-toggle
-        disabled={!src}
-      >
-        {playing ? "⏸" : "▶"}
-      </button>
-      <span className={styles.time}>{formatTime(time)}</span>
-      <input
-        className={styles.scrub}
-        type="range"
-        min={0}
-        max={duration || 0}
-        step={0.1}
-        value={time}
-        onChange={(e) => seekTo(Number(e.target.value))}
-      />
-      <span className={styles.time}>{formatTime(duration)}</span>
-      <div className={styles.menuRoot} ref={speedMenuRef}>
-        <Button
-          type="button"
-          className={styles.menuTrigger}
-          onClick={() => setSpeedMenuOpen((open) => !open)}
-          aria-haspopup="menu"
-          aria-expanded={speedMenuOpen}
+      <div className={styles.audioPanel}>
+        <button
+          className={styles.playBtn}
+          onClick={() => void togglePlay()}
+          aria-label="play/pause"
+          data-audio-toggle
+          disabled={!src}
         >
-          {speed.toFixed(2)}× ▾
-        </Button>
-        {speedMenuOpen && (
-          <div className={styles.menu} role="menu">
-            {SPEEDS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                role="menuitemradio"
-                aria-checked={speed === option}
-                className={styles.menuItem}
-                onClick={() => {
-                  setSpeed(option);
-                  setSpeedMenuOpen(false);
-                }}
-              >
-                {option.toFixed(2)}×
-              </button>
-            ))}
-          </div>
-        )}
+          {playing ? "⏸" : "▶"}
+        </button>
+        <span className={styles.time}>{formatTime(time)}</span>
+        <input
+          className={styles.scrub}
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={time}
+          onChange={(e) => seekTo(Number(e.target.value))}
+        />
+        <span className={styles.time}>{formatTime(duration)}</span>
+        <div className={styles.menuRoot} ref={speedMenuRef}>
+          <Button
+            type="button"
+            className={styles.menuTrigger}
+            onClick={() => setSpeedMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={speedMenuOpen}
+          >
+            {speed.toFixed(2)}× ▾
+          </Button>
+          {speedMenuOpen && (
+            <div className={styles.menu} role="menu">
+              {SPEEDS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={speed === option}
+                  className={styles.menuItem}
+                  onClick={() => {
+                    setSpeed(option);
+                    setSpeedMenuOpen(false);
+                  }}
+                >
+                  {option.toFixed(2)}×
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      {playbackError && (
-        <span className={styles.error} title={playbackError}>
-          Audio failed: {playbackError}
-        </span>
-      )}
-      <AiMenu />
+      <div className={styles.statusArea}>
+        {playbackError && (
+          <span className={styles.error} title={playbackError}>
+            Audio failed: {playbackError}
+          </span>
+        )}
+        <AiMenu />
+      </div>
       <audio
         ref={(el) => {
           audioElRef.current = el;
