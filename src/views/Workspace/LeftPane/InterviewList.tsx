@@ -16,7 +16,7 @@ import {
   interviewList as fetchList,
   interviewSetAudio,
 } from "../../../ipc/interview";
-import { transcribeStart, transcribeCancel } from "../../../ipc/transcribe";
+import { transcribeCancel } from "../../../ipc/transcribe";
 import {
   activeAiOperationsAtom,
   aiRunHistoryAtom,
@@ -270,9 +270,6 @@ const InterviewRow = ({
     };
   }, [menuOpen]);
 
-  const onTranscribe = async () => {
-    try { await transcribeStart(iv.id); } catch (e) { window.alert(String((e as { message?: string }).message ?? e)); }
-  };
   const onCancel = async () => {
     try { await transcribeCancel(iv.id); } catch (e) { window.alert(String((e as { message?: string }).message ?? e)); }
   };
@@ -319,16 +316,10 @@ const InterviewRow = ({
         </span>
       );
     }
-    if (status === "complete") {
-      return null;
-    }
-    if (hasAudio && (status === "none" || status === "failed")) {
+    if (status === "failed") {
       return (
         <span className={styles.rowRight}>
-          {status === "failed" && <span className={styles.statusFailed}>{t("workspace.transcriptFailed")}</span>}
-          <button className={styles.smallBtn} onClick={(e) => { e.stopPropagation(); void onTranscribe(); }}>
-            {t("workspace.transcribe")}
-          </button>
+          <span className={styles.statusFailed}>{t("workspace.transcriptFailed")}</span>
         </span>
       );
     }

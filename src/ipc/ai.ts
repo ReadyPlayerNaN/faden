@@ -17,6 +17,7 @@ type RawCostEstimate = {
 export type ProposalKind = "codebook_gen" | "pretag" | "find_more";
 export type ProposalStatus = "pending" | "accepted" | "rejected";
 export type AiRunKind = ProposalKind | "transcribe";
+export type CostEstimateKind = ProposalKind | "transcribe";
 export type AiRunStatus = "running" | "complete" | "failed" | "cancelled";
 
 export type ProposalDTO = {
@@ -95,7 +96,7 @@ export const aiRunGet = (runId: number): Promise<AiRunDTO> =>
   invoke<AiRunDTO>("ai_run_get", { runId });
 
 export const aiCostEstimate = async (
-  kind: ProposalKind,
+  kind: CostEstimateKind,
   args: unknown,
 ): Promise<CostEstimate> =>
   costFromRaw(await invoke<RawCostEstimate>("ai_cost_estimate", { kind, args }));

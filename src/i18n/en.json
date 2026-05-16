@@ -30,7 +30,8 @@
     "transcriptFailed": "Failed",
     "audioFilter": "Audio",
     "selectInterview": "Select an interview to view its transcript.",
-    "noSegments": "This interview has no transcript yet. Click \"Transcribe\" in the interview list to start.",
+    "noSegments": "This interview has no transcript yet.",
+    "noSegmentsNoAudio": "This interview has no audio yet. Add audio to transcribe it.",
     "speaker": "Speaker",
     "selectionMissing": "Select text within a single segment to tag it.",
     "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first."

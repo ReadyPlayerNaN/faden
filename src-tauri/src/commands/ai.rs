@@ -1,13 +1,17 @@
 use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions};
+use crate::app_state::AppState;
 use crate::commands::util::project_conn;
 use crate::db::queries::ai_run;
+use crate::db::queries::interview;
 use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
 use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
 use crate::error::{AppError, AppResult};
 use crate::settings::SettingsStore;
 use crate::transcription::gemini::GeminiClient;
+use crate::transcription::pipeline::PipelineConfig;
+use crate::transcription::prompts;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Manager;
@@ -426,7 +430,7 @@ pub async fn ai_cost_estimate(
     args: Value,
 ) -> AppResult<CostEstimate> {
     let conn = project_conn(&app)?;
-    let (_client, model) = make_client_from_settings(&app)?;
+    let (_client, mut model) = make_client_from_settings(&app)?;
     let prompt = match kind.as_str() {
         "codebook_gen" => {
             let interview_ids: Vec<i64> = args
@@ -468,6 +472,51 @@ pub async fn ai_cost_estimate(
                 },
                 None,
             )?
+        }
+        "transcribe" => {
+            let interview_id = args
+                .get("interview_id")
+                .and_then(|v| v.as_i64())
+                .ok_or_else(|| AppError::Invalid("missing interview_id".into()))?;
+            let settings = SettingsStore::new(app.path().app_config_dir()?).load()?;
+            let project_settings = crate::db::queries::project_meta::read_settings(&conn)?;
+            model = settings.default_transcription_model;
+            let config = PipelineConfig {
+                model: model.clone(),
+                chunk_seconds: project_settings.transcription.chunk_seconds,
+                normalize: crate::transcription::ffmpeg::NormalizeParams {
+                    channels: project_settings.transcription.channels,
+                    sample_rate: project_settings.transcription.sample_rate,
+                    bitrate: project_settings.transcription.bitrate.clone(),
+                },
+                system_instruction: project_settings
+                    .prompts
+                    .transcription_system
+                    .unwrap_or_else(|| prompts::SYSTEM_INSTRUCTION.to_string()),
+                user_prompt: project_settings
+                    .prompts
+                    .transcription_user
+                    .unwrap_or_else(|| prompts::PROMPT_TEMPLATE.to_string()),
+                ..PipelineConfig::default()
+            };
+            let project_dir = app.state::<AppState>().current_project()?;
+            let iv = interview::get(&conn, interview_id)?;
+            let audio_rel = iv
+                .audio_path
+                .clone()
+                .ok_or_else(|| AppError::Invalid("no audio attached".into()))?;
+            let audio_path = project_dir.join(audio_rel);
+            let audio_seconds =
+                crate::transcription::ffmpeg::probe_duration(&app, &audio_path).await?;
+            return Ok(cost::estimate_transcription(
+                &model,
+                &config.system_instruction,
+                &config.user_prompt,
+                prompts::RESPONSE_SCHEMA_JSON,
+                audio_seconds,
+                config.chunk_seconds,
+                8192,
+            ));
         }
         _ => return Err(AppError::Invalid(format!("unknown kind: {kind}"))),
     };

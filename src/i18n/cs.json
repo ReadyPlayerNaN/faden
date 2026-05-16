@@ -29,7 +29,8 @@
     "transcriptFailed": "Selhalo",
     "audioFilter": "Zvuk",
     "selectInterview": "Vyberte rozhovor pro zobrazení přepisu.",
-    "noSegments": "Tento rozhovor zatím nemá přepis. Klikněte na „Přepsat\" v seznamu rozhovorů.",
+    "noSegments": "Tento rozhovor zatím nemá přepis.",
+    "noSegmentsNoAudio": "Tento rozhovor zatím nemá zvuk. Přidejte zvuk, aby bylo možné vytvořit přepis.",
     "speaker": "Mluvčí",
     "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
     "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište."
@@ -188,6 +189,7 @@
   },
   "audio": {
     "menu": "Akce zvuku",
+    "add": "Přidat zvuk…",
     "attach": "Připojit zvuk…",
     "replace": "Nahradit zvuk…",
     "remove": "Odebrat zvuk",

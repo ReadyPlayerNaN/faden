@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -16,7 +17,10 @@ import {
   type Speaker,
 } from "../../../ipc/speaker";
 import { transcriptionRunsAtom } from "../../../state/transcription";
-import { interviewContentVersionAtom } from "../../../state/interview";
+import {
+  interviewContentVersionAtom,
+  interviewListAtom,
+} from "../../../state/interview";
 import {
   segmentPlaybackRequestAtom,
   segmentPlaybackStateAtom,
@@ -28,7 +32,19 @@ import {
 } from "../../../state/tagging";
 import { buildTagMetaMap } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
+import { skipCostConfirmAtom } from "../../../state/ai";
+import {
+  aiCostEstimate,
+  type CostEstimate,
+} from "../../../ipc/ai";
+import {
+  interviewList as fetchInterviews,
+  interviewSetAudio,
+} from "../../../ipc/interview";
+import { transcribeStart } from "../../../ipc/transcribe";
+import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
+import { CostPreviewModal } from "../AI/CostPreviewModal";
 import styles from "./TranscriptViewer.module.css";
 
 type Props = {
@@ -420,6 +436,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [estimate, setEstimate] = useState<CostEstimate | null>(null);
   const [segmentPlaybackState] = useAtom(segmentPlaybackStateAtom);
   const setSegmentPlaybackRequest = useSetAtom(segmentPlaybackRequestAtom);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
@@ -429,9 +446,19 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
   const interviewContentVersion = useAtomValue(interviewContentVersionAtom);
+  const interviews = useAtomValue(interviewListAtom);
+  const skipCostConfirm = useAtomValue(skipCostConfirmAtom);
   const codebook = useAtomValue(codebookTreeAtom);
+  const setInterviews = useSetAtom(interviewListAtom);
+  const setSkipCostConfirm = useSetAtom(skipCostConfirmAtom);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastProgress = runs[interviewId]?.lastProgress;
+  const interview = useMemo(
+    () => interviews.find((item) => item.id === interviewId) ?? null,
+    [interviewId, interviews],
+  );
+  const hasAudio = interview?.audioPath != null;
+  const transcriptStatus = interview?.transcriptStatus ?? "none";
 
   const refetchSegments = async () => {
     setSegments(await segmentListForInterview(interviewId));
@@ -554,6 +581,59 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     });
   };
 
+  const errorMessage = (e: unknown): string => {
+    if (e && typeof e === "object" && "message" in e) {
+      const message = (e as { message?: unknown }).message;
+      if (typeof message === "string") return message;
+    }
+    return String(e);
+  };
+
+  const addAudio = async () => {
+    try {
+      const path = await openDialog({
+        multiple: false,
+        filters: [{ name: "Audio", extensions: ["mp3", "m4a", "wav", "ogg", "flac", "aac"] }],
+      });
+      if (!path || Array.isArray(path)) return;
+      await interviewSetAudio(interviewId, path);
+      setInterviews(await fetchInterviews());
+    } catch (e) {
+      window.alert(errorMessage(e));
+    }
+  };
+
+  const requestTranscription = async () => {
+    try {
+      if (skipCostConfirm.transcribe) {
+        await transcribeStart(interviewId);
+        return;
+      }
+      setEstimate(await aiCostEstimate("transcribe", { interview_id: interviewId }));
+    } catch (e) {
+      window.alert(errorMessage(e));
+    }
+  };
+
+  const cancelCostPreview = () => {
+    setEstimate(null);
+  };
+
+  const confirmTranscription = async (dontAsk: boolean) => {
+    setEstimate(null);
+    try {
+      if (dontAsk) {
+        setSkipCostConfirm({
+          ...skipCostConfirm,
+          transcribe: true,
+        });
+      }
+      await transcribeStart(interviewId);
+    } catch (e) {
+      window.alert(errorMessage(e));
+    }
+  };
+
   const toolbar = (
     <div className={styles.toolbar}>
       <label className={styles.editToggle}>
@@ -571,7 +651,36 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     return (
       <>
         {toolbar}
-        <p className={styles.empty}>{t("workspace.noSegments")}</p>
+        <div className={styles.emptyState}>
+          <p className={styles.empty}>
+            {hasAudio
+              ? transcriptStatus === "failed"
+                ? t("workspace.transcriptFailed")
+                : t("workspace.noSegments")
+              : t("workspace.noSegmentsNoAudio")}
+          </p>
+          {!hasAudio ? (
+            <div className={styles.emptyActions}>
+              <Button variant="primary" onClick={() => void addAudio()}>
+                {t("audio.add", { defaultValue: "Add audio…" })}
+              </Button>
+            </div>
+          ) : transcriptStatus !== "in_progress" ? (
+            <div className={styles.emptyActions}>
+              <Button variant="primary" onClick={() => void requestTranscription()}>
+                {t("workspace.transcribe")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        {estimate && (
+          <CostPreviewModal
+            estimate={estimate}
+            prompt=""
+            onSend={confirmTranscription}
+            onCancel={cancelCostPreview}
+          />
+        )}
       </>
     );
   }

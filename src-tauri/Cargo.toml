@@ -45,6 +45,7 @@ rand = "0.8"
 csv = "1"
 quick-xml = "0.31"
 deunicode = "1"
+tiktoken-rs = "0.7"
 
 [dev-dependencies]
 tempfile = "3"
