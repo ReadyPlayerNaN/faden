@@ -226,7 +226,24 @@
     "evidenceQuotes": "Důkazy",
     "running": "Zpracovává se…",
     "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
-    "rejected": "Zamítnuto"
+    "rejected": "Zamítnuto",
+    "opsTitle": "AI operace",
+    "refreshOps": "Obnovit",
+    "noOperations": "Zatím žádné AI operace",
+    "startedAt": "Spuštěno",
+    "completedAt": "Dokončeno",
+    "status": {
+      "running": "Běží",
+      "complete": "Hotovo",
+      "failed": "Selhalo",
+      "cancelled": "Zrušeno"
+    },
+    "kinds": {
+      "transcribe": "Přepis",
+      "codebook_gen": "Vytvořit číselník",
+      "pretag": "Předpřiřazení štítků",
+      "find_more": "Najít další"
+    }
   },
   "errors": {
     "networkFailed": "Síťový požadavek selhal",

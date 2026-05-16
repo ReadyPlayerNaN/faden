@@ -171,6 +171,18 @@ pub fn get(conn: &Connection, id: i64) -> AppResult<AiRun> {
     .ok_or_else(|| AppError::NotFound(format!("ai_run {id}")))
 }
 
+pub fn list_all(conn: &Connection) -> AppResult<Vec<AiRun>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, kind, interview_id, model, prompt, started_at, completed_at, status, error, token_usage_json, result_summary FROM ai_run ORDER BY started_at DESC, id DESC",
+    )?;
+    let rows = stmt.query_map([], map_row)?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
 pub fn list_for_interview(conn: &Connection, interview_id: i64) -> AppResult<Vec<AiRun>> {
     let mut stmt = conn.prepare(
         "SELECT id, kind, interview_id, model, prompt, started_at, completed_at, status, error, token_usage_json, result_summary FROM ai_run WHERE interview_id = ?1 ORDER BY started_at DESC, id DESC",

@@ -15,11 +15,27 @@ type RawCostEstimate = {
 };
 
 export type ProposalKind = "codebook_gen" | "pretag" | "find_more";
+export type AiRunKind = ProposalKind | "transcribe";
+export type AiRunStatus = "running" | "complete" | "failed" | "cancelled";
 
 export type ProposalDTO = {
   id: number;
   kind: ProposalKind;
   payload: unknown;
+};
+
+export type AiRunDTO = {
+  id: number;
+  kind: AiRunKind;
+  interviewId: number | null;
+  model: string;
+  prompt: string;
+  startedAt: string;
+  completedAt: string | null;
+  status: AiRunStatus;
+  error: string | null;
+  tokenUsageJson: string | null;
+  resultSummary: string | null;
 };
 
 const costFromRaw = (r: RawCostEstimate): CostEstimate => ({
@@ -61,6 +77,9 @@ export const aiProposalAccept = (
 
 export const aiProposalReject = (proposalId: number): Promise<void> =>
   invoke("ai_proposal_reject", { proposalId });
+
+export const aiRunList = (): Promise<AiRunDTO[]> =>
+  invoke<AiRunDTO[]>("ai_run_list");
 
 export const aiCostEstimate = async (
   kind: ProposalKind,

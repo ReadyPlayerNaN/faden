@@ -1,6 +1,7 @@
 use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions};
 use crate::commands::util::project_conn;
+use crate::db::queries::ai_run;
 use crate::db::queries::proposal::{self, ProposalKind};
 use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
@@ -83,6 +84,43 @@ pub struct ProposalDTO {
     pub id: i64,
     pub kind: String,
     pub payload: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiRunDTO {
+    pub id: i64,
+    pub kind: String,
+    pub interview_id: Option<i64>,
+    pub model: String,
+    pub prompt: String,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub status: String,
+    pub error: Option<String>,
+    pub token_usage_json: Option<String>,
+    pub result_summary: Option<String>,
+}
+
+#[tauri::command]
+pub async fn ai_run_list(app: tauri::AppHandle) -> AppResult<Vec<AiRunDTO>> {
+    let conn = project_conn(&app)?;
+    Ok(ai_run::list_all(&conn)?
+        .into_iter()
+        .map(|run| AiRunDTO {
+            id: run.id,
+            kind: run.kind.as_str().to_string(),
+            interview_id: run.interview_id,
+            model: run.model,
+            prompt: run.prompt,
+            started_at: run.started_at,
+            completed_at: run.completed_at,
+            status: run.status.as_str().to_string(),
+            error: run.error,
+            token_usage_json: run.token_usage_json,
+            result_summary: run.result_summary,
+        })
+        .collect())
 }
 
 #[tauri::command]

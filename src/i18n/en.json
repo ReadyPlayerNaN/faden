@@ -226,7 +226,24 @@
     "evidenceQuotes": "Evidence",
     "running": "Running…",
     "accepted": "Created {{created}} items ({{skipped}} skipped)",
-    "rejected": "Rejected"
+    "rejected": "Rejected",
+    "opsTitle": "AI ops",
+    "refreshOps": "Refresh",
+    "noOperations": "No AI operations yet",
+    "startedAt": "Started",
+    "completedAt": "Completed",
+    "status": {
+      "running": "Running",
+      "complete": "Complete",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "kinds": {
+      "transcribe": "Transcription",
+      "codebook_gen": "Generate codebook",
+      "pretag": "Pre-tag",
+      "find_more": "Find more"
+    }
   },
   "errors": {
     "networkFailed": "Network request failed",
