@@ -24,8 +24,8 @@ pkgdesc="$PKG_DESC"
 arch=('x86_64')
 url="https://github.com/$REPOSITORY"
 license=('MIT')
-depends=('ffmpeg' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
-makedepends=('binutils' 'cargo' 'nodejs' 'npm' 'dpkg' 'patchelf')
+depends=('ffmpeg' 'sqlite' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
+makedepends=('cargo' 'nodejs' 'npm' 'patchelf' 'pkgconf')
 provides=('faden')
 conflicts=('faden')
 source=("\$_pkgname::git+https://github.com/$REPOSITORY.git")
@@ -47,20 +47,27 @@ prepare() {
 
 build() {
   cd "\$srcdir/\$_pkgname"
-  npm run tauri build -- --bundles deb
+  npm run build
+  cargo build --manifest-path src-tauri/Cargo.toml --bins --features tauri/custom-protocol --release
 }
 
 package() {
   cd "\$srcdir/\$_pkgname"
-  local data_dir
-  data_dir="\$(find src-tauri/target/release/bundle/deb -type d -path '*/data' | head -n1)"
 
-  if [[ -z "\$data_dir" ]]; then
-    echo 'Tauri deb bundle data directory not found' >&2
-    exit 1
-  fi
-
-  cp -a "\$data_dir"/. "\$pkgdir"/
+  install -Dm755 "src-tauri/target/release/\$_pkgname" "\$pkgdir/usr/bin/\$_pkgname"
+  install -Dm644 "src-tauri/icons/128x128.png" "\$pkgdir/usr/share/pixmaps/\$_pkgname.png"
+  install -Dm644 LICENSE "\$pkgdir/usr/share/licenses/$PACKAGE_NAME/LICENSE"
+  install -Dm644 /dev/stdin "\$pkgdir/usr/share/applications/\$_pkgname.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=$DISPLAY_NAME
+Comment=$PKG_DESC
+Exec=\$_pkgname
+Icon=\$_pkgname
+Terminal=false
+Categories=Office;AudioVideo;
+StartupWMClass=faden
+DESKTOP
 }
 EOF
 
@@ -72,13 +79,13 @@ pkgbase = $PACKAGE_NAME
 	url = https://github.com/$REPOSITORY
 	arch = x86_64
 	license = MIT
-	makedepends = binutils
 	makedepends = cargo
 	makedepends = nodejs
 	makedepends = npm
-	makedepends = dpkg
 	makedepends = patchelf
+	makedepends = pkgconf
 	depends = ffmpeg
+	depends = sqlite
 	depends = webkit2gtk-4.1
 	depends = gtk3
 	depends = libayatana-appindicator
