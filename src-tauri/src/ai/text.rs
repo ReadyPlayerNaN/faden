@@ -1,5 +1,5 @@
 use crate::db::queries::{
-    category, cluster, interview, segment, speaker, span_tag, tag, tagged_span,
+    category, cluster, interview, segment, span_tag, speaker, tag, tagged_span,
 };
 use crate::error::AppResult;
 use rusqlite::Connection;
@@ -52,6 +52,43 @@ pub fn format_codebook(conn: &Connection) -> AppResult<String> {
             .ok();
         }
     }
+    let standalone_tags: Vec<_> = tags.iter().filter(|t| t.category_id.is_none()).collect();
+    if !standalone_tags.is_empty() {
+        writeln!(out, "# Standalone tags").ok();
+        for t in standalone_tags {
+            writeln!(
+                out,
+                "  - {}{}",
+                t.name,
+                t.description
+                    .as_ref()
+                    .map(|d| format!(": {d}"))
+                    .unwrap_or_default()
+            )
+            .ok();
+        }
+    }
+    Ok(out)
+}
+
+pub fn format_available_tags(conn: &Connection) -> AppResult<String> {
+    let tags = tag::list_all(conn)?;
+    let mut out = String::new();
+    for t in tags {
+        writeln!(
+            out,
+            "- {}{}",
+            t.name,
+            t.description
+                .as_ref()
+                .map(|d| format!(": {d}"))
+                .unwrap_or_default()
+        )
+        .ok();
+    }
+    if out.is_empty() {
+        out.push_str("(none)\n");
+    }
     Ok(out)
 }
 
@@ -96,11 +133,7 @@ pub fn format_existing_tagged_spans(conn: &Connection, interview_id: i64) -> App
     for span in spans {
         let names: Vec<String> = span_tag::list_for_span(conn, span.id)?
             .into_iter()
-            .filter_map(|st| {
-                tags.iter()
-                    .find(|t| t.id == st.0)
-                    .map(|t| t.name.clone())
-            })
+            .filter_map(|st| tags.iter().find(|t| t.id == st.0).map(|t| t.name.clone()))
             .collect();
         if names.is_empty() {
             continue;

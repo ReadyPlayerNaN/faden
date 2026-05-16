@@ -141,7 +141,7 @@ async fn pretag_skips_empty_filtered_suggestions() {
 }
 
 #[test]
-fn pretag_prompt_uses_existing_tags_only_and_avoids_duplicates() {
+fn pretag_prompt_includes_all_available_tags_with_descriptions() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
     let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
@@ -158,12 +158,16 @@ fn pretag_prompt_uses_existing_tags_only_and_avoids_duplicates() {
     .unwrap();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
-    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", Some("Known description"), None).unwrap();
+    tag::create(&conn, None, "standalone", Some("Standalone description"), None).unwrap();
 
     let prompt = pretag::build_prompt(&conn, &PretagInput { interview_id: i.id }, None).unwrap();
-    assert!(prompt.contains("Use only existing tags"));
-    assert!(prompt.contains("do not suggest new ones"));
+    assert!(prompt.contains("existing tags from the provided codebook"));
     assert!(prompt.contains("Avoid unnecessary duplication"));
+    assert!(prompt.contains("All available tags (name: description)"));
+    assert!(prompt.contains("- known: Known description"));
+    assert!(prompt.contains("- standalone: Standalone description"));
+    assert!(prompt.contains("# Standalone tags"));
     assert!(prompt.contains("Already tagged spans in this interview"));
 }
 

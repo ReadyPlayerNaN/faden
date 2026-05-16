@@ -20,10 +20,12 @@ pub fn build_prompt(
     let template = override_template.unwrap_or(prompts::DEFAULT_PRETAG);
     let transcript = text::format_transcript(conn, input.interview_id)?;
     let codebook = text::format_codebook(conn)?;
+    let available_tags = text::format_available_tags(conn)?;
     let existing_tagged_spans = text::format_existing_tagged_spans(conn, input.interview_id)?;
     let mut vars = HashMap::new();
     vars.insert("transcript", transcript);
     vars.insert("codebook", codebook);
+    vars.insert("available_tags", available_tags);
     vars.insert("existing_tagged_spans", existing_tagged_spans);
     Ok(prompts::render(template, &vars))
 }
@@ -48,15 +50,17 @@ pub fn prepare(
     prompt_override: Option<&str>,
 ) -> AppResult<(i64, String, serde_json::Value)> {
     let prompt = build_prompt(conn, input, prompt_override)?;
+    let url = client.text_generate_url(model);
+    let body = build_request_body(&prompt);
+    let input_json = serde_json::to_string(&body)?;
     let run_id = ai_run::start(
         conn,
         AiRunKind::Pretag,
         Some(input.interview_id),
         model,
         &prompt,
+        Some(&input_json),
     )?;
-    let url = client.text_generate_url(model);
-    let body = build_request_body(&prompt);
     Ok((run_id, url, body))
 }
 

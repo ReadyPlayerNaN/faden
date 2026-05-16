@@ -20,6 +20,7 @@ fn start_creates_running_run() {
         Some(i.id),
         "model-x",
         "prompt",
+        None,
     )
     .unwrap();
     let r = ai_run::get(&conn, id).unwrap();
@@ -30,28 +31,30 @@ fn start_creates_running_run() {
 #[test]
 fn complete_transitions_to_complete() {
     let conn = fresh_conn();
-    let id = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p").unwrap();
-    ai_run::complete(&conn, id, Some("{}"), Some("done")).unwrap();
+    let id = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p", None).unwrap();
+    ai_run::complete(&conn, id, Some("{}"), Some("done"), Some("raw output")).unwrap();
     let r = ai_run::get(&conn, id).unwrap();
     assert_eq!(r.status, AiRunStatus::Complete);
     assert!(r.completed_at.is_some());
     assert_eq!(r.result_summary.as_deref(), Some("done"));
+    assert_eq!(r.raw_output.as_deref(), Some("raw output"));
 }
 
 #[test]
 fn fail_records_error() {
     let conn = fresh_conn();
-    let id = ai_run::start(&conn, AiRunKind::Transcribe, None, "m", "p").unwrap();
-    ai_run::fail(&conn, id, "boom").unwrap();
+    let id = ai_run::start(&conn, AiRunKind::Transcribe, None, "m", "p", None).unwrap();
+    ai_run::fail(&conn, id, "boom", Some("partial raw output")).unwrap();
     let r = ai_run::get(&conn, id).unwrap();
     assert_eq!(r.status, AiRunStatus::Failed);
     assert_eq!(r.error.as_deref(), Some("boom"));
+    assert_eq!(r.raw_output.as_deref(), Some("partial raw output"));
 }
 
 #[test]
 fn cancel_only_when_running() {
     let conn = fresh_conn();
-    let id = ai_run::start(&conn, AiRunKind::Transcribe, None, "m", "p").unwrap();
+    let id = ai_run::start(&conn, AiRunKind::Transcribe, None, "m", "p", None).unwrap();
     ai_run::cancel(&conn, id).unwrap();
     let r = ai_run::get(&conn, id).unwrap();
     assert_eq!(r.status, AiRunStatus::Cancelled);
@@ -64,9 +67,9 @@ fn cancel_only_when_running() {
 fn list_for_interview_orders_by_started_desc() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let first = ai_run::start(&conn, AiRunKind::Transcribe, Some(i.id), "m", "p1").unwrap();
+    let first = ai_run::start(&conn, AiRunKind::Transcribe, Some(i.id), "m", "p1", None).unwrap();
     // Small sleep would make timestamps differ; instead just trust ordering by ID for same-instant inserts.
-    let second = ai_run::start(&conn, AiRunKind::Pretag, Some(i.id), "m", "p2").unwrap();
+    let second = ai_run::start(&conn, AiRunKind::Pretag, Some(i.id), "m", "p2", None).unwrap();
     let runs = ai_run::list_for_interview(&conn, i.id).unwrap();
     assert_eq!(runs.len(), 2);
     // Most recent first

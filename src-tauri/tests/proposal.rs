@@ -13,7 +13,7 @@ fn fresh() -> Connection {
 }
 
 fn make_run(conn: &Connection) -> i64 {
-    ai_run::start(conn, AiRunKind::CodebookGen, None, "m", "p").unwrap()
+    ai_run::start(conn, AiRunKind::CodebookGen, None, "m", "p", None).unwrap()
 }
 
 #[test]
@@ -39,6 +39,23 @@ fn list_pending_filters_by_kind() {
         1
     );
     assert_eq!(proposal::list_pending(&conn, None).unwrap().len(), 2);
+}
+
+#[test]
+fn list_for_run_filters_by_ai_run_id() {
+    let conn = fresh();
+    let first_run_id = make_run(&conn);
+    let second_run_id = make_run(&conn);
+    let first_proposal_id =
+        proposal::create(&conn, first_run_id, ProposalKind::Pretag, &json!({"name":"first"}))
+            .unwrap();
+    proposal::create(&conn, second_run_id, ProposalKind::Pretag, &json!({"name":"second"}))
+        .unwrap();
+
+    let results = proposal::list_for_run(&conn, first_run_id, None, &[ProposalStatus::Pending])
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, first_proposal_id);
 }
 
 #[test]
