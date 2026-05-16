@@ -15,7 +15,7 @@
         "title": "faden",
         "width": 800,
         "height": 600,
-        "decorations": false
+        "decorations": true
       }
     ],
     "security": {
@@ -37,9 +37,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "linux": {
-      "desktopTemplate": "linux/faden.desktop.hbs"
-    }
+    ]
   }
 }

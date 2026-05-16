@@ -8,6 +8,10 @@ five export formats (CSV, Markdown, REFI-QDA, stats, codebook).
 **Status:** Alpha. Built for personal research use. May be open-sourced once
 it stabilises.
 
+**Linux / Wayland note:** Sorry — Tauri currently forces client-side window
+decorations in some Wayland setups, so Faden may show an ugly custom titlebar
+instead of your compositor defaults. Upstream bug: https://github.com/tauri-apps/tao/issues/1046
+
 **Website:** https://faden.space
 
 ## Features
