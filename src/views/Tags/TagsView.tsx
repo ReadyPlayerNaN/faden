@@ -1,33 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import {
   codebookTree as fetchTree,
-  clusterRename,
   clusterDelete,
-  categoryRename,
   categoryDelete,
-  tagRename,
   tagDelete,
-  tagMoveToCategory,
   type ClusterNode,
   type CategoryNode,
   type TagNode,
 } from "../../ipc/codebook";
 import { codebookTreeAtom } from "../../state/codebook";
+import { currentProjectAtom } from "../../state/project";
 import { AddClusterModal } from "./AddClusterModal";
 import { AddCategoryModal } from "./AddCategoryModal";
 import { AddTagModal } from "./AddTagModal";
 import { EditCategoryModal } from "./EditCategoryModal";
+import { EditClusterModal } from "./EditClusterModal";
+import { EditTagModal } from "./EditTagModal";
 import styles from "./TagsView.module.css";
-
-type CategoryOption = {
-  id: number;
-  label: string;
-};
 
 type DeleteTarget =
   | { kind: "cluster"; id: number; name: string }
@@ -35,31 +29,25 @@ type DeleteTarget =
   | { kind: "tag"; id: number; name: string }
   | null;
 
-type EditableCategory = {
-  id: number;
-  clusterId: number | null;
-  name: string;
-  description: string | null;
-  color: string | null;
-  orderIndex: number;
-  count: number;
-  tags: TagNode[];
+type TagItem = {
+  tag: TagNode;
+  category: CategoryNode | null;
+  cluster: ClusterNode | null;
 };
 
 export const TagsView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [tree, setTree] = useAtom(codebookTreeAtom);
+  const project = useAtomValue(currentProjectAtom);
   const [error, setError] = useState<string | null>(null);
 
   const [addClusterOpen, setAddClusterOpen] = useState(false);
-  const [addCategoryFor, setAddCategoryFor] = useState<number | null | false>(
-    false,
-  );
+  const [addCategoryFor, setAddCategoryFor] = useState<number | null | false>(false);
   const [addTagFor, setAddTagFor] = useState<number | null | false>(false);
-  const [editCategory, setEditCategory] = useState<EditableCategory | null>(
-    null,
-  );
+  const [editCluster, setEditCluster] = useState<ClusterNode | null>(null);
+  const [editCategory, setEditCategory] = useState<CategoryNode | null>(null);
+  const [editTag, setEditTag] = useState<TagNode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -79,57 +67,44 @@ export const TagsView = () => {
 
   const handleError = (e: unknown) => {
     const msg = String((e as { message?: string })?.message ?? e);
-    if (msg.includes("Conflict") || msg.includes("already exists"))
+    if (msg.includes("Conflict") || msg.includes("already exists")) {
       setError(
         t("tags.errorDuplicate", {
           defaultValue: "An item with that name already exists",
         }),
       );
-    else if (
-      msg.includes("in use") ||
-      msg.includes("has tags") ||
-      msg.includes("is in use")
-    )
+    } else if (msg.includes("in use") || msg.includes("has tags") || msg.includes("is in use")) {
       setError(
         t("tags.errorInUse", {
           defaultValue: "Cannot delete: this item is still in use",
         }),
       );
-    else setError(msg);
+    } else {
+      setError(msg);
+    }
   };
 
-  const categoryOptions = useMemo<CategoryOption[]>(() => {
-    if (!tree) return [];
-    const out: CategoryOption[] = [];
-    tree.standaloneCategories.forEach((cat) => {
-      out.push({
-        id: cat.id,
-        label: t("tags.noClusterPrefix", {
-          defaultValue: "No cluster › {{name}}",
-          name: cat.name,
-        }),
-      });
-    });
-    tree.clusters.forEach((cl) => {
-      cl.categories.forEach((cat) => {
-        out.push({ id: cat.id, label: `${cl.name} › ${cat.name}` });
-      });
-    });
-    return out;
-  }, [tree, t]);
-
   const categories = useMemo(() => {
-    if (!tree) return [];
+    if (!tree) return [] as Array<{ cluster: ClusterNode | null; category: CategoryNode }>;
     return [
-      ...tree.standaloneCategories.map((category) => ({
-        cluster: null,
-        category,
-      })),
+      ...tree.standaloneCategories.map((category) => ({ cluster: null, category })),
       ...tree.clusters.flatMap((cluster) =>
-        cluster.categories.map((category) => ({
-          cluster,
-          category,
-        })),
+        cluster.categories.map((category) => ({ cluster, category })),
+      ),
+    ];
+  }, [tree]);
+
+  const tags = useMemo(() => {
+    if (!tree) return [] as TagItem[];
+    return [
+      ...tree.standaloneTags.map((tag) => ({ tag, category: null, cluster: null })),
+      ...tree.standaloneCategories.flatMap((category) =>
+        category.tags.map((tag) => ({ tag, category, cluster: null })),
+      ),
+      ...tree.clusters.flatMap((cluster) =>
+        cluster.categories.flatMap((category) =>
+          category.tags.map((tag) => ({ tag, category, cluster })),
+        ),
       ),
     ];
   }, [tree]);
@@ -144,48 +119,44 @@ export const TagsView = () => {
     setDeleteError(null);
     setDeleteBusy(true);
     try {
-      if (deleteTarget.kind === "cluster")
-        await clusterDelete(deleteTarget.id);
-      else if (deleteTarget.kind === "category")
-        await categoryDelete(deleteTarget.id);
+      if (deleteTarget.kind === "cluster") await clusterDelete(deleteTarget.id);
+      else if (deleteTarget.kind === "category") await categoryDelete(deleteTarget.id);
       else await tagDelete(deleteTarget.id);
       setDeleteTarget(null);
       await reload();
     } catch (e) {
       const msg = String((e as { message?: string })?.message ?? e);
-      if (
-        msg.includes("in use") ||
-        msg.includes("has tags") ||
-        msg.includes("is in use")
-      )
+      if (msg.includes("in use") || msg.includes("has tags") || msg.includes("is in use")) {
         setDeleteError(
           t("tags.errorInUse", {
             defaultValue: "Cannot delete: this item is still in use",
           }),
         );
-      else setDeleteError(msg);
+      } else {
+        setDeleteError(msg);
+      }
     } finally {
       setDeleteBusy(false);
-    }
-  };
-
-  const moveTag = async (tagId: number, newCategoryId: number | null) => {
-    try {
-      await tagMoveToCategory(tagId, newCategoryId);
-      await reload();
-    } catch (e) {
-      handleError(e);
     }
   };
 
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          {t("tags.title", { defaultValue: "Tags" })}
-        </h1>
+        <h1 className={styles.title}>{t("tags.title", { defaultValue: "Tags" })}</h1>
         <div className={styles.headerActions}>
-          <Button onClick={() => void navigate({ to: "/" })}>
+          <Button
+            onClick={() =>
+              void navigate(
+                project
+                  ? {
+                      to: "/workspace/$projectPath",
+                      params: { projectPath: encodeURIComponent(project.path) },
+                    }
+                  : { to: "/" },
+              )
+            }
+          >
             ← {t("settings.back")}
           </Button>
         </div>
@@ -207,51 +178,53 @@ export const TagsView = () => {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          {t("tags.clustersSection", { defaultValue: "Clusters" })}
+          {t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
         </h2>
-        {tree && tree.clusters.length === 0 ? (
-          <p className={styles.empty}>
-            {t("tags.noClusters", { defaultValue: "No clusters yet" })}
-          </p>
-        ) : (
-          tree?.clusters.map((cluster) => (
-            <ClusterCard
-              key={cluster.id}
-              cluster={cluster}
-              categoryOptions={categoryOptions}
-              onReload={reload}
-              onError={handleError}
-              onAddCategory={() => setAddCategoryFor(cluster.id)}
-              onAddTag={(categoryId) => setAddTagFor(categoryId)}
-              onEditCategory={setEditCategory}
-              onRequestDelete={requestDelete}
-              onMoveTag={moveTag}
-            />
-          ))
-        )}
+        <div className={styles.flatList}>
+          {tree && tree.clusters.length === 0 ? (
+            <p className={styles.empty}>{t("tags.noClusters", { defaultValue: "No clusters yet" })}</p>
+          ) : (
+            tree?.clusters.map((cluster) => (
+              <ManagementRow
+                key={cluster.id}
+                name={cluster.name}
+                color={cluster.color}
+                count={cluster.count}
+                subtitle={cluster.description ?? null}
+                onEdit={() => setEditCluster(cluster)}
+                onDelete={() =>
+                  requestDelete({ kind: "cluster", id: cluster.id, name: cluster.name })
+                }
+              />
+            ))
+          )}
+        </div>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          {t("tags.categoriesManagementSection", {
-            defaultValue: "Tag Category management",
-          })}
+          {t("tags.categoryManagementSection", { defaultValue: "Category management" })}
         </h2>
-        <div className={styles.standaloneList}>
+        <div className={styles.flatList}>
           {tree && categories.length === 0 ? (
-            <p className={styles.empty}>
-              {t("tags.noCategories", {
-                defaultValue: "No categories yet",
-              })}
-            </p>
+            <p className={styles.empty}>{t("tags.noCategories", { defaultValue: "No categories yet" })}</p>
           ) : (
             categories.map(({ cluster, category }) => (
-              <CategoryManagementRow
+              <ManagementRow
                 key={category.id}
-                cluster={cluster}
-                category={category}
+                name={category.name}
+                color={category.color}
+                count={category.count}
+                subtitle={[
+                  cluster?.name ?? t("tags.noCluster", { defaultValue: "No cluster" }),
+                  category.description,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
                 onEdit={() => setEditCategory(category)}
-                onRequestDelete={requestDelete}
+                onDelete={() =>
+                  requestDelete({ kind: "category", id: category.id, name: category.name })
+                }
               />
             ))
           )}
@@ -260,94 +233,40 @@ export const TagsView = () => {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          {t("tags.clusterlessCategoriesSection", {
-            defaultValue: "Categories without cluster",
-          })}
+          {t("tags.tagManagementSection", { defaultValue: "Tag management" })}
         </h2>
-        <div className={styles.standaloneList}>
-          {tree && tree.standaloneCategories.length === 0 ? (
-            <p className={styles.empty}>
-              {t("tags.noClusterlessCategories", {
-                defaultValue: "No categories without cluster",
-              })}
-            </p>
+        <div className={styles.flatList}>
+          {tree && tags.length === 0 ? (
+            <p className={styles.empty}>{t("tags.noTags", { defaultValue: "No tags yet" })}</p>
           ) : (
-            tree?.standaloneCategories.map((category) => (
-              <CategoryBlock
-                key={category.id}
-                category={category}
-                categoryOptions={categoryOptions}
-                onReload={reload}
-                onError={handleError}
-                onAddTag={() => setAddTagFor(category.id)}
-                onEdit={() => setEditCategory(category)}
-                onRequestDelete={requestDelete}
-                onMoveTag={moveTag}
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          {t("tags.standaloneSection", { defaultValue: "Standalone tags" })}
-        </h2>
-        <div className={styles.standaloneList}>
-          {tree && tree.standaloneTags.length === 0 ? (
-            <p className={styles.empty}>
-              {t("tags.noStandalone", {
-                defaultValue: "No standalone tags",
-              })}
-            </p>
-          ) : (
-            tree?.standaloneTags.map((tag) => (
-              <TagRow
+            tags.map(({ tag, category, cluster }) => (
+              <ManagementRow
                 key={tag.id}
-                tag={tag}
-                categoryOptions={categoryOptions}
-                onReload={reload}
-                onError={handleError}
-                onRequestDelete={requestDelete}
-                onMoveTag={moveTag}
+                name={tag.name}
+                color={tag.color}
+                count={tag.count}
+                subtitle={[
+                  category
+                    ? cluster
+                      ? `${cluster.name} › ${category.name}`
+                      : t("tags.noClusterPrefix", {
+                          defaultValue: "No cluster › {{name}}",
+                          name: category.name,
+                        })
+                    : t("tags.standalone", { defaultValue: "Standalone (no category)" }),
+                  tag.description,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                onEdit={() => setEditTag(tag)}
+                onDelete={() => requestDelete({ kind: "tag", id: tag.id, name: tag.name })}
               />
             ))
           )}
         </div>
       </section>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          {t("tags.standaloneSection", { defaultValue: "Standalone tags" })}
-        </h2>
-        <div className={styles.standaloneList}>
-          {tree && tree.standaloneTags.length === 0 ? (
-            <p className={styles.empty}>
-              {t("tags.noStandalone", {
-                defaultValue: "No standalone tags",
-              })}
-            </p>
-          ) : (
-            tree?.standaloneTags.map((tag) => (
-              <TagRow
-                key={tag.id}
-                tag={tag}
-                categoryOptions={categoryOptions}
-                onReload={reload}
-                onError={handleError}
-                onRequestDelete={requestDelete}
-                onMoveTag={moveTag}
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      <AddClusterModal
-        open={addClusterOpen}
-        onClose={() => setAddClusterOpen(false)}
-        onCreated={() => void reload()}
-      />
+      <AddClusterModal open={addClusterOpen} onClose={() => setAddClusterOpen(false)} onCreated={() => void reload()} />
       {tree && (
         <AddCategoryModal
           open={addCategoryFor !== false}
@@ -363,9 +282,16 @@ export const TagsView = () => {
           onClose={() => setAddTagFor(false)}
           onCreated={() => void reload()}
           clusters={tree.clusters}
+          standaloneCategories={tree.standaloneCategories}
           categoryId={addTagFor === false ? null : addTagFor}
         />
       )}
+      <EditClusterModal
+        open={editCluster !== null}
+        onClose={() => setEditCluster(null)}
+        onSaved={reload}
+        cluster={editCluster}
+      />
       {tree && (
         <EditCategoryModal
           open={editCategory !== null}
@@ -375,6 +301,16 @@ export const TagsView = () => {
           clusters={tree.clusters}
         />
       )}
+      {tree && (
+        <EditTagModal
+          open={editTag !== null}
+          onClose={() => setEditTag(null)}
+          onSaved={reload}
+          tag={editTag}
+          clusters={tree.clusters}
+          standaloneCategories={tree.standaloneCategories}
+        />
+      )}
 
       <Modal
         open={deleteTarget !== null}
@@ -382,17 +318,10 @@ export const TagsView = () => {
         title={t("tags.confirmDeleteTitle", { defaultValue: "Confirm delete" })}
         footer={
           <>
-            <Button
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleteBusy}
-            >
+            <Button onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>
               {t("common.cancel")}
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => void confirmDelete()}
-              disabled={deleteBusy}
-            >
+            <Button variant="danger" onClick={() => void confirmDelete()} disabled={deleteBusy}>
               {t("tags.delete", { defaultValue: "Delete" })}
             </Button>
           </>
@@ -410,387 +339,36 @@ export const TagsView = () => {
   );
 };
 
-type ClusterCardProps = {
-  cluster: ClusterNode;
-  categoryOptions: CategoryOption[];
-  onReload: () => Promise<void>;
-  onError: (e: unknown) => void;
-  onAddCategory: () => void;
-  onAddTag: (categoryId: number) => void;
-  onEditCategory: (category: EditableCategory) => void;
-  onRequestDelete: (target: DeleteTarget) => void;
-  onMoveTag: (tagId: number, newCategoryId: number | null) => Promise<void>;
-};
-
-const ClusterCard = ({
-  cluster,
-  categoryOptions,
-  onReload,
-  onError,
-  onAddCategory,
-  onAddTag,
-  onEditCategory,
-  onRequestDelete,
-  onMoveTag,
-}: ClusterCardProps) => {
-  const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(cluster.name);
-
-  const submit = async () => {
-    if (draft.trim() && draft !== cluster.name) {
-      try {
-        await clusterRename(cluster.id, draft.trim());
-        await onReload();
-      } catch (e) {
-        onError(e);
-      }
-    }
-    setEditing(false);
-  };
-
-  return (
-    <div className={styles.clusterCard}>
-      <div className={styles.clusterHeader}>
-        {editing ? (
-          <input
-            className={styles.input}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => void submit()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submit();
-              if (e.key === "Escape") {
-                setDraft(cluster.name);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <button
-            className={styles.clusterName}
-            onDoubleClick={() => {
-              setDraft(cluster.name);
-              setEditing(true);
-            }}
-            title={t("tags.doubleClickRename", {
-              defaultValue: "Double-click to rename",
-            })}
-          >
-            {cluster.color && (
-              <span
-                className={styles.swatch}
-                style={{ background: cluster.color }}
-              />
-            )}
-            {cluster.name}
-            <span className={styles.count}>({cluster.count})</span>
-          </button>
-        )}
-        <button
-          className={styles.delBtn}
-          onClick={() =>
-            onRequestDelete({
-              kind: "cluster",
-              id: cluster.id,
-              name: cluster.name,
-            })
-          }
-          title={t("tags.delete", { defaultValue: "Delete" })}
-        >
-          ×
-        </button>
-      </div>
-      {cluster.categories.map((cat) => (
-        <CategoryBlock
-          key={cat.id}
-          category={cat}
-          categoryOptions={categoryOptions}
-          onReload={onReload}
-          onError={onError}
-          onAddTag={() => onAddTag(cat.id)}
-          onEdit={() => onEditCategory(cat)}
-          onRequestDelete={onRequestDelete}
-          onMoveTag={onMoveTag}
-        />
-      ))}
-      <button className={styles.addNested} onClick={onAddCategory}>
-        + {t("tags.addCategory", { defaultValue: "Add category" })}
-      </button>
-    </div>
-  );
-};
-
-type CategoryBlockProps = {
-  category: CategoryNode;
-  categoryOptions: CategoryOption[];
-  onReload: () => Promise<void>;
-  onError: (e: unknown) => void;
-  onAddTag: () => void;
+type ManagementRowProps = {
+  name: string;
+  color: string | null;
+  count: number;
+  subtitle: string | null;
   onEdit: () => void;
-  onRequestDelete: (target: DeleteTarget) => void;
-  onMoveTag: (tagId: number, newCategoryId: number | null) => Promise<void>;
+  onDelete: () => void;
 };
 
-const CategoryBlock = ({
-  category,
-  categoryOptions,
-  onReload,
-  onError,
-  onAddTag,
-  onEdit,
-  onRequestDelete,
-  onMoveTag,
-}: CategoryBlockProps) => {
-  const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(category.name);
-
-  const submit = async () => {
-    if (draft.trim() && draft !== category.name) {
-      try {
-        await categoryRename(category.id, draft.trim());
-        await onReload();
-      } catch (e) {
-        onError(e);
-      }
-    }
-    setEditing(false);
-  };
-
-  return (
-    <div className={styles.categoryBlock}>
-      <div className={styles.categoryHeader}>
-        {editing ? (
-          <input
-            className={styles.input}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => void submit()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submit();
-              if (e.key === "Escape") {
-                setDraft(category.name);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <button
-            className={styles.categoryName}
-            onDoubleClick={() => {
-              setDraft(category.name);
-              setEditing(true);
-            }}
-            title={t("tags.doubleClickRename", {
-              defaultValue: "Double-click to rename",
-            })}
-          >
-            {category.color && (
-              <span
-                className={styles.swatch}
-                style={{ background: category.color }}
-              />
-            )}
-            {category.name}
-            <span className={styles.count}>({category.count})</span>
-          </button>
-        )}
-        <button
-          className={styles.manageBtn}
-          onClick={onEdit}
-          title={t("tags.editCategory", { defaultValue: "Edit category" })}
-        >
-          {t("common.edit", { defaultValue: "Edit" })}
-        </button>
-        <button
-          className={styles.delBtn}
-          onClick={() =>
-            onRequestDelete({
-              kind: "category",
-              id: category.id,
-              name: category.name,
-            })
-          }
-          title={t("tags.delete", { defaultValue: "Delete" })}
-        >
-          ×
-        </button>
-      </div>
-      {category.tags.map((tag) => (
-        <TagRow
-          key={tag.id}
-          tag={tag}
-          categoryOptions={categoryOptions}
-          onReload={onReload}
-          onError={onError}
-          onRequestDelete={onRequestDelete}
-          onMoveTag={onMoveTag}
-        />
-      ))}
-      <button className={styles.addNested} onClick={onAddTag}>
-        + {t("tags.addTagToCategory", { defaultValue: "Add tag to category" })}
-      </button>
-    </div>
-  );
-};
-
-type CategoryManagementRowProps = {
-  cluster: ClusterNode | null;
-  category: CategoryNode;
-  onEdit: () => void;
-  onRequestDelete: (target: DeleteTarget) => void;
-};
-
-const CategoryManagementRow = ({
-  cluster,
-  category,
-  onEdit,
-  onRequestDelete,
-}: CategoryManagementRowProps) => {
+const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete }: ManagementRowProps) => {
   const { t } = useTranslation();
 
   return (
     <div className={styles.managementRow}>
       <div className={styles.managementMeta}>
         <div className={styles.managementTitleRow}>
-          {category.color && (
-            <span className={styles.swatch} style={{ background: category.color }} />
-          )}
-          <strong>{category.name}</strong>
-          <span className={styles.count}>({category.count})</span>
+          {color && <span className={styles.swatch} style={{ background: color }} />}
+          <strong>{name}</strong>
+          <span className={styles.count}>({count})</span>
         </div>
-        <div className={styles.managementSubtitle}>
-          {cluster?.name ??
-            t("tags.noCluster", {
-              defaultValue: "No cluster",
-            })}
-          {category.description ? ` · ${category.description}` : ""}
-        </div>
+        {subtitle ? <div className={styles.managementSubtitle}>{subtitle}</div> : null}
       </div>
       <div className={styles.managementActions}>
-        <button
-          className={styles.manageBtn}
-          onClick={onEdit}
-          title={t("tags.editCategory", { defaultValue: "Edit category" })}
-        >
+        <button className={styles.manageBtn} onClick={onEdit}>
           {t("common.edit", { defaultValue: "Edit" })}
         </button>
-        <button
-          className={styles.delBtn}
-          onClick={() =>
-            onRequestDelete({
-              kind: "category",
-              id: category.id,
-              name: category.name,
-            })
-          }
-          title={t("tags.delete", { defaultValue: "Delete" })}
-        >
+        <button className={styles.delBtn} onClick={onDelete} title={t("tags.delete", { defaultValue: "Delete" })}>
           ×
         </button>
       </div>
-    </div>
-  );
-};
-
-type TagRowProps = {
-  tag: TagNode;
-  categoryOptions: CategoryOption[];
-  onReload: () => Promise<void>;
-  onError: (e: unknown) => void;
-  onRequestDelete: (target: DeleteTarget) => void;
-  onMoveTag: (tagId: number, newCategoryId: number | null) => Promise<void>;
-};
-
-const TagRow = ({
-  tag,
-  categoryOptions,
-  onReload,
-  onError,
-  onRequestDelete,
-  onMoveTag,
-}: TagRowProps) => {
-  const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(tag.name);
-
-  const submit = async () => {
-    if (draft.trim() && draft !== tag.name) {
-      try {
-        await tagRename(tag.id, draft.trim());
-        await onReload();
-      } catch (e) {
-        onError(e);
-      }
-    }
-    setEditing(false);
-  };
-
-  return (
-    <div className={styles.tagRow}>
-      {tag.color && (
-        <span className={styles.swatch} style={{ background: tag.color }} />
-      )}
-      {editing ? (
-        <input
-          className={styles.input}
-          value={draft}
-          autoFocus
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => void submit()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void submit();
-            if (e.key === "Escape") {
-              setDraft(tag.name);
-              setEditing(false);
-            }
-          }}
-        />
-      ) : (
-        <button
-          className={styles.tagName}
-          onDoubleClick={() => {
-            setDraft(tag.name);
-            setEditing(true);
-          }}
-          title={t("tags.doubleClickRename", {
-            defaultValue: "Double-click to rename",
-          })}
-        >
-          {tag.name}
-          <span className={styles.count}> ({tag.count})</span>
-        </button>
-      )}
-      <select
-        className={styles.moveSelect}
-        value={tag.categoryId ?? ""}
-        onChange={(e) => {
-          const v = e.target.value;
-          void onMoveTag(tag.id, v ? Number(v) : null);
-        }}
-        title={t("tags.movePrompt", { defaultValue: "Move to..." })}
-      >
-        <option value="">
-          {t("tags.standalone", { defaultValue: "Standalone (no category)" })}
-        </option>
-        {categoryOptions.map((opt) => (
-          <option key={opt.id} value={opt.id}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <button
-        className={styles.delBtn}
-        onClick={() =>
-          onRequestDelete({ kind: "tag", id: tag.id, name: tag.name })
-        }
-        title={t("tags.delete", { defaultValue: "Delete" })}
-      >
-        ×
-      </button>
     </div>
   );
 };

@@ -67,7 +67,18 @@ export const Settings = () => {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1 className={styles.title}>{t("settings.title")}</h1>
-        <Button onClick={() => void navigate({ to: "/" })}>
+        <Button
+          onClick={() =>
+            void navigate(
+              project
+                ? {
+                    to: "/workspace/$projectPath",
+                    params: { projectPath: encodeURIComponent(project.path) },
+                  }
+                : { to: "/" },
+            )
+          }
+        >
           ← {t("settings.back")}
         </Button>
       </header>
