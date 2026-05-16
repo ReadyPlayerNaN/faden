@@ -12,6 +12,22 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--fg); }
+
+input,
+textarea,
+select,
+option,
+optgroup {
+  color-scheme: dark;
+}
+
+select,
+option,
+optgroup {
+  background: var(--bg-muted);
+  color: var(--fg);
+}
+
 button {
   font-family: inherit;
   cursor: default;
