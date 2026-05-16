@@ -121,6 +121,7 @@ export const AiMenu = () => {
     setActiveOps((prev) => [
       {
         id,
+        runId: null,
         kind,
         startedAt: new Date().toISOString(),
         interviewId,
@@ -129,6 +130,10 @@ export const AiMenu = () => {
       ...prev,
     ]);
     return id;
+  };
+
+  const setLocalOperationRunId = (id: string, runId: number) => {
+    setActiveOps((prev) => prev.map((op) => (op.id === id ? { ...op, runId } : op)));
   };
 
   const finishLocalOperation = (id: string) => {
@@ -143,16 +148,16 @@ export const AiMenu = () => {
     setBusy(true);
     setStatus(t("ai.running"));
     try {
-      if (action.kind === "codebook_gen") {
-        await aiCodebookGenStart(
-          action.args.interview_ids,
-          action.args.include_existing_codebook,
-        );
-      } else if (action.kind === "pretag") {
-        await aiPretagStart(action.args.interview_id);
-      } else {
-        await aiFindMoreStart(action.args.tag_id, action.args.interview_id);
-      }
+      const runId =
+        action.kind === "codebook_gen"
+          ? await aiCodebookGenStart(
+              action.args.interview_ids,
+              action.args.include_existing_codebook,
+            )
+          : action.kind === "pretag"
+            ? await aiPretagStart(action.args.interview_id)
+            : await aiFindMoreStart(action.args.tag_id, action.args.interview_id);
+      setLocalOperationRunId(localId, runId);
       await Promise.all([refreshProposals(), refreshRuns()]);
       setStatus(null);
     } catch (e) {

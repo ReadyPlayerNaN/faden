@@ -124,14 +124,29 @@ export const buildDisplayOperations = ({
     transcriptionOps.map((op) => op.interviewId).filter((id) => id !== null),
   );
 
+  const localRunIds = new Set(activeOps.map((op) => op.runId).filter((id) => id !== null));
+  const runningLocalSignatures = new Set(
+    activeOps.map((op) => `${op.kind}:${op.interviewId ?? "none"}`),
+  );
+
   const persisted: DisplayOperation[] = aiRuns
-    .filter(
-      (run) =>
-        !(run.kind === "transcribe" &&
-          run.status === "running" &&
-          run.interviewId !== null &&
-          liveTranscribeIds.has(run.interviewId)),
-    )
+    .filter((run) => {
+      if (
+        run.kind === "transcribe" &&
+        run.status === "running" &&
+        run.interviewId !== null &&
+        liveTranscribeIds.has(run.interviewId)
+      ) {
+        return false;
+      }
+      if (run.status !== "running") {
+        return true;
+      }
+      if (localRunIds.has(run.id)) {
+        return false;
+      }
+      return !runningLocalSignatures.has(`${run.kind}:${run.interviewId ?? "none"}`);
+    })
     .map((run: AiRunDTO) => {
       const interviewName =
         run.interviewId !== null ? interviewNameById.get(run.interviewId) ?? null : null;

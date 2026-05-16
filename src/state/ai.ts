@@ -4,6 +4,7 @@ import type { TranscriptionProgress } from "../ipc/transcribe";
 
 export type LocalAiOperation = {
   id: string;
+  runId?: number | null;
   kind: ProposalKind | "transcribe";
   startedAt: string;
   interviewId: number | null;
