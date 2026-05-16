@@ -1,4 +1,3 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::span_tag::SpanTagSource;
 use faden_app_lib::db::queries::{
@@ -6,6 +5,7 @@ use faden_app_lib::db::queries::{
 };
 use faden_app_lib::export::stats::{write_stats_csv, write_stats_markdown};
 use faden_app_lib::export::{compose, ExportScope};
+use rusqlite::Connection;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

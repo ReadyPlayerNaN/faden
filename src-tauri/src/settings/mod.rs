@@ -55,12 +55,109 @@ fn deserialize_recents<'de, D: serde::Deserializer<'de>>(
         .collect())
 }
 
-fn default_transcription_model() -> String {
-    "gemini-3-flash-preview".into()
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum LlmProvider {
+    #[serde(rename = "gemini")]
+    Gemini,
+    #[serde(rename = "openai")]
+    OpenAi,
+    #[serde(rename = "anthropic")]
+    Anthropic,
+    #[serde(rename = "ollama")]
+    Ollama,
 }
 
-fn default_ai_model() -> String {
-    "gemini-3-flash-preview".into()
+impl LlmProvider {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Gemini => "gemini",
+            Self::OpenAi => "openai",
+            Self::Anthropic => "anthropic",
+            Self::Ollama => "ollama",
+        }
+    }
+
+    pub fn requires_api_key(&self) -> bool {
+        !matches!(self, Self::Ollama)
+    }
+}
+
+fn default_openai_base_url() -> String {
+    "https://api.openai.com/v1".into()
+}
+
+fn default_anthropic_base_url() -> String {
+    "https://api.anthropic.com".into()
+}
+
+fn default_ollama_base_url() -> String {
+    "http://127.0.0.1:11434".into()
+}
+
+fn default_transcription_selection() -> TaskModelSelection {
+    TaskModelSelection {
+        provider: LlmProvider::Gemini,
+        model: "gemini-3-flash-preview".into(),
+    }
+}
+
+fn default_general_ai_selection() -> TaskModelSelection {
+    TaskModelSelection {
+        provider: LlmProvider::Gemini,
+        model: "gemini-3-flash-preview".into(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TaskModelSelection {
+    pub provider: LlmProvider,
+    pub model: String,
+}
+
+impl TaskModelSelection {
+    pub fn model_ref(&self) -> String {
+        format!("{}/{}", self.provider.as_str(), self.model)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeminiProviderSettings {
+    #[serde(default)]
+    pub api_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAiProviderSettings {
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default = "default_openai_base_url")]
+    pub base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnthropicProviderSettings {
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default = "default_anthropic_base_url")]
+    pub base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OllamaProviderSettings {
+    #[serde(default = "default_ollama_base_url")]
+    pub base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderSettings {
+    #[serde(default)]
+    pub gemini: GeminiProviderSettings,
+    #[serde(default)]
+    pub openai: OpenAiProviderSettings,
+    #[serde(default)]
+    pub anthropic: AnthropicProviderSettings,
+    #[serde(default)]
+    pub ollama: OllamaProviderSettings,
 }
 
 pub const PROJECT_LANGUAGES: &[(&str, &str)] = &[
@@ -147,17 +244,50 @@ pub fn resolve_definitive_language(preferred: Option<&str>) -> String {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalSettings {
-    #[serde(default)]
-    pub gemini_api_key: String,
     #[serde(default, deserialize_with = "deserialize_recents")]
     pub recent_projects: Vec<RecentProject>,
     #[serde(default)]
     pub ui_language: Option<String>,
-    #[serde(default = "default_transcription_model")]
-    pub default_transcription_model: String,
-    #[serde(default = "default_ai_model")]
-    pub default_ai_model: String,
+    #[serde(default = "default_transcription_selection")]
+    pub transcription: TaskModelSelection,
+    #[serde(default = "default_general_ai_selection")]
+    pub general_ai: TaskModelSelection,
+    #[serde(default)]
+    pub providers: ProviderSettings,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredOpenAiProviderSettings {
+    #[serde(default = "default_openai_base_url")]
+    base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredAnthropicProviderSettings {
+    #[serde(default = "default_anthropic_base_url")]
+    base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredOllamaProviderSettings {
+    #[serde(default = "default_ollama_base_url")]
+    base_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredProviderSettings {
+    #[serde(default)]
+    gemini: StoredGeminiProviderSettings,
+    #[serde(default)]
+    openai: StoredOpenAiProviderSettings,
+    #[serde(default)]
+    anthropic: StoredAnthropicProviderSettings,
+    #[serde(default)]
+    ollama: StoredOllamaProviderSettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct StoredGeminiProviderSettings {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredSettings {
@@ -165,20 +295,102 @@ struct StoredSettings {
     recent_projects: Vec<RecentProject>,
     #[serde(default)]
     ui_language: Option<String>,
-    #[serde(default = "default_transcription_model")]
-    default_transcription_model: String,
-    #[serde(default = "default_ai_model")]
-    default_ai_model: String,
+    #[serde(default = "default_transcription_selection")]
+    transcription: TaskModelSelection,
+    #[serde(default = "default_general_ai_selection")]
+    general_ai: TaskModelSelection,
+    #[serde(default)]
+    providers: StoredProviderSettings,
+}
+
+impl Default for GeminiProviderSettings {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+        }
+    }
+}
+
+impl Default for OpenAiProviderSettings {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            base_url: default_openai_base_url(),
+        }
+    }
+}
+
+impl Default for AnthropicProviderSettings {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            base_url: default_anthropic_base_url(),
+        }
+    }
+}
+
+impl Default for OllamaProviderSettings {
+    fn default() -> Self {
+        Self {
+            base_url: default_ollama_base_url(),
+        }
+    }
+}
+
+impl Default for ProviderSettings {
+    fn default() -> Self {
+        Self {
+            gemini: GeminiProviderSettings::default(),
+            openai: OpenAiProviderSettings::default(),
+            anthropic: AnthropicProviderSettings::default(),
+            ollama: OllamaProviderSettings::default(),
+        }
+    }
+}
+
+impl Default for StoredOpenAiProviderSettings {
+    fn default() -> Self {
+        Self {
+            base_url: default_openai_base_url(),
+        }
+    }
+}
+
+impl Default for StoredAnthropicProviderSettings {
+    fn default() -> Self {
+        Self {
+            base_url: default_anthropic_base_url(),
+        }
+    }
+}
+
+impl Default for StoredOllamaProviderSettings {
+    fn default() -> Self {
+        Self {
+            base_url: default_ollama_base_url(),
+        }
+    }
+}
+
+impl Default for StoredProviderSettings {
+    fn default() -> Self {
+        Self {
+            gemini: StoredGeminiProviderSettings::default(),
+            openai: StoredOpenAiProviderSettings::default(),
+            anthropic: StoredAnthropicProviderSettings::default(),
+            ollama: StoredOllamaProviderSettings::default(),
+        }
+    }
 }
 
 impl Default for GlobalSettings {
     fn default() -> Self {
         Self {
-            gemini_api_key: String::new(),
             recent_projects: Vec::new(),
             ui_language: None,
-            default_transcription_model: default_transcription_model(),
-            default_ai_model: default_ai_model(),
+            transcription: default_transcription_selection(),
+            general_ai: default_general_ai_selection(),
+            providers: ProviderSettings::default(),
         }
     }
 }
@@ -188,8 +400,9 @@ impl Default for StoredSettings {
         Self {
             recent_projects: Vec::new(),
             ui_language: None,
-            default_transcription_model: default_transcription_model(),
-            default_ai_model: default_ai_model(),
+            transcription: default_transcription_selection(),
+            general_ai: default_general_ai_selection(),
+            providers: StoredProviderSettings::default(),
         }
     }
 }
@@ -197,11 +410,24 @@ impl Default for StoredSettings {
 impl From<StoredSettings> for GlobalSettings {
     fn from(value: StoredSettings) -> Self {
         Self {
-            gemini_api_key: String::new(),
             recent_projects: value.recent_projects,
             ui_language: value.ui_language,
-            default_transcription_model: value.default_transcription_model,
-            default_ai_model: value.default_ai_model,
+            transcription: value.transcription,
+            general_ai: value.general_ai,
+            providers: ProviderSettings {
+                gemini: GeminiProviderSettings::default(),
+                openai: OpenAiProviderSettings {
+                    api_key: String::new(),
+                    base_url: value.providers.openai.base_url,
+                },
+                anthropic: AnthropicProviderSettings {
+                    api_key: String::new(),
+                    base_url: value.providers.anthropic.base_url,
+                },
+                ollama: OllamaProviderSettings {
+                    base_url: value.providers.ollama.base_url,
+                },
+            },
         }
     }
 }
@@ -211,8 +437,20 @@ impl From<&GlobalSettings> for StoredSettings {
         Self {
             recent_projects: value.recent_projects.clone(),
             ui_language: value.ui_language.clone(),
-            default_transcription_model: value.default_transcription_model.clone(),
-            default_ai_model: value.default_ai_model.clone(),
+            transcription: value.transcription.clone(),
+            general_ai: value.general_ai.clone(),
+            providers: StoredProviderSettings {
+                gemini: StoredGeminiProviderSettings::default(),
+                openai: StoredOpenAiProviderSettings {
+                    base_url: value.providers.openai.base_url.clone(),
+                },
+                anthropic: StoredAnthropicProviderSettings {
+                    base_url: value.providers.anthropic.base_url.clone(),
+                },
+                ollama: StoredOllamaProviderSettings {
+                    base_url: value.providers.ollama.base_url.clone(),
+                },
+            },
         }
     }
 }
@@ -247,7 +485,55 @@ impl SettingsStore {
             return Ok(GlobalSettings::default());
         }
         let raw = std::fs::read_to_string(&f)?;
-        Ok(serde_json::from_str::<StoredSettings>(&raw)?.into())
+        let mut value: serde_json::Value = serde_json::from_str(&raw)?;
+        self.migrate_legacy_shape(&mut value);
+        Ok(serde_json::from_value::<StoredSettings>(value)?.into())
+    }
+
+    fn migrate_legacy_shape(&self, value: &mut serde_json::Value) {
+        let Some(root) = value.as_object_mut() else {
+            return;
+        };
+
+        if !root.contains_key("transcription") {
+            let model = root
+                .get("default_transcription_model")
+                .and_then(|v| v.as_str())
+                .unwrap_or("gemini-3-flash-preview");
+            root.insert(
+                "transcription".into(),
+                serde_json::json!({
+                    "provider": "gemini",
+                    "model": model,
+                }),
+            );
+        }
+
+        if !root.contains_key("general_ai") {
+            let model = root
+                .get("default_ai_model")
+                .and_then(|v| v.as_str())
+                .unwrap_or("gemini-3-flash-preview");
+            root.insert(
+                "general_ai".into(),
+                serde_json::json!({
+                    "provider": "gemini",
+                    "model": model,
+                }),
+            );
+        }
+
+        if !root.contains_key("providers") {
+            root.insert(
+                "providers".into(),
+                serde_json::json!({
+                    "gemini": {},
+                    "openai": { "base_url": default_openai_base_url() },
+                    "anthropic": { "base_url": default_anthropic_base_url() },
+                    "ollama": { "base_url": default_ollama_base_url() }
+                }),
+            );
+        }
     }
 
     pub fn save(&self, settings: &GlobalSettings) -> AppResult<()> {

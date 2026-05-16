@@ -1,14 +1,26 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export type CostEstimate = {
+  provider: string;
   model: string;
+  modelRef: string;
+  pricingKnown: boolean;
+  textInputUsdPerMillion: number;
+  audioInputUsdPerMillion: number;
+  outputUsdPerMillion: number;
   estimatedInputTokens: number;
   estimatedOutputTokens: number;
   estimatedUsd: number;
 };
 
 type RawCostEstimate = {
+  provider: string;
   model: string;
+  model_ref: string;
+  pricing_known: boolean;
+  text_input_usd_per_million: number;
+  audio_input_usd_per_million: number;
+  output_usd_per_million: number;
   estimated_input_tokens: number;
   estimated_output_tokens: number;
   estimated_usd: number;
@@ -81,7 +93,9 @@ export type AiRunDTO = {
   id: number;
   kind: AiRunKind;
   interviewId: number | null;
+  provider: string | null;
   model: string;
+  modelId: string;
   prompt: string;
   inputJson: string | null;
   startedAt: string;
@@ -98,8 +112,43 @@ export type AiRunDetailDTO = AiRunDTO & {
   tasks: AiRunTaskDTO[];
 };
 
+export const providerLabel = (provider: string | null): string | null => {
+  switch (provider) {
+    case "gemini":
+      return "Gemini";
+    case "openai":
+      return "OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "ollama":
+      return "Ollama";
+    default:
+      return provider;
+  }
+};
+
+export const parseModelRef = (
+  modelRef: string,
+  fallbackProvider?: string | null,
+): { provider: string | null; modelId: string } => {
+  const slash = modelRef.indexOf("/");
+  if (slash > 0) {
+    return {
+      provider: modelRef.slice(0, slash),
+      modelId: modelRef.slice(slash + 1),
+    };
+  }
+  return { provider: fallbackProvider ?? null, modelId: modelRef };
+};
+
 const costFromRaw = (r: RawCostEstimate): CostEstimate => ({
+  provider: r.provider,
   model: r.model,
+  modelRef: r.model_ref,
+  pricingKnown: r.pricing_known,
+  textInputUsdPerMillion: r.text_input_usd_per_million,
+  audioInputUsdPerMillion: r.audio_input_usd_per_million,
+  outputUsdPerMillion: r.output_usd_per_million,
   estimatedInputTokens: r.estimated_input_tokens,
   estimatedOutputTokens: r.estimated_output_tokens,
   estimatedUsd: r.estimated_usd,

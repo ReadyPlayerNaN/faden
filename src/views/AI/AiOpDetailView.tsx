@@ -7,6 +7,7 @@ import {
   aiProposalList,
   aiRunDetail,
   aiRunRetry,
+  providerLabel,
   type AiRunDetailDTO,
   type AiRunStageDTO,
   type AiRunTaskDTO,
@@ -339,6 +340,16 @@ export const AiOpDetailView = () => {
                 {t(`ai.status.${run.status}`)}
               </span>
             </div>
+            {(run.provider || run.modelId) && (
+              <div className={styles.badgesRow}>
+                {run.provider && (
+                  <span className={styles.modelBadge}>
+                    {providerLabel(run.provider) ?? run.provider}
+                  </span>
+                )}
+                {run.modelId && <span className={styles.modelBadge}>{run.modelId}</span>}
+              </div>
+            )}
             <div className={styles.metaGrid}>
               <div>
                 <span className={styles.metaLabel}>{t("ai.startedAt")}</span>
@@ -350,7 +361,7 @@ export const AiOpDetailView = () => {
               </div>
               <div>
                 <span className={styles.metaLabel}>{t("ai.model")}</span>
-                <div>{run.model}</div>
+                <div>{run.modelId}</div>
               </div>
               <div>
                 <span className={styles.metaLabel}>{t("workspace.interviews")}</span>

@@ -5,23 +5,28 @@ const AUDIO_TOKENS_PER_SECOND: f64 = 25.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CostEstimate {
+    pub provider: String,
     pub model: String,
+    pub model_ref: String,
+    pub pricing_known: bool,
+    pub text_input_usd_per_million: f64,
+    pub audio_input_usd_per_million: f64,
+    pub output_usd_per_million: f64,
     pub estimated_input_tokens: u32,
     pub estimated_output_tokens: u32,
     pub estimated_usd: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Pricing {
-    text_input_per_million: f64,
-    audio_input_per_million: f64,
-    output_per_million: f64,
+pub struct Pricing {
+    pub text_input_per_million: f64,
+    pub audio_input_per_million: f64,
+    pub output_per_million: f64,
 }
 
-/// Paid-tier Gemini Developer API pricing in USD per 1M tokens.
-/// Audio token conversion uses Google's published 25 tokens / second guidance.
-const PRICING: &[(&str, Pricing)] = &[
+const PRICING: &[(&str, &str, Pricing)] = &[
     (
+        "gemini",
         "gemini-3-flash-preview",
         Pricing {
             text_input_per_million: 0.10,
@@ -30,6 +35,7 @@ const PRICING: &[(&str, Pricing)] = &[
         },
     ),
     (
+        "gemini",
         "gemini-2.5-pro",
         Pricing {
             text_input_per_million: 1.25,
@@ -38,6 +44,7 @@ const PRICING: &[(&str, Pricing)] = &[
         },
     ),
     (
+        "gemini",
         "gemini-2.5-flash",
         Pricing {
             text_input_per_million: 0.30,
@@ -45,7 +52,59 @@ const PRICING: &[(&str, Pricing)] = &[
             output_per_million: 2.50,
         },
     ),
+    (
+        "openai",
+        "gpt-4.1-mini",
+        Pricing {
+            text_input_per_million: 0.40,
+            audio_input_per_million: 0.0,
+            output_per_million: 1.60,
+        },
+    ),
+    (
+        "openai",
+        "gpt-4.1",
+        Pricing {
+            text_input_per_million: 2.00,
+            audio_input_per_million: 0.0,
+            output_per_million: 8.00,
+        },
+    ),
+    (
+        "openai",
+        "gpt-4o-transcribe-diarize",
+        Pricing {
+            text_input_per_million: 0.0,
+            audio_input_per_million: 6.00,
+            output_per_million: 0.0,
+        },
+    ),
+    (
+        "anthropic",
+        "claude-sonnet-4-20250514",
+        Pricing {
+            text_input_per_million: 3.00,
+            audio_input_per_million: 0.0,
+            output_per_million: 15.00,
+        },
+    ),
+    (
+        "anthropic",
+        "claude-opus-4-20250514",
+        Pricing {
+            text_input_per_million: 15.00,
+            audio_input_per_million: 0.0,
+            output_per_million: 75.00,
+        },
+    ),
 ];
+
+pub fn pricing_for(provider: &str, model: &str) -> Option<Pricing> {
+    PRICING
+        .iter()
+        .find(|(p, m, _)| *p == provider && *m == model)
+        .map(|(_, _, pricing)| *pricing)
+}
 
 pub fn count_text_tokens(text: &str) -> u32 {
     o200k_base_singleton()
@@ -54,11 +113,18 @@ pub fn count_text_tokens(text: &str) -> u32 {
         .min(u32::MAX as usize) as u32
 }
 
-pub fn estimate(model: &str, prompt: &str, max_output_tokens: u32) -> CostEstimate {
-    estimate_with_input_tokens(model, count_text_tokens(prompt), 0, max_output_tokens)
+pub fn estimate(provider: &str, model: &str, prompt: &str, max_output_tokens: u32) -> CostEstimate {
+    estimate_with_input_tokens(
+        provider,
+        model,
+        count_text_tokens(prompt),
+        0,
+        max_output_tokens,
+    )
 }
 
 pub fn estimate_transcription(
+    provider: &str,
     model: &str,
     system_instruction: &str,
     user_prompt: &str,
@@ -80,6 +146,7 @@ pub fn estimate_transcription(
     let estimated_audio_input_tokens = estimate_audio_input_tokens(audio_seconds);
     let estimated_output_tokens = estimated_output_tokens_per_chunk.saturating_mul(chunk_count);
     estimate_with_input_tokens(
+        provider,
         model,
         estimated_text_input_tokens,
         estimated_audio_input_tokens,
@@ -97,12 +164,13 @@ fn estimate_audio_input_tokens(audio_seconds: f64) -> u32 {
 }
 
 fn estimate_with_input_tokens(
+    provider: &str,
     model: &str,
     text_input_tokens: u32,
     audio_input_tokens: u32,
     estimated_output_tokens: u32,
 ) -> CostEstimate {
-    let pricing = PRICING.iter().find(|(m, _)| *m == model).map(|(_, p)| *p);
+    let pricing = pricing_for(provider, model);
     let estimated_input_tokens = text_input_tokens.saturating_add(audio_input_tokens);
     let estimated_usd = match pricing {
         Some(pricing) => {
@@ -113,7 +181,13 @@ fn estimate_with_input_tokens(
         None => 0.0,
     };
     CostEstimate {
+        provider: provider.to_string(),
         model: model.to_string(),
+        model_ref: format!("{provider}/{model}"),
+        pricing_known: pricing.is_some(),
+        text_input_usd_per_million: pricing.map(|p| p.text_input_per_million).unwrap_or(0.0),
+        audio_input_usd_per_million: pricing.map(|p| p.audio_input_per_million).unwrap_or(0.0),
+        output_usd_per_million: pricing.map(|p| p.output_per_million).unwrap_or(0.0),
         estimated_input_tokens,
         estimated_output_tokens,
         estimated_usd,

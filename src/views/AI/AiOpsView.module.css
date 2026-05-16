@@ -168,6 +168,23 @@
   line-height: 1.4;
 }
 
+.badgesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.modelBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  font-size: 0.76rem;
+  opacity: 0.9;
+}
+
 .error {
   font-size: 0.86rem;
   color: #ff8a76;

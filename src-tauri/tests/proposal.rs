@@ -1,9 +1,9 @@
-use rusqlite::Connection;
-use serde_json::json;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::ai_run::AiRunKind;
 use faden_app_lib::db::queries::proposal::{ProposalKind, ProposalStatus};
 use faden_app_lib::db::queries::{ai_run, proposal};
+use rusqlite::Connection;
+use serde_json::json;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

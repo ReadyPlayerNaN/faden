@@ -1,12 +1,12 @@
-use mockito::Server;
-use rusqlite::Connection;
-use serde_json::json;
 use faden_app_lib::ai::pretag::{self, PretagInput};
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::{
     ai_run, category, cluster, interview, proposal, segment, speaker, tag,
 };
 use faden_app_lib::transcription::gemini::GeminiClient;
+use mockito::Server;
+use rusqlite::Connection;
+use serde_json::json;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

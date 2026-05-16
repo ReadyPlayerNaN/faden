@@ -1,10 +1,10 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::span_tag::SpanTagSource;
 use faden_app_lib::db::queries::{
     category, cluster, interview, project_meta, segment, span_tag, speaker, tag, tagged_span,
 };
 use faden_app_lib::export::{compose, ExportScope};
+use rusqlite::Connection;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

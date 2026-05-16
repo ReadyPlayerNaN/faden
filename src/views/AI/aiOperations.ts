@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { parseModelRef } from "../../ipc/ai";
 import type {
   AiRunDTO,
   AiRunKind,
@@ -18,7 +19,9 @@ export type DisplayOperation = {
   status: AiRunStatus;
   startedAt: string;
   completedAt: string | null;
+  provider: string | null;
   model: string | null;
+  modelId: string | null;
   summary: string | null;
   error: string | null;
   label?: string;
@@ -259,7 +262,9 @@ export const buildDisplayOperations = ({
       status: "running",
       startedAt: op.startedAt,
       completedAt: null,
+      provider: null,
       model: null,
+      modelId: null,
       summary: null,
       error: null,
       label: op.label,
@@ -287,6 +292,7 @@ export const buildDisplayOperations = ({
         run.interviewId !== null ? interviewNameById.get(run.interviewId) ?? null : null;
       const live = liveByRunId.get(run.id) ?? (run.interviewId !== null ? liveByInterviewId.get(run.interviewId) : undefined);
       const stages = live ? mergeLiveStageProgress(run.stages, live) : run.stages;
+      const parsedModel = parseModelRef(run.model, run.provider);
       return {
         id: `run-${run.id}`,
         runId: run.id,
@@ -294,7 +300,9 @@ export const buildDisplayOperations = ({
         status: run.status,
         startedAt: run.startedAt,
         completedAt: run.completedAt,
+        provider: parsedModel.provider,
         model: run.model,
+        modelId: parsedModel.modelId,
         summary: run.resultSummary,
         error: run.error,
         label: live ? labelFromSnapshot(live, t) : labelFromStages(stages, t),
@@ -321,7 +329,9 @@ export const buildDisplayOperations = ({
         status: "running",
         startedAt: new Date(run.startedAt).toISOString(),
         completedAt: null,
+        provider: null,
         model: null,
+        modelId: null,
         summary: null,
         error: null,
         label: labelFromSnapshot(run, t),

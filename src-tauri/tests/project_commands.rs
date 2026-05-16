@@ -1,6 +1,6 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::project_meta;
+use rusqlite::Connection;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -32,8 +32,8 @@ fn read_missing_returns_not_found() {
     assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
-use std::path::PathBuf;
 use faden_app_lib::commands::project::{project_create_impl, project_open_impl, ProjectInfo};
+use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[tokio::test]

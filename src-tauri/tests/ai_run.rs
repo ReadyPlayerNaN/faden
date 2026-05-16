@@ -1,8 +1,8 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::ai_run::{self, AiRunKind, AiRunStatus};
 use faden_app_lib::db::queries::ai_run_ops::{self, AiRunNodeStatus, AiRunStageKey, AiRunTaskKind};
 use faden_app_lib::db::queries::interview::{self, TranscriptStatus};
+use rusqlite::Connection;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -114,7 +114,10 @@ fn reconcile_interrupted_runs_marks_transcription_failed() {
     assert!(run.error.unwrap().contains("app closed unexpectedly"));
 
     let updated_interview = interview::get(&conn, interview_row.id).unwrap();
-    assert_eq!(updated_interview.transcript_status, TranscriptStatus::Failed);
+    assert_eq!(
+        updated_interview.transcript_status,
+        TranscriptStatus::Failed
+    );
 
     let stages = ai_run_ops::list_stages(&conn, run_id).unwrap();
     assert_eq!(stages[0].status, AiRunNodeStatus::Complete);

@@ -5,12 +5,45 @@ export type RecentProject = {
   displayName: string;
 };
 
+export type LlmProvider = "gemini" | "openai" | "anthropic" | "ollama";
+
+export type TaskModelSelection = {
+  provider: LlmProvider;
+  model: string;
+};
+
+export type ProviderSettings = {
+  gemini: { apiKey: string };
+  openai: { apiKey: string; baseUrl: string };
+  anthropic: { apiKey: string; baseUrl: string };
+  ollama: { baseUrl: string };
+};
+
 export type GlobalSettings = {
-  geminiApiKey: string;
   recentProjects: RecentProject[];
   uiLanguage: string | null;
-  defaultTranscriptionModel: string;
-  defaultAiModel: string;
+  transcription: TaskModelSelection;
+  generalAi: TaskModelSelection;
+  providers: ProviderSettings;
+};
+
+export type ProviderConnectionStep = {
+  label: string;
+  status: "ok" | "warn" | "error";
+  detail: string;
+};
+
+export type ProviderConnectionTestResult = {
+  provider: LlmProvider;
+  baseUrl: string | null;
+  checkedModel: string | null;
+  reachable: boolean;
+  authenticated: boolean;
+  modelAvailable: boolean | null;
+  pricingKnown: boolean;
+  ok: boolean;
+  message: string;
+  steps: ProviderConnectionStep[];
 };
 
 type RawRecentProject =
@@ -20,12 +53,39 @@ type RawRecentProject =
       display_name?: string;
     };
 
+type RawTaskModelSelection = {
+  provider?: LlmProvider;
+  model?: string;
+};
+
 type RawGlobalSettings = {
-  gemini_api_key?: string;
   recent_projects?: RawRecentProject[];
   ui_language?: string | null;
-  default_transcription_model?: string;
-  default_ai_model?: string;
+  transcription?: RawTaskModelSelection;
+  general_ai?: RawTaskModelSelection;
+  providers?: {
+    gemini?: { api_key?: string };
+    openai?: { api_key?: string; base_url?: string };
+    anthropic?: { api_key?: string; base_url?: string };
+    ollama?: { base_url?: string };
+  };
+};
+
+const DEFAULT_TRANSCRIPTION: TaskModelSelection = {
+  provider: "gemini",
+  model: "gemini-3-flash-preview",
+};
+
+const DEFAULT_GENERAL: TaskModelSelection = {
+  provider: "gemini",
+  model: "gemini-3-flash-preview",
+};
+
+const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
+  gemini: { apiKey: "" },
+  openai: { apiKey: "", baseUrl: "https://api.openai.com/v1" },
+  anthropic: { apiKey: "", baseUrl: "https://api.anthropic.com" },
+  ollama: { baseUrl: "http://127.0.0.1:11434" },
 };
 
 const fileName = (p: string): string => {
@@ -41,24 +101,64 @@ const rawRecentToTs = (r: RawRecentProject): RecentProject => {
   };
 };
 
+const selectionFromRaw = (
+  raw: RawTaskModelSelection | undefined,
+  fallback: TaskModelSelection,
+): TaskModelSelection => ({
+  provider: raw?.provider ?? fallback.provider,
+  model: raw?.model ?? fallback.model,
+});
+
 const rsToTs = (raw: RawGlobalSettings): GlobalSettings => ({
-  geminiApiKey: raw.gemini_api_key ?? "",
   recentProjects: (raw.recent_projects ?? []).map(rawRecentToTs),
   uiLanguage: raw.ui_language ?? null,
-  defaultTranscriptionModel:
-    raw.default_transcription_model ?? "gemini-3-flash-preview",
-  defaultAiModel: raw.default_ai_model ?? "gemini-3-flash-preview",
+  transcription: selectionFromRaw(raw.transcription, DEFAULT_TRANSCRIPTION),
+  generalAi: selectionFromRaw(raw.general_ai, DEFAULT_GENERAL),
+  providers: {
+    gemini: {
+      apiKey: raw.providers?.gemini?.api_key ?? DEFAULT_PROVIDER_SETTINGS.gemini.apiKey,
+    },
+    openai: {
+      apiKey: raw.providers?.openai?.api_key ?? DEFAULT_PROVIDER_SETTINGS.openai.apiKey,
+      baseUrl:
+        raw.providers?.openai?.base_url ?? DEFAULT_PROVIDER_SETTINGS.openai.baseUrl,
+    },
+    anthropic: {
+      apiKey:
+        raw.providers?.anthropic?.api_key ?? DEFAULT_PROVIDER_SETTINGS.anthropic.apiKey,
+      baseUrl:
+        raw.providers?.anthropic?.base_url ??
+        DEFAULT_PROVIDER_SETTINGS.anthropic.baseUrl,
+    },
+    ollama: {
+      baseUrl:
+        raw.providers?.ollama?.base_url ?? DEFAULT_PROVIDER_SETTINGS.ollama.baseUrl,
+    },
+  },
 });
 
 const tsToRs = (s: GlobalSettings): RawGlobalSettings => ({
-  gemini_api_key: s.geminiApiKey,
   recent_projects: s.recentProjects.map((r) => ({
     path: r.path,
     display_name: r.displayName,
   })),
   ui_language: s.uiLanguage,
-  default_transcription_model: s.defaultTranscriptionModel,
-  default_ai_model: s.defaultAiModel,
+  transcription: s.transcription,
+  general_ai: s.generalAi,
+  providers: {
+    gemini: { api_key: s.providers.gemini.apiKey },
+    openai: {
+      api_key: s.providers.openai.apiKey,
+      base_url: s.providers.openai.baseUrl,
+    },
+    anthropic: {
+      api_key: s.providers.anthropic.apiKey,
+      base_url: s.providers.anthropic.baseUrl,
+    },
+    ollama: {
+      base_url: s.providers.ollama.baseUrl,
+    },
+  },
 });
 
 export const settingsGet = async (): Promise<GlobalSettings> =>
@@ -95,3 +195,12 @@ export const settingsRecentRemove = async (
   rsToTs(
     await invoke<RawGlobalSettings>("settings_recent_remove", { path }),
   );
+
+export const settingsProviderTest = (
+  provider: LlmProvider,
+  model?: string,
+): Promise<ProviderConnectionTestResult> =>
+  invoke<ProviderConnectionTestResult>("settings_provider_test", {
+    provider,
+    model,
+  });

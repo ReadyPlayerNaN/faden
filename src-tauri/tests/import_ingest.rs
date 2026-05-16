@@ -1,10 +1,10 @@
-use std::io::Write;
 use faden_app_lib::db;
 use faden_app_lib::db::queries::interview::TranscriptStatus;
 use faden_app_lib::db::queries::{segment, speaker};
 use faden_app_lib::import::ingest::ingest_impl;
 use faden_app_lib::import::json_schema::parse_json;
 use faden_app_lib::import::plain_text::parse;
+use std::io::Write;
 use tempfile::{tempdir, NamedTempFile};
 
 fn bootstrap(project_dir: &std::path::Path) {

@@ -1,28 +1,34 @@
-use faden_app_lib::settings::{GlobalSettings, RecentProject, SettingsStore};
+use faden_app_lib::settings::{GlobalSettings, LlmProvider, RecentProject, SettingsStore};
 use tempfile::tempdir;
 
 #[test]
-fn default_settings_have_empty_api_key_and_recents() {
+fn default_settings_have_empty_secrets_and_task_selections() {
     let s = GlobalSettings::default();
-    assert_eq!(s.gemini_api_key, "");
+    assert_eq!(s.providers.gemini.api_key, "");
+    assert_eq!(s.providers.openai.api_key, "");
+    assert_eq!(s.providers.anthropic.api_key, "");
     assert!(s.recent_projects.is_empty());
-    assert!(!s.default_transcription_model.is_empty());
-    assert!(!s.default_ai_model.is_empty());
+    assert_eq!(s.transcription.provider, LlmProvider::Gemini);
+    assert!(!s.transcription.model.is_empty());
+    assert_eq!(s.general_ai.provider, LlmProvider::Gemini);
+    assert!(!s.general_ai.model.is_empty());
 }
 
 #[test]
 fn save_and_load_round_trip_keeps_non_secret_settings_only() {
     let dir = tempdir().unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
-    let mut s = GlobalSettings {
-        gemini_api_key: "k-123".into(),
-        ..GlobalSettings::default()
-    };
+    let mut s = GlobalSettings::default();
+    s.providers.gemini.api_key = "k-123".into();
+    s.providers.openai.api_key = "sk-openai".into();
+    s.providers.anthropic.api_key = "sk-anthropic".into();
     s.add_recent("/a".into(), None);
     s.add_recent("/b".into(), None);
     store.save(&s).unwrap();
     let loaded = store.load().unwrap();
-    assert_eq!(loaded.gemini_api_key, "");
+    assert_eq!(loaded.providers.gemini.api_key, "");
+    assert_eq!(loaded.providers.openai.api_key, "");
+    assert_eq!(loaded.providers.anthropic.api_key, "");
     assert_eq!(
         loaded
             .recent_projects
@@ -34,17 +40,21 @@ fn save_and_load_round_trip_keeps_non_secret_settings_only() {
 }
 
 #[test]
-fn saved_settings_file_does_not_contain_api_key() {
+fn saved_settings_file_does_not_contain_api_keys() {
     let dir = tempdir().unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
-    let s = GlobalSettings {
-        gemini_api_key: "k-123".into(),
-        ..GlobalSettings::default()
-    };
+    let mut s = GlobalSettings::default();
+    s.providers.gemini.api_key = "k-123".into();
+    s.providers.openai.api_key = "sk-openai".into();
+    s.providers.anthropic.api_key = "sk-anthropic".into();
     store.save(&s).unwrap();
     let raw = std::fs::read_to_string(dir.path().join("settings.json")).unwrap();
     assert!(!raw.contains("gemini_api_key"));
+    assert!(!raw.contains("openai_api_key"));
+    assert!(!raw.contains("anthropic_api_key"));
     assert!(!raw.contains("k-123"));
+    assert!(!raw.contains("sk-openai"));
+    assert!(!raw.contains("sk-anthropic"));
 }
 
 #[test]
@@ -52,7 +62,7 @@ fn load_missing_returns_default() {
     let dir = tempdir().unwrap();
     let store = SettingsStore::new(dir.path().to_path_buf());
     let s = store.load().unwrap();
-    assert_eq!(s.gemini_api_key, "");
+    assert_eq!(s.providers.gemini.api_key, "");
 }
 
 #[test]
@@ -102,7 +112,7 @@ fn legacy_plaintext_key_is_detected_but_not_loaded_into_settings_file_model() {
     let store = SettingsStore::new(dir.path().to_path_buf());
     let s = store.load().unwrap();
     assert_eq!(store.legacy_gemini_api_key().unwrap().as_deref(), Some("k"));
-    assert_eq!(s.gemini_api_key, "");
+    assert_eq!(s.providers.gemini.api_key, "");
     assert_eq!(s.recent_projects.len(), 2);
     assert_eq!(s.recent_projects[0].path, "/foo/bar");
     assert_eq!(s.recent_projects[0].display_name, "bar");
@@ -124,4 +134,20 @@ fn struct_recents_round_trip() {
     store.save(&s).unwrap();
     let loaded = store.load().unwrap();
     assert_eq!(loaded.recent_projects, vec![r]);
+}
+
+#[test]
+fn legacy_default_models_migrate_to_task_selections() {
+    let dir = tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("settings.json"),
+        r#"{"default_transcription_model":"gemini-2.5-flash","default_ai_model":"gpt-4.1-mini"}"#,
+    )
+    .unwrap();
+    let store = SettingsStore::new(dir.path().to_path_buf());
+    let loaded = store.load().unwrap();
+    assert_eq!(loaded.transcription.provider, LlmProvider::Gemini);
+    assert_eq!(loaded.transcription.model, "gemini-2.5-flash");
+    assert_eq!(loaded.general_ai.provider, LlmProvider::Gemini);
+    assert_eq!(loaded.general_ai.model, "gpt-4.1-mini");
 }

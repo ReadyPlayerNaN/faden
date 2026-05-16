@@ -1,40 +1,32 @@
 use crate::ai::cost::{self, CostEstimate};
-use crate::ai::{codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions};
+use crate::ai::{
+    codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions, CODEBOOK_RESPONSE_SCHEMA,
+    SPAN_SUGGESTIONS_SCHEMA,
+};
 use crate::app_state::AppState;
 use crate::commands::transcribe::start_transcription_run;
 use crate::commands::util::project_conn;
 use crate::db::queries::ai_run;
+use crate::db::queries::ai_run::{AiRunKind, AiRunStatus};
 use crate::db::queries::ai_run_ops;
 use crate::db::queries::interview;
 use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
 use crate::db::queries::span_tag::SpanTagSource;
 use crate::db::queries::{category, cluster, segment, span_tag, tag, tagged_span};
 use crate::error::{AppError, AppResult};
-use crate::secrets::resolve_gemini_api_key;
+use crate::llm;
+use crate::secrets::hydrate_global_settings;
 use crate::settings::project::ProjectSettings;
-use crate::settings::{resolve_definitive_language, SettingsStore};
-use crate::transcription::gemini::GeminiClient;
+use crate::settings::{resolve_definitive_language, SettingsStore, TaskModelSelection};
 use crate::transcription::pipeline::PipelineConfig;
 use crate::transcription::prompts;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Manager;
 
-const DEFAULT_MODEL: &str = "gemini-3-flash-preview";
-
-fn make_client_from_settings(app: &tauri::AppHandle) -> AppResult<(GeminiClient, String)> {
+fn load_settings(app: &tauri::AppHandle) -> AppResult<crate::settings::GlobalSettings> {
     let store = SettingsStore::new(app.path().app_config_dir()?);
-    let api_key = resolve_gemini_api_key(app, &store)?;
-    if api_key.is_empty() {
-        return Err(AppError::Invalid("no Gemini API key configured".into()));
-    }
-    let settings = store.load()?;
-    let model = if settings.default_ai_model.trim().is_empty() {
-        DEFAULT_MODEL.to_string()
-    } else {
-        settings.default_ai_model
-    };
-    Ok((GeminiClient::new(api_key), model))
+    hydrate_global_settings(app, &store)
 }
 
 fn effective_project_settings(
@@ -49,30 +41,54 @@ fn effective_project_settings(
     Ok(settings)
 }
 
+fn general_selection(settings: &crate::settings::GlobalSettings) -> TaskModelSelection {
+    settings.general_ai.clone()
+}
+
 #[tauri::command]
 pub async fn ai_codebook_gen_start(
     app: tauri::AppHandle,
     interview_ids: Vec<i64>,
     include_existing_codebook: bool,
 ) -> AppResult<i64> {
-    let (client, model) = make_client_from_settings(&app)?;
+    let settings = load_settings(&app)?;
+    let selection = general_selection(&settings);
     let input = codebook_gen::CodebookGenInput {
         interview_ids,
         include_existing_codebook,
     };
-    let (run_id, url, body) = {
+    let (run_id, prompt) = {
         let conn = project_conn(&app)?;
         let project_settings = effective_project_settings(&app, &conn)?;
-        codebook_gen::prepare(
+        let prompt = codebook_gen::build_prompt(
             &conn,
             &input,
-            &client,
-            &model,
             project_settings.prompts.codebook_gen.as_deref(),
             project_settings.language.as_deref().unwrap_or("English"),
-        )?
+        )?;
+        let input_json = serde_json::json!({
+            "provider": selection.provider.as_str(),
+            "model": selection.model.clone(),
+        })
+        .to_string();
+        let run_id = ai_run::start(
+            &conn,
+            AiRunKind::CodebookGen,
+            None,
+            &selection.model_ref(),
+            &prompt,
+            Some(&input_json),
+        )?;
+        (run_id, prompt)
     };
-    let api_result = client.post_generate(&url, &body).await;
+    let api_result = llm::generate_text_json(
+        &settings,
+        &selection,
+        &prompt,
+        Some(CODEBOOK_RESPONSE_SCHEMA),
+        32768,
+    )
+    .await;
     let conn = project_conn(&app)?;
     codebook_gen::finalize(&conn, run_id, api_result)?;
     Ok(run_id)
@@ -80,21 +96,41 @@ pub async fn ai_codebook_gen_start(
 
 #[tauri::command]
 pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppResult<i64> {
-    let (client, model) = make_client_from_settings(&app)?;
+    let settings = load_settings(&app)?;
+    let selection = general_selection(&settings);
     let input = pretag::PretagInput { interview_id };
-    let (run_id, url, body) = {
+    let (run_id, prompt) = {
         let conn = project_conn(&app)?;
         let project_settings = effective_project_settings(&app, &conn)?;
-        pretag::prepare(
+        let prompt = pretag::build_prompt(
             &conn,
             &input,
-            &client,
-            &model,
             project_settings.prompts.pretag.as_deref(),
             project_settings.language.as_deref().unwrap_or("English"),
-        )?
+        )?;
+        let input_json = serde_json::json!({
+            "provider": selection.provider.as_str(),
+            "model": selection.model.clone(),
+        })
+        .to_string();
+        let run_id = ai_run::start(
+            &conn,
+            AiRunKind::Pretag,
+            Some(interview_id),
+            &selection.model_ref(),
+            &prompt,
+            Some(&input_json),
+        )?;
+        (run_id, prompt)
     };
-    let api_result = client.post_generate(&url, &body).await;
+    let api_result = llm::generate_text_json(
+        &settings,
+        &selection,
+        &prompt,
+        Some(SPAN_SUGGESTIONS_SCHEMA),
+        16384,
+    )
+    .await;
     let conn = project_conn(&app)?;
     pretag::finalize(&conn, run_id, interview_id, api_result)?;
     Ok(run_id)
@@ -106,24 +142,44 @@ pub async fn ai_find_more_start(
     tag_id: i64,
     interview_id: i64,
 ) -> AppResult<i64> {
-    let (client, model) = make_client_from_settings(&app)?;
+    let settings = load_settings(&app)?;
+    let selection = general_selection(&settings);
     let input = find_more::FindMoreInput {
         tag_id,
         interview_id,
     };
-    let (run_id, url, body) = {
+    let (run_id, prompt) = {
         let conn = project_conn(&app)?;
         let project_settings = effective_project_settings(&app, &conn)?;
-        find_more::prepare(
+        let prompt = find_more::build_prompt(
             &conn,
             &input,
-            &client,
-            &model,
             project_settings.prompts.find_more.as_deref(),
             project_settings.language.as_deref().unwrap_or("English"),
-        )?
+        )?;
+        let input_json = serde_json::json!({
+            "provider": selection.provider.as_str(),
+            "model": selection.model.clone(),
+        })
+        .to_string();
+        let run_id = ai_run::start(
+            &conn,
+            AiRunKind::FindMore,
+            Some(interview_id),
+            &selection.model_ref(),
+            &prompt,
+            Some(&input_json),
+        )?;
+        (run_id, prompt)
     };
-    let api_result = client.post_generate(&url, &body).await;
+    let api_result = llm::generate_text_json(
+        &settings,
+        &selection,
+        &prompt,
+        Some(SPAN_SUGGESTIONS_SCHEMA),
+        8192,
+    )
+    .await;
     let conn = project_conn(&app)?;
     find_more::finalize(&conn, run_id, &input, api_result)?;
     Ok(run_id)
@@ -179,7 +235,9 @@ pub struct AiRunDTO {
     pub id: i64,
     pub kind: String,
     pub interview_id: Option<i64>,
+    pub provider: Option<String>,
     pub model: String,
+    pub model_id: String,
     pub prompt: String,
     pub input_json: Option<String>,
     pub started_at: String,
@@ -232,17 +290,34 @@ fn ai_run_task_to_dto(task: ai_run_ops::AiRunTask) -> AiRunTaskDTO {
     }
 }
 
+fn parse_model_info(model_ref: &str, input_json: Option<&str>) -> (Option<String>, String) {
+    if let Some((provider, model_id)) = model_ref.split_once('/') {
+        return (Some(provider.to_string()), model_id.to_string());
+    }
+    let provider = input_json
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .and_then(|json| {
+            json.get("provider")
+                .and_then(|v| v.as_str())
+                .map(ToOwned::to_owned)
+        });
+    (provider, model_ref.to_string())
+}
+
 fn ai_run_to_dto(conn: &rusqlite::Connection, run: ai_run::AiRun) -> AiRunDTO {
     let stages = ai_run_ops::list_stages(conn, run.id)
         .unwrap_or_default()
         .into_iter()
         .map(ai_run_stage_to_dto)
         .collect();
+    let (provider, model_id) = parse_model_info(&run.model, run.input_json.as_deref());
     AiRunDTO {
         id: run.id,
         kind: run.kind.as_str().to_string(),
         interview_id: run.interview_id,
+        provider,
         model: run.model,
+        model_id,
         prompt: run.prompt,
         input_json: run.input_json,
         started_at: run.started_at,
@@ -590,7 +665,10 @@ pub async fn ai_cost_estimate(
     args: Value,
 ) -> AppResult<CostEstimate> {
     let conn = project_conn(&app)?;
-    let (_client, mut model) = make_client_from_settings(&app)?;
+    let settings = load_settings(&app)?;
+    let general = general_selection(&settings);
+    let mut provider = general.provider.as_str().to_string();
+    let mut model = general.model.clone();
     let prompt = match kind.as_str() {
         "codebook_gen" => {
             let interview_ids: Vec<i64> = args
@@ -648,11 +726,11 @@ pub async fn ai_cost_estimate(
                 .get("interview_id")
                 .and_then(|v| v.as_i64())
                 .ok_or_else(|| AppError::Invalid("missing interview_id".into()))?;
-            let settings = SettingsStore::new(app.path().app_config_dir()?).load()?;
             let project_settings = crate::db::queries::project_meta::read_settings(&conn)?;
-            model = settings.default_transcription_model;
+            provider = settings.transcription.provider.as_str().to_string();
+            model = settings.transcription.model.clone();
             let config = PipelineConfig {
-                model: model.clone(),
+                model: settings.transcription.model.clone(),
                 chunk_seconds: project_settings.transcription.chunk_seconds,
                 normalize: crate::transcription::ffmpeg::NormalizeParams {
                     channels: project_settings.transcription.channels,
@@ -679,6 +757,7 @@ pub async fn ai_cost_estimate(
             let audio_seconds =
                 crate::transcription::ffmpeg::probe_duration(&app, &audio_path).await?;
             return Ok(cost::estimate_transcription(
+                &provider,
                 &model,
                 &config.system_instruction,
                 &config.user_prompt,
@@ -690,5 +769,5 @@ pub async fn ai_cost_estimate(
         }
         _ => return Err(AppError::Invalid(format!("unknown kind: {kind}"))),
     };
-    Ok(cost::estimate(&model, &prompt, 8192))
+    Ok(cost::estimate(&provider, &model, &prompt, 8192))
 }

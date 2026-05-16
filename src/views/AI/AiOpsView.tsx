@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
-import { aiRunList, aiRunRetry, type AiRunStageDTO } from "../../ipc/ai";
+import {
+  aiRunList,
+  aiRunRetry,
+  providerLabel,
+  type AiRunStageDTO,
+} from "../../ipc/ai";
 import { interviewList as fetchInterviews } from "../../ipc/interview";
 import { projectOpen } from "../../ipc/project";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
@@ -233,7 +238,8 @@ const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationC
     error,
     startedAt,
     completedAt,
-    model,
+    provider,
+    modelId,
     stages,
     retryAvailable,
   } = operation;
@@ -252,6 +258,12 @@ const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationC
         {label && label !== title && <div className={styles.summary}>{label}</div>}
         {summary && <div className={styles.summary}>{summary}</div>}
         {error && <div className={styles.error}>{error}</div>}
+        {(provider || modelId) && (
+          <div className={styles.badgesRow}>
+            {provider && <span className={styles.modelBadge}>{providerLabel(provider) ?? provider}</span>}
+            {modelId && <span className={styles.modelBadge}>{modelId}</span>}
+          </div>
+        )}
         {stages.length > 0 && (
           <ul className={styles.stageList}>
             {stages.map((stage) => (
@@ -268,7 +280,6 @@ const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationC
               {t("ai.completedAt")}: {formatTimestamp(completedAt)}
             </span>
           )}
-          {model && <span>{model}</span>}
           <span>{t(`ai.kinds.${kind}`)}</span>
         </div>
       </div>

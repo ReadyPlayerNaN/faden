@@ -1,4 +1,3 @@
-use rusqlite::Connection;
 use faden_app_lib::commands::tagging::{
     build_span_dto, span_create_impl, span_list_for_interview_impl, span_update_tags_impl,
     CreateSpanArgs,
@@ -8,6 +7,7 @@ use faden_app_lib::db::queries::{
     category, cluster, interview, memo, segment, speaker, tag, tagged_span,
 };
 use faden_app_lib::error::AppError;
+use rusqlite::Connection;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

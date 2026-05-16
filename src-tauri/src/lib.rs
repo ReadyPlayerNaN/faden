@@ -7,6 +7,7 @@ pub mod error;
 pub mod export;
 pub mod history;
 pub mod import;
+pub mod llm;
 pub mod media_server;
 pub mod secrets;
 pub mod settings;
@@ -44,6 +45,7 @@ pub fn run() {
             commands::settings::settings_add_recent,
             commands::settings::settings_recent_rename,
             commands::settings::settings_recent_remove,
+            commands::settings::settings_provider_test,
             commands::settings::project_settings_get,
             commands::settings::project_settings_set,
             commands::codebook::codebook_tree,

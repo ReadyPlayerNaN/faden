@@ -2,6 +2,7 @@ pub mod cache;
 pub mod chunker;
 pub mod ffmpeg;
 pub mod gemini;
+pub mod openai;
 pub mod pipeline;
 pub mod progress;
 pub mod prompts;

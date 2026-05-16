@@ -1,6 +1,6 @@
-use rusqlite::Connection;
 use faden_app_lib::db::migrations::apply_migrations;
 use faden_app_lib::db::queries::{interview, segment, speaker, tagged_span};
+use rusqlite::Connection;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
