@@ -6,15 +6,15 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 TAG="${TAG:-${GITHUB_REF_NAME:-}}"
 if [[ -z "$TAG" ]]; then
-  echo "TAG or GITHUB_REF_NAME must be set" >&2
-  exit 1
+	echo "TAG or GITHUB_REF_NAME must be set" >&2
+	exit 1
 fi
 
 VERSION="${VERSION:-${TAG#v}}"
 REPOSITORY="${REPOSITORY:-${GITHUB_REPOSITORY:-}}"
 if [[ -z "$REPOSITORY" ]]; then
-  echo "REPOSITORY or GITHUB_REPOSITORY must be set" >&2
-  exit 1
+	echo "REPOSITORY or GITHUB_REPOSITORY must be set" >&2
+	exit 1
 fi
 
 PACKAGE_NAME="${PACKAGE_NAME:-${REPOSITORY##*/}}"
@@ -28,16 +28,16 @@ SOURCE_NAME="$BASE_NAME-$VERSION.tar.gz"
 SOURCE_SHA256="${SOURCE_SHA256:-}"
 
 if [[ -z "$SOURCE_SHA256" ]]; then
-  tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' EXIT
-  curl -L "$SOURCE_URL" -o "$tmp"
-  SOURCE_SHA256="$(sha256sum "$tmp" | awk '{print $1}')"
+	tmp="$(mktemp)"
+	trap 'rm -f "$tmp"' EXIT
+	curl -L "$SOURCE_URL" -o "$tmp"
+	SOURCE_SHA256="$(sha256sum "$tmp" | awk '{print $1}')"
 fi
 
 rm -rf "$PACKAGE_DIR"
 mkdir -p "$PACKAGE_DIR"
 
-cat > "$PACKAGE_DIR/PKGBUILD" <<EOF
+cat >"$PACKAGE_DIR/PKGBUILD" <<EOF
 pkgname=$PACKAGE_NAME
 _pkgname=$BASE_NAME
 pkgver=$VERSION
@@ -46,6 +46,7 @@ pkgdesc="$PKG_DESC"
 arch=('x86_64')
 url="https://github.com/$REPOSITORY"
 license=('MIT')
+options=(!lto)
 depends=('ffmpeg' 'sqlite' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
 makedepends=('cargo' 'nodejs' 'npm' 'patchelf' 'pkgconf')
 conflicts=('${BASE_NAME}-bin' '${BASE_NAME}-git')
@@ -84,7 +85,7 @@ DESKTOP
 }
 EOF
 
-cat > "$PACKAGE_DIR/.SRCINFO" <<EOF
+cat >"$PACKAGE_DIR/.SRCINFO" <<EOF
 pkgbase = $PACKAGE_NAME
 	pkgdesc = $PKG_DESC
 	pkgver = $VERSION
@@ -92,6 +93,7 @@ pkgbase = $PACKAGE_NAME
 	url = https://github.com/$REPOSITORY
 	arch = x86_64
 	license = MIT
+	options = !lto
 	makedepends = cargo
 	makedepends = nodejs
 	makedepends = npm

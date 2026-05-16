@@ -15,7 +15,7 @@ PKG_DESC="${PKG_DESC:-$(awk -F ' = ' '/^description = / { gsub(/^"|"$/, "", $2);
 rm -rf "$PACKAGE_DIR"
 mkdir -p "$PACKAGE_DIR"
 
-cat > "$PACKAGE_DIR/PKGBUILD" <<EOF
+cat >"$PACKAGE_DIR/PKGBUILD" <<EOF
 pkgname=$PACKAGE_NAME
 _pkgname=$BASE_NAME
 pkgver=0.r0.g0000000
@@ -24,6 +24,7 @@ pkgdesc="$PKG_DESC"
 arch=('x86_64')
 url="https://github.com/$REPOSITORY"
 license=('MIT')
+options=(!lto)
 depends=('ffmpeg' 'sqlite' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
 makedepends=('cargo' 'nodejs' 'npm' 'patchelf' 'pkgconf')
 provides=('faden')
@@ -71,7 +72,7 @@ DESKTOP
 }
 EOF
 
-cat > "$PACKAGE_DIR/.SRCINFO" <<EOF
+cat >"$PACKAGE_DIR/.SRCINFO" <<EOF
 pkgbase = $PACKAGE_NAME
 	pkgdesc = $PKG_DESC
 	pkgver = 0.r0.g0000000
@@ -79,6 +80,7 @@ pkgbase = $PACKAGE_NAME
 	url = https://github.com/$REPOSITORY
 	arch = x86_64
 	license = MIT
+	options = !lto
 	makedepends = cargo
 	makedepends = nodejs
 	makedepends = npm
