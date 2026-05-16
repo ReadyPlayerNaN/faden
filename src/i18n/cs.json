@@ -38,7 +38,8 @@
     "redo": "Znovu",
     "editProject": "Upravit projekt",
     "settings": "Nastavení",
-    "openAnotherProject": "Otevřít jiný projekt"
+    "openAnotherProject": "Otevřít jiný projekt",
+    "coding": "Kódování"
   },
   "codebook": {
     "addCluster": "+ Cluster",

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useSetAtom } from "jotai";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
 import { interviewList as fetchInterviews } from "../../ipc/interview";
@@ -28,7 +28,6 @@ import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
   const [project, setProject] = useAtom(currentProjectAtom);
   const [historyState, setHistoryState] = useAtom(historyStatusAtom);
@@ -146,7 +145,8 @@ export const Workspace = () => {
   return (
     <div className={styles.shell}>
       <ProjectHeader
-        actions={
+        activeView="coding"
+        leftActions={
           <>
             <Button
               onClick={() => void onUndo()}
@@ -166,12 +166,9 @@ export const Workspace = () => {
             >
               <span aria-hidden="true">↷</span>
             </Button>
-            <Button onClick={() => setExportOpen(true)}>{t("export.title")}</Button>
-            <Button onClick={() => void navigate({ to: "/tags" })}>
-              {t("tags.title", { defaultValue: "Tags" })}
-            </Button>
           </>
         }
+        actions={<Button onClick={() => setExportOpen(true)}>{t("export.title")}</Button>}
       />
       <div className={styles.panes}>
         <LeftPane />

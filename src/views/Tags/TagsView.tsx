@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useAtomValue } from "jotai";
-import { useNavigate } from "@tanstack/react-router";
+import { useAtom } from "jotai";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
+import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import {
   codebookTree as fetchTree,
   clusterDelete,
@@ -14,7 +14,6 @@ import {
   type TagNode,
 } from "../../ipc/codebook";
 import { codebookTreeAtom } from "../../state/codebook";
-import { currentProjectAtom } from "../../state/project";
 import { AddClusterModal } from "./AddClusterModal";
 import { AddCategoryModal } from "./AddCategoryModal";
 import { AddTagModal } from "./AddTagModal";
@@ -37,9 +36,7 @@ type TagItem = {
 
 export const TagsView = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [tree, setTree] = useAtom(codebookTreeAtom);
-  const project = useAtomValue(currentProjectAtom);
   const [error, setError] = useState<string | null>(null);
 
   const [addClusterOpen, setAddClusterOpen] = useState(false);
@@ -141,130 +138,116 @@ export const TagsView = () => {
   };
 
   return (
-    <div className={styles.wrap}>
-      <header className={styles.header}>
+    <div className={styles.shell}>
+      <ProjectHeader activeView="labels" />
+
+      <div className={styles.wrap}>
         <h1 className={styles.title}>{t("tags.title", { defaultValue: "Tags" })}</h1>
-        <div className={styles.headerActions}>
-          <Button
-            onClick={() =>
-              void navigate(
-                project
-                  ? {
-                      to: "/workspace/$projectPath",
-                      params: { projectPath: encodeURIComponent(project.path) },
-                    }
-                  : { to: "/" },
-              )
-            }
-          >
-            ← {t("settings.back")}
+
+        <div className={styles.topActions}>
+          <Button variant="primary" onClick={() => setAddClusterOpen(true)}>
+            + {t("tags.addCluster", { defaultValue: "Add cluster" })}
+          </Button>
+          <Button onClick={() => setAddCategoryFor(null)}>
+            + {t("tags.addCategory", { defaultValue: "Add category" })}
+          </Button>
+          <Button onClick={() => setAddTagFor(null)}>
+            + {t("tags.addTag", { defaultValue: "Add tag" })}
           </Button>
         </div>
-      </header>
 
-      <div className={styles.topActions}>
-        <Button variant="primary" onClick={() => setAddClusterOpen(true)}>
-          + {t("tags.addCluster", { defaultValue: "Add cluster" })}
-        </Button>
-        <Button onClick={() => setAddCategoryFor(null)}>
-          + {t("tags.addCategory", { defaultValue: "Add category" })}
-        </Button>
-        <Button onClick={() => setAddTagFor(null)}>
-          + {t("tags.addTag", { defaultValue: "Add tag" })}
-        </Button>
+        {error && <div className={styles.error}>{error}</div>}
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            {t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
+          </h2>
+          <div className={styles.flatList}>
+            {tree && tree.clusters.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noClusters", { defaultValue: "No clusters yet" })}</p>
+            ) : (
+              tree?.clusters.map((cluster) => (
+                <ManagementRow
+                  key={cluster.id}
+                  name={cluster.name}
+                  color={cluster.color}
+                  count={cluster.count}
+                  subtitle={cluster.description ?? null}
+                  onEdit={() => setEditCluster(cluster)}
+                  onDelete={() =>
+                    requestDelete({ kind: "cluster", id: cluster.id, name: cluster.name })
+                  }
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            {t("tags.categoryManagementSection", { defaultValue: "Category management" })}
+          </h2>
+          <div className={styles.flatList}>
+            {tree && categories.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noCategories", { defaultValue: "No categories yet" })}</p>
+            ) : (
+              categories.map(({ cluster, category }) => (
+                <ManagementRow
+                  key={category.id}
+                  name={category.name}
+                  color={category.color}
+                  count={category.count}
+                  subtitle={[
+                    cluster?.name ?? t("tags.noCluster", { defaultValue: "No cluster" }),
+                    category.description,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  onEdit={() => setEditCategory(category)}
+                  onDelete={() =>
+                    requestDelete({ kind: "category", id: category.id, name: category.name })
+                  }
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            {t("tags.tagManagementSection", { defaultValue: "Tag management" })}
+          </h2>
+          <div className={styles.flatList}>
+            {tree && tags.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noTags", { defaultValue: "No tags yet" })}</p>
+            ) : (
+              tags.map(({ tag, category, cluster }) => (
+                <ManagementRow
+                  key={tag.id}
+                  name={tag.name}
+                  color={tag.color}
+                  count={tag.count}
+                  subtitle={[
+                    category
+                      ? cluster
+                        ? `${cluster.name} › ${category.name}`
+                        : t("tags.noClusterPrefix", {
+                            defaultValue: "No cluster › {{name}}",
+                            name: category.name,
+                          })
+                      : t("tags.standalone", { defaultValue: "Standalone (no category)" }),
+                    tag.description,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  onEdit={() => setEditTag(tag)}
+                  onDelete={() => requestDelete({ kind: "tag", id: tag.id, name: tag.name })}
+                />
+              ))
+            )}
+          </div>
+        </section>
       </div>
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          {t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
-        </h2>
-        <div className={styles.flatList}>
-          {tree && tree.clusters.length === 0 ? (
-            <p className={styles.empty}>{t("tags.noClusters", { defaultValue: "No clusters yet" })}</p>
-          ) : (
-            tree?.clusters.map((cluster) => (
-              <ManagementRow
-                key={cluster.id}
-                name={cluster.name}
-                color={cluster.color}
-                count={cluster.count}
-                subtitle={cluster.description ?? null}
-                onEdit={() => setEditCluster(cluster)}
-                onDelete={() =>
-                  requestDelete({ kind: "cluster", id: cluster.id, name: cluster.name })
-                }
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          {t("tags.categoryManagementSection", { defaultValue: "Category management" })}
-        </h2>
-        <div className={styles.flatList}>
-          {tree && categories.length === 0 ? (
-            <p className={styles.empty}>{t("tags.noCategories", { defaultValue: "No categories yet" })}</p>
-          ) : (
-            categories.map(({ cluster, category }) => (
-              <ManagementRow
-                key={category.id}
-                name={category.name}
-                color={category.color}
-                count={category.count}
-                subtitle={[
-                  cluster?.name ?? t("tags.noCluster", { defaultValue: "No cluster" }),
-                  category.description,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                onEdit={() => setEditCategory(category)}
-                onDelete={() =>
-                  requestDelete({ kind: "category", id: category.id, name: category.name })
-                }
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          {t("tags.tagManagementSection", { defaultValue: "Tag management" })}
-        </h2>
-        <div className={styles.flatList}>
-          {tree && tags.length === 0 ? (
-            <p className={styles.empty}>{t("tags.noTags", { defaultValue: "No tags yet" })}</p>
-          ) : (
-            tags.map(({ tag, category, cluster }) => (
-              <ManagementRow
-                key={tag.id}
-                name={tag.name}
-                color={tag.color}
-                count={tag.count}
-                subtitle={[
-                  category
-                    ? cluster
-                      ? `${cluster.name} › ${category.name}`
-                      : t("tags.noClusterPrefix", {
-                          defaultValue: "No cluster › {{name}}",
-                          name: category.name,
-                        })
-                    : t("tags.standalone", { defaultValue: "Standalone (no category)" }),
-                  tag.description,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                onEdit={() => setEditTag(tag)}
-                onDelete={() => requestDelete({ kind: "tag", id: tag.id, name: tag.name })}
-              />
-            ))
-          )}
-        </div>
-      </section>
 
       <AddClusterModal open={addClusterOpen} onClose={() => setAddClusterOpen(false)} onCreated={() => void reload()} />
       {tree && (
