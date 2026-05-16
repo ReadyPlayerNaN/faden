@@ -2,8 +2,8 @@
 .empty { opacity: 0.6; font-style: italic; }
 .segment {
   display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr);
-  gap: 0.4rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem 0.75rem;
   padding: 0.35rem 0.45rem;
   font-size: 0.95rem;
   line-height: 1.5;
@@ -13,6 +13,20 @@
 .segmentActive {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
+.segmentMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.segmentMetaHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
 .segmentControls {
   display: inline-flex;
   align-items: center;
@@ -43,9 +57,9 @@
   border-color: var(--accent);
   color: var(--accent);
 }
-.timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; padding-top: 0.2rem; }
-.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; padding-top: 0.15rem; }
-.text { word-wrap: break-word; position: relative; padding-bottom: 0.2rem; }
+.timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
+.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; }
+.text { word-wrap: break-word; position: relative; padding-bottom: 0.2rem; min-width: 0; }
 .segmentProgress {
   position: absolute;
   left: 0;

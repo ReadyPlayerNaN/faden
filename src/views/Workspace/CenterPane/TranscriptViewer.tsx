@@ -624,39 +624,43 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
               data-segment-id={s.id}
               data-text={s.text}
             >
-              <div className={styles.segmentControls}>
-                <button
-                  type="button"
-                  className={styles.segmentPlayButton}
-                  onClick={() => requestSegmentPlayback(s, false)}
-                  aria-label={
-                    isPlayingSegment
-                      ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
-                      : t("transcript.playTurn", { defaultValue: "Play turn" })
-                  }
-                  title={t("transcript.playTurn", { defaultValue: "Play turn" })}
-                >
-                  {isPlayingSegment ? "⏸" : "▶"}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
-                  onClick={() => requestSegmentPlayback(s, true)}
-                  aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
-                  title={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
-                >
-                  ↻
-                </button>
+              <div className={styles.segmentMeta}>
+                <div className={styles.segmentMetaHeader}>
+                  <span className={styles.timestamp}>
+                    [{formatTimestamp(s.startSec)}]
+                  </span>
+                  <span className={styles.speaker}>
+                    {s.speakerDisplayName ??
+                      s.speakerLabelRaw ??
+                      t("speakers.unassigned", { defaultValue: "Unassigned" })}
+                    :
+                  </span>
+                </div>
+                <div className={styles.segmentControls}>
+                  <button
+                    type="button"
+                    className={styles.segmentPlayButton}
+                    onClick={() => requestSegmentPlayback(s, false)}
+                    aria-label={
+                      isPlayingSegment
+                        ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
+                        : t("transcript.playTurn", { defaultValue: "Play turn" })
+                    }
+                    title={t("transcript.playTurn", { defaultValue: "Play turn" })}
+                  >
+                    {isPlayingSegment ? "⏸" : "▶"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
+                    onClick={() => requestSegmentPlayback(s, true)}
+                    aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                    title={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                  >
+                    ↻
+                  </button>
+                </div>
               </div>
-              <span className={styles.timestamp}>
-                [{formatTimestamp(s.startSec)}]
-              </span>
-              <span className={styles.speaker}>
-                {s.speakerDisplayName ??
-                  s.speakerLabelRaw ??
-                  t("speakers.unassigned", { defaultValue: "Unassigned" })}
-                :
-              </span>
               <span className={styles.text}>
                 {ranges.map((r, i) => {
                   const slice = s.text.slice(r.start, r.end);
