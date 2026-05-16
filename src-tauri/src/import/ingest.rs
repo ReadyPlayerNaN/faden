@@ -12,9 +12,7 @@ pub async fn ingest_impl(
     parsed_transcript: Option<ParsedTranscript>,
 ) -> AppResult<Interview> {
     if source_audio_path.is_none() && parsed_transcript.is_none() {
-        return Err(AppError::Invalid(
-            "must provide audio or transcript".into(),
-        ));
+        return Err(AppError::Invalid("must provide audio or transcript".into()));
     }
     let sqlite = project_dir.join("project.sqlite");
     let mut conn = db::open(&sqlite)?;
@@ -27,7 +25,10 @@ pub async fn ingest_impl(
         if !src_path.exists() {
             return Err(AppError::NotFound(format!("audio: {}", src)));
         }
-        let ext = src_path.extension().and_then(|e| e.to_str()).unwrap_or("audio");
+        let ext = src_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("audio");
         let sanitized: String = name
             .chars()
             .map(|c| {
@@ -55,12 +56,8 @@ pub async fn ingest_impl(
         let mut speaker_map: std::collections::HashMap<String, i64> =
             std::collections::HashMap::new();
         for sp in &pt.speakers {
-            let s = speaker::create_or_get(
-                &conn,
-                iv.id,
-                &sp.label_raw,
-                sp.display_name.as_deref(),
-            )?;
+            let s =
+                speaker::create_or_get(&conn, iv.id, &sp.label_raw, sp.display_name.as_deref())?;
             speaker_map.insert(sp.label_raw.clone(), s.id);
         }
         // Make sure all segments have a speaker; if a segment references an unseen label, create it

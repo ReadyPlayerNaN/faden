@@ -27,7 +27,10 @@ fn round_trip() {
     s.transcription.chunk_seconds = 600;
     project_meta::write_settings(&conn, &s).unwrap();
     let loaded = project_meta::read_settings(&conn).unwrap();
-    assert_eq!(loaded.prompts.codebook_gen.as_deref(), Some("custom prompt"));
+    assert_eq!(
+        loaded.prompts.codebook_gen.as_deref(),
+        Some("custom prompt")
+    );
     assert_eq!(loaded.transcription.chunk_seconds, 600);
 }
 

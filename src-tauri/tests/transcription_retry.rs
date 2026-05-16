@@ -2,7 +2,9 @@ use stt_app_lib::transcription::retry::*;
 
 #[test]
 fn retries_network_errors() {
-    assert!(should_retry(&TranscriptionError::Network("conn refused".into())));
+    assert!(should_retry(&TranscriptionError::Network(
+        "conn refused".into()
+    )));
 }
 
 #[test]

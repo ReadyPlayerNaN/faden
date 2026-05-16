@@ -11,10 +11,7 @@ fn replaces_simple_placeholder() {
 #[test]
 fn leaves_unknown_placeholders_intact() {
     let vars = HashMap::new();
-    assert_eq!(
-        prompts::render("Hello {{name}}!", &vars),
-        "Hello {{name}}!"
-    );
+    assert_eq!(prompts::render("Hello {{name}}!", &vars), "Hello {{name}}!");
 }
 
 #[test]

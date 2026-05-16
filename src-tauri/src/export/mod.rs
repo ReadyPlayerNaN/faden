@@ -13,8 +13,7 @@ use crate::db::queries::speaker::Speaker;
 use crate::db::queries::tag::Tag;
 use crate::db::queries::tagged_span::TaggedSpan;
 use crate::db::queries::{
-    category, cluster, interview, memo, project_meta, segment, span_tag, speaker, tag,
-    tagged_span,
+    category, cluster, interview, memo, project_meta, segment, span_tag, speaker, tag, tagged_span,
 };
 use crate::error::AppResult;
 use rusqlite::Connection;
@@ -66,16 +65,13 @@ pub fn compose(conn: &Connection, scope: &ExportScope) -> AppResult<ProjectExpor
         None => all_interviews,
     };
 
-    let tag_filter: Option<std::collections::HashSet<i64>> = scope
-        .tag_ids
-        .as_ref()
-        .map(|v| v.iter().copied().collect());
+    let tag_filter: Option<std::collections::HashSet<i64>> =
+        scope.tag_ids.as_ref().map(|v| v.iter().copied().collect());
 
     let mut interviews = Vec::new();
     for iv in included {
         let sp_list = speaker::list_for_interview(conn, iv.id)?;
-        let speakers: HashMap<i64, Speaker> =
-            sp_list.into_iter().map(|s| (s.id, s)).collect();
+        let speakers: HashMap<i64, Speaker> = sp_list.into_iter().map(|s| (s.id, s)).collect();
         let segments = segment::list_for_interview(conn, iv.id)?;
         let all_spans = tagged_span::list_for_interview(conn, iv.id)?;
         let mut spans = Vec::new();

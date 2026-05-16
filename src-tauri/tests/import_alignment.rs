@@ -31,7 +31,10 @@ fn approximate_when_short_compared_to_audio() {
     let pt = make(vec![(0.0, 10.0)]);
     let res = validate_alignment(&pt, 100.0);
     match res {
-        AlignmentResult::Approximate { last_segment_end, audio_duration } => {
+        AlignmentResult::Approximate {
+            last_segment_end,
+            audio_duration,
+        } => {
             assert_eq!(last_segment_end, 10.0);
             assert_eq!(audio_duration, 100.0);
         }
@@ -54,7 +57,9 @@ fn out_of_range_when_segment_too_far_beyond_audio() {
     let pt = make(vec![(0.0, 10.0), (200.0, 250.0)]);
     let res = validate_alignment(&pt, 100.0);
     match res {
-        AlignmentResult::OutOfRange { offending_segment_index } => {
+        AlignmentResult::OutOfRange {
+            offending_segment_index,
+        } => {
             assert_eq!(offending_segment_index, 1);
         }
         other => panic!("expected OutOfRange, got {:?}", other),

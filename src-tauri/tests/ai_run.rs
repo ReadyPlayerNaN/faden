@@ -14,7 +14,14 @@ fn fresh_conn() -> Connection {
 fn start_creates_running_run() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let id = ai_run::start(&conn, AiRunKind::Transcribe, Some(i.id), "model-x", "prompt").unwrap();
+    let id = ai_run::start(
+        &conn,
+        AiRunKind::Transcribe,
+        Some(i.id),
+        "model-x",
+        "prompt",
+    )
+    .unwrap();
     let r = ai_run::get(&conn, id).unwrap();
     assert_eq!(r.status, AiRunStatus::Running);
     assert_eq!(r.kind, AiRunKind::Transcribe);

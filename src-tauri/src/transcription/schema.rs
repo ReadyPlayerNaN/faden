@@ -28,7 +28,11 @@ fn canonicalize_speaker(raw: &serde_json::Value) -> String {
         serde_json::Value::Number(n) => n.to_string(),
         _ => String::new(),
     };
-    let s = s.replace("Speaker", "").replace("speaker", "").trim().to_string();
+    let s = s
+        .replace("Speaker", "")
+        .replace("speaker", "")
+        .trim()
+        .to_string();
     let s = s.trim_end_matches(':').trim().to_string();
     if s.len() == 1 && s.chars().next().unwrap().is_ascii_alphabetic() {
         return s.to_uppercase();
@@ -44,7 +48,10 @@ fn maybe_rescale_timestamps(segments: &mut [ParsedSegment], window_duration: f64
     if max_end > 1.2 {
         return;
     }
-    let total_words: usize = segments.iter().map(|s| s.text.split_whitespace().count()).sum();
+    let total_words: usize = segments
+        .iter()
+        .map(|s| s.text.split_whitespace().count())
+        .sum();
     let min_start = segments.iter().fold(f64::INFINITY, |a, s| a.min(s.start));
     let covered = (max_end - min_start).max(0.001);
     let wps = total_words as f64 / covered;
@@ -83,8 +90,14 @@ pub fn parse_response(json_str: &str, chunk_duration: f64) -> AppResult<Vec<Pars
     }
     maybe_rescale_timestamps(&mut out, chunk_duration);
     out.sort_by(|a, b| {
-        a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal)
-            .then(a.end.partial_cmp(&b.end).unwrap_or(std::cmp::Ordering::Equal))
+        a.start
+            .partial_cmp(&b.start)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(
+                a.end
+                    .partial_cmp(&b.end)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
     });
     Ok(out)
 }

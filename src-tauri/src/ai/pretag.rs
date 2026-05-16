@@ -80,8 +80,7 @@ pub fn finalize(
         }
     };
 
-    let known_tags: HashSet<String> =
-        tag::list_all(conn)?.into_iter().map(|t| t.name).collect();
+    let known_tags: HashSet<String> = tag::list_all(conn)?.into_iter().map(|t| t.name).collect();
     let mut valid_suggestions: Vec<SpanSuggestion> = Vec::new();
     let mut skipped = 0_usize;
     for s in parsed.suggestions {

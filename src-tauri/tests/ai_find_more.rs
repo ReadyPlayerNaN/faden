@@ -90,9 +90,7 @@ async fn find_more_invalid_json_fails_run() {
             mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
         )
         .with_status(200)
-        .with_body(
-            json!({"candidates":[{"content":{"parts":[{"text":"not json"}]}}]}).to_string(),
-        )
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":"not json"}]}}]}).to_string())
         .create_async()
         .await;
 

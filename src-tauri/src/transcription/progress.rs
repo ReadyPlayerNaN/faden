@@ -8,13 +8,28 @@ pub enum TranscriptionProgress {
     #[serde(rename = "normalizing")]
     Normalizing { interview_id: i64 },
     #[serde(rename = "chunking")]
-    Chunking { interview_id: i64, total_chunks: usize },
+    Chunking {
+        interview_id: i64,
+        total_chunks: usize,
+    },
     #[serde(rename = "transcribing_chunk")]
-    TranscribingChunk { interview_id: i64, index: usize, total: usize, attempt: u32 },
+    TranscribingChunk {
+        interview_id: i64,
+        index: usize,
+        total: usize,
+        attempt: u32,
+    },
     #[serde(rename = "chunk_complete")]
-    ChunkComplete { interview_id: i64, index: usize, segments_added: usize },
+    ChunkComplete {
+        interview_id: i64,
+        index: usize,
+        segments_added: usize,
+    },
     #[serde(rename = "complete")]
-    Complete { interview_id: i64, total_segments: usize },
+    Complete {
+        interview_id: i64,
+        total_segments: usize,
+    },
     #[serde(rename = "failed")]
     Failed { interview_id: i64, message: String },
     #[serde(rename = "cancelled")]

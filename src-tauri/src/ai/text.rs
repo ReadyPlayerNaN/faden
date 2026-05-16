@@ -56,8 +56,10 @@ pub fn format_codebook(conn: &Connection) -> AppResult<String> {
 pub fn format_transcript(conn: &Connection, interview_id: i64) -> AppResult<String> {
     let segs = segment::list_for_interview(conn, interview_id)?;
     let speakers = speaker::list_for_interview(conn, interview_id)?;
-    let by_speaker: std::collections::HashMap<i64, &str> =
-        speakers.iter().map(|s| (s.id, s.label_raw.as_str())).collect();
+    let by_speaker: std::collections::HashMap<i64, &str> = speakers
+        .iter()
+        .map(|s| (s.id, s.label_raw.as_str()))
+        .collect();
     let mut out = String::new();
     for s in &segs {
         let label = by_speaker.get(&s.speaker_id).copied().unwrap_or("?");

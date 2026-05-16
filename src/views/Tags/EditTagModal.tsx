@@ -1,69 +1,99 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "../../components/Modal/Modal";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/TextField/TextField";
-import { tagCreate, type CategoryNode, type ClusterNode } from "../../ipc/codebook";
+import {
+  tagMoveToCategory,
+  tagRename,
+  tagSetColor,
+  tagSetDescription,
+  type ClusterNode,
+  type TagNode,
+  type CategoryNode,
+} from "../../ipc/codebook";
 import styles from "./TagsView.module.css";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
+  tag: TagNode | null;
   clusters: ClusterNode[];
   standaloneCategories: CategoryNode[];
-  categoryId: number | null;
 };
 
-export const AddTagModal = ({
+export const EditTagModal = ({
   open,
   onClose,
-  onCreated,
+  onSaved,
+  tag,
   clusters,
   standaloneCategories,
-  categoryId,
 }: Props) => {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#888888");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(
-    categoryId,
-  );
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setSelectedCategory(categoryId);
-      setName("");
-      setDescription("");
-      setColor("#888888");
-      setError(null);
-      setBusy(false);
-    }
-  }, [open, categoryId]);
+    if (!open || !tag) return;
+    setName(tag.name);
+    setDescription(tag.description ?? "");
+    setColor(tag.color ?? "#888888");
+    setSelectedCategory(tag.categoryId);
+    setError(null);
+    setBusy(false);
+  }, [open, tag]);
 
-  const close = () => onClose();
+  const hasChanges = useMemo(() => {
+    if (!tag) return false;
+    return (
+      name.trim() !== tag.name ||
+      description.trim() !== (tag.description ?? "") ||
+      color !== (tag.color ?? "#888888") ||
+      selectedCategory !== tag.categoryId
+    );
+  }, [tag, color, description, name, selectedCategory]);
+
+  const close = () => {
+    if (busy) return;
+    onClose();
+  };
 
   const onSubmit = async () => {
+    if (!tag) return;
     setError(null);
+
     if (!name.trim()) {
-      setError(
-        t("tags.errorNameRequired", { defaultValue: "Name is required" }),
-      );
+      setError(t("tags.errorNameRequired", { defaultValue: "Name is required" }));
       return;
     }
+
     setBusy(true);
     try {
-      await tagCreate(
-        selectedCategory,
-        name.trim(),
-        description.trim() || null,
-        color || null,
-      );
-      onCreated();
-      close();
+      const nextName = name.trim();
+      const nextDescription = description.trim() || null;
+      const nextColor = color || null;
+
+      if (nextName !== tag.name) {
+        await tagRename(tag.id, nextName);
+      }
+      if (nextDescription !== (tag.description ?? null)) {
+        await tagSetDescription(tag.id, nextDescription);
+      }
+      if (nextColor !== (tag.color ?? null)) {
+        await tagSetColor(tag.id, nextColor);
+      }
+      if (selectedCategory !== tag.categoryId) {
+        await tagMoveToCategory(tag.id, selectedCategory);
+      }
+
+      await onSaved();
+      onClose();
     } catch (e) {
       setError(String((e as { message?: string }).message ?? e));
     } finally {
@@ -75,36 +105,26 @@ export const AddTagModal = ({
     <Modal
       open={open}
       onClose={close}
-      title={t("tags.addTag", { defaultValue: "Add tag" })}
+      title={t("tags.editTag", { defaultValue: "Edit tag" })}
       footer={
         <>
           <Button onClick={close} disabled={busy}>
             {t("common.cancel")}
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => void onSubmit()}
-            disabled={busy}
-          >
-            {t("tags.create", { defaultValue: "Create" })}
+          <Button variant="primary" onClick={() => void onSubmit()} disabled={busy || !hasChanges}>
+            {t("common.save")}
           </Button>
         </>
       }
     >
       <label className={styles.modalField}>
-        <span className={styles.modalLabel}>
-          {t("tags.category", { defaultValue: "Category" })}
-        </span>
+        <span className={styles.modalLabel}>{t("tags.category", { defaultValue: "Category" })}</span>
         <select
           className={styles.modalSelect}
           value={selectedCategory ?? ""}
-          onChange={(e) =>
-            setSelectedCategory(e.target.value ? Number(e.target.value) : null)
-          }
+          onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)}
         >
-          <option value="">
-            {t("tags.standalone", { defaultValue: "Standalone (no category)" })}
-          </option>
+          <option value="">{t("tags.standalone", { defaultValue: "Standalone (no category)" })}</option>
           {standaloneCategories.map((category) => (
             <option key={category.id} value={category.id}>
               {t("tags.noClusterPrefix", {
@@ -113,10 +133,10 @@ export const AddTagModal = ({
               })}
             </option>
           ))}
-          {clusters.map((cl) =>
-            cl.categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cl.name} › {cat.name}
+          {clusters.flatMap((cluster) =>
+            cluster.categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {cluster.name} › {category.name}
               </option>
             )),
           )}
@@ -139,9 +159,7 @@ export const AddTagModal = ({
         />
       </label>
       <label className={styles.modalField}>
-        <span className={styles.modalLabel}>
-          {t("tags.color", { defaultValue: "Color" })}
-        </span>
+        <span className={styles.modalLabel}>{t("tags.color", { defaultValue: "Color" })}</span>
         <div className={styles.colorRow}>
           <input
             className={styles.colorInput}

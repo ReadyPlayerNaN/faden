@@ -3,10 +3,7 @@ use crate::export::ProjectExportData;
 use serde_json::json;
 use std::io::Write;
 
-pub fn write_codebook_json<W: Write>(
-    data: &ProjectExportData,
-    writer: &mut W,
-) -> AppResult<()> {
+pub fn write_codebook_json<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResult<()> {
     let mut clusters = Vec::new();
     for cl in &data.clusters {
         let cats: Vec<_> = data
@@ -75,7 +72,11 @@ pub fn write_codebook_csv<W: Write>(data: &ProjectExportData, writer: &mut W) ->
     let mut w = csv::Writer::from_writer(writer);
     w.write_record(["cluster", "category", "tag", "description"])?;
     for cl in &data.clusters {
-        for cat in data.categories.iter().filter(|c| c.cluster_id == Some(cl.id)) {
+        for cat in data
+            .categories
+            .iter()
+            .filter(|c| c.cluster_id == Some(cl.id))
+        {
             for t in data.tags.iter().filter(|t| t.category_id == Some(cat.id)) {
                 w.write_record([
                     cl.name.as_str(),

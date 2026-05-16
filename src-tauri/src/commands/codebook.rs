@@ -238,11 +238,7 @@ pub async fn tag_set_description(
 }
 
 #[tauri::command]
-pub async fn tag_set_color(
-    app: tauri::AppHandle,
-    id: i64,
-    color: Option<String>,
-) -> AppResult<()> {
+pub async fn tag_set_color(app: tauri::AppHandle, id: i64, color: Option<String>) -> AppResult<()> {
     let conn = project_conn(&app)?;
     tag::set_color(&conn, id, color.as_deref())
 }
@@ -254,11 +250,7 @@ pub async fn tag_delete(app: tauri::AppHandle, id: i64) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub async fn tag_reorder(
-    app: tauri::AppHandle,
-    category_id: i64,
-    ids: Vec<i64>,
-) -> AppResult<()> {
+pub async fn tag_reorder(app: tauri::AppHandle, category_id: i64, ids: Vec<i64>) -> AppResult<()> {
     let mut conn = project_conn(&app)?;
     tag::reorder(&mut conn, category_id, &ids)
 }

@@ -1,20 +1,27 @@
-.tabs {
+.form {
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 1rem;
 }
-.tab {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--fg);
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.sectionHeader {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.choiceItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   cursor: pointer;
-  font: inherit;
-}
-.tabActive {
-  background: var(--accent);
-  color: #000;
-  border-color: var(--accent);
 }
 .audioRow {
   display: flex;

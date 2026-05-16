@@ -69,11 +69,16 @@ pub async fn run_pipeline(
         .ok_or_else(|| AppError::Invalid("no audio attached".into()))?;
     let audio_path = project_dir.join(&audio_rel);
     if !audio_path.exists() {
-        return Err(AppError::NotFound(format!("audio: {}", audio_path.display())));
+        return Err(AppError::NotFound(format!(
+            "audio: {}",
+            audio_path.display()
+        )));
     }
 
     // Paths
-    let cache_dir = project_dir.join("cache").join(format!("interview_{interview_id}"));
+    let cache_dir = project_dir
+        .join("cache")
+        .join(format!("interview_{interview_id}"));
     let normalized_path = cache_dir.join("normalized.mp3");
     let chunks_dir = cache_dir.join("chunks");
     let chunk_results_dir = cache_dir.join("chunk_results");
@@ -92,19 +97,33 @@ pub async fn run_pipeline(
         &config.user_prompt,
     )?;
     interview::set_status(&conn, interview_id, TranscriptStatus::InProgress)?;
-    emit(&app, &TranscriptionProgress::Starting { interview_id, run_id });
+    emit(
+        &app,
+        &TranscriptionProgress::Starting {
+            interview_id,
+            run_id,
+        },
+    );
 
     // Helper to fail and return early
     let fail = |conn: &rusqlite::Connection, app: &tauri::AppHandle, msg: String| {
         let _ = ai_run::fail(conn, run_id, &msg);
         let _ = interview::set_status(conn, interview_id, TranscriptStatus::Failed);
-        emit(app, &TranscriptionProgress::Failed { interview_id, message: msg });
+        emit(
+            app,
+            &TranscriptionProgress::Failed {
+                interview_id,
+                message: msg,
+            },
+        );
     };
 
     // Step 3: normalize
     emit(&app, &TranscriptionProgress::Normalizing { interview_id });
     if !normalized_path.exists() {
-        if let Err(e) = ffmpeg::normalize(&app, &audio_path, &normalized_path, &config.normalize).await {
+        if let Err(e) =
+            ffmpeg::normalize(&app, &audio_path, &normalized_path, &config.normalize).await
+        {
             fail(&conn, &app, format!("normalize: {e}"));
             return Err(e);
         }
@@ -128,13 +147,21 @@ pub async fn run_pipeline(
     };
     let plans = chunker::plan_chunks(duration, config.chunk_seconds);
     let total = plans.len();
-    emit(&app, &TranscriptionProgress::Chunking { interview_id, total_chunks: total });
+    emit(
+        &app,
+        &TranscriptionProgress::Chunking {
+            interview_id,
+            total_chunks: total,
+        },
+    );
 
     // Step 5: split into chunk files (only if not already split)
-    let chunk_files_match = (0..total).all(|i| chunks_dir.join(format!("chunk_{i:03}.mp3")).exists());
+    let chunk_files_match =
+        (0..total).all(|i| chunks_dir.join(format!("chunk_{i:03}.mp3")).exists());
     if !chunk_files_match {
         if let Err(e) =
-            ffmpeg::split_into_chunks(&app, &normalized_path, &chunks_dir, config.chunk_seconds).await
+            ffmpeg::split_into_chunks(&app, &normalized_path, &chunks_dir, config.chunk_seconds)
+                .await
         {
             fail(&conn, &app, format!("split: {e}"));
             return Err(e);
@@ -142,7 +169,8 @@ pub async fn run_pipeline(
     }
 
     // Step 6: per-chunk transcribe
-    let client = GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
+    let client =
+        GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
 
     let mut prior_segments_for_context: Vec<ParsedSegment> = cache.load_all().unwrap_or_default();
     let mut total_segments = prior_segments_for_context.len();
@@ -162,7 +190,11 @@ pub async fn run_pipeline(
 
         let chunk_path = chunks_dir.join(format!("chunk_{:03}.mp3", plan.index));
         if !chunk_path.exists() {
-            fail(&conn, &app, format!("missing chunk file: {}", chunk_path.display()));
+            fail(
+                &conn,
+                &app,
+                format!("missing chunk file: {}", chunk_path.display()),
+            );
             return Err(AppError::NotFound(chunk_path.to_string_lossy().to_string()));
         }
 
@@ -290,10 +322,18 @@ pub async fn run_pipeline(
 
     // Step 7: complete
     interview::set_status(&conn, interview_id, TranscriptStatus::Complete)?;
-    ai_run::complete(&conn, run_id, None, Some(&format!("{total_segments} segments")))?;
+    ai_run::complete(
+        &conn,
+        run_id,
+        None,
+        Some(&format!("{total_segments} segments")),
+    )?;
     emit(
         &app,
-        &TranscriptionProgress::Complete { interview_id, total_segments },
+        &TranscriptionProgress::Complete {
+            interview_id,
+            total_segments,
+        },
     );
 
     Ok(())

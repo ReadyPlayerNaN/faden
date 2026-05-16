@@ -36,13 +36,8 @@ pub async fn segment_update_text(
             .skip(start as usize)
             .take((end - start) as usize)
             .collect();
-        if start != span.start_offset
-            || end != span.end_offset
-            || snapshot != span.text_snapshot
-        {
-            tagged_span::update_offsets_and_snapshot(
-                &conn, span.id, start, end, &snapshot,
-            )?;
+        if start != span.start_offset || end != span.end_offset || snapshot != span.text_snapshot {
+            tagged_span::update_offsets_and_snapshot(&conn, span.id, start, end, &snapshot)?;
         }
     }
     Ok(())
@@ -144,11 +139,7 @@ pub async fn segment_split(
 }
 
 #[tauri::command]
-pub async fn segment_merge(
-    app: tauri::AppHandle,
-    first_id: i64,
-    second_id: i64,
-) -> AppResult<()> {
+pub async fn segment_merge(app: tauri::AppHandle, first_id: i64, second_id: i64) -> AppResult<()> {
     let mut conn = project_conn(&app)?;
     let a = segment::get(&conn, first_id)?;
     let b = segment::get(&conn, second_id)?;

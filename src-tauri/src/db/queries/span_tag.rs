@@ -66,8 +66,8 @@ pub fn set_source(
 }
 
 pub fn list_for_span(conn: &Connection, span_id: i64) -> AppResult<Vec<(i64, SpanTagSource)>> {
-    let mut stmt = conn
-        .prepare("SELECT tag_id, source FROM span_tag WHERE span_id = ?1 ORDER BY tag_id")?;
+    let mut stmt =
+        conn.prepare("SELECT tag_id, source FROM span_tag WHERE span_id = ?1 ORDER BY tag_id")?;
     let rows = stmt.query_map(params![span_id], |r| {
         let src: String = r.get(1)?;
         Ok((r.get::<_, i64>(0)?, src))

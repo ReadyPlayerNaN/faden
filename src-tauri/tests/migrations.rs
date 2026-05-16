@@ -1,5 +1,5 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::{apply_migrations, applied_versions};
+use stt_app_lib::db::migrations::{applied_versions, apply_migrations};
 
 fn open_mem() -> Connection {
     Connection::open_in_memory().unwrap()
@@ -44,13 +44,23 @@ fn applies_m002_main_schema() {
     assert_eq!(versions, vec![1, 2, 3, 4, 5]);
 
     let expected_tables = [
-        "interview", "speaker", "segment", "cluster", "category", "tag", "tagged_span",
-        "span_tag", "memo", "ai_run",
+        "interview",
+        "speaker",
+        "segment",
+        "cluster",
+        "category",
+        "tag",
+        "tagged_span",
+        "span_tag",
+        "memo",
+        "ai_run",
     ];
     for table in expected_tables {
         let count: i64 = conn
             .query_row(
-                &format!("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}'"),
+                &format!(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}'"
+                ),
                 [],
                 |r| r.get(0),
             )
@@ -85,7 +95,11 @@ fn applies_m005_category_cluster_can_be_null() {
     )
     .unwrap();
     let cluster_id: Option<i64> = conn
-        .query_row("SELECT cluster_id FROM category WHERE name = 'Loose'", [], |r| r.get(0))
+        .query_row(
+            "SELECT cluster_id FROM category WHERE name = 'Loose'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(cluster_id, None);
 }
@@ -94,7 +108,8 @@ fn applies_m005_category_cluster_can_be_null() {
 fn applies_in_transaction() {
     use stt_app_lib::db::migrations::apply_migrations_with;
     let mut conn = open_mem();
-    let migrations: &[(i64, &str)] = &[(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;")];
+    let migrations: &[(i64, &str)] =
+        &[(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;")];
     let result = apply_migrations_with(&mut conn, migrations);
     assert!(result.is_err());
     let table_exists: i64 = conn

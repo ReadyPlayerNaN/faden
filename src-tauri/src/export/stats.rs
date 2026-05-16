@@ -12,8 +12,9 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
                 Some(cid) => {
                     let cat = data.categories.iter().find(|c| c.id == cid);
                     let cl = cat.and_then(|c| {
-                        c.cluster_id
-                            .and_then(|cluster_id| data.clusters.iter().find(|cl| cl.id == cluster_id))
+                        c.cluster_id.and_then(|cluster_id| {
+                            data.clusters.iter().find(|cl| cl.id == cluster_id)
+                        })
                     });
                     (
                         cl.map(|c| c.name.clone()).unwrap_or_default(),
@@ -131,27 +132,26 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
     let mut co_keys: Vec<&(i64, i64)> = co.keys().collect();
     co_keys.sort();
     for (a, b) in co_keys {
-        let a_name = tag_path
-            .get(a)
-            .map(|(_, _, n)| n.as_str())
-            .unwrap_or("?");
-        let b_name = tag_path
-            .get(b)
-            .map(|(_, _, n)| n.as_str())
-            .unwrap_or("?");
+        let a_name = tag_path.get(a).map(|(_, _, n)| n.as_str()).unwrap_or("?");
+        let b_name = tag_path.get(b).map(|(_, _, n)| n.as_str()).unwrap_or("?");
         let label = format!("{a_name}∧{b_name}");
         let count = co[&(*a, *b)].to_string();
-        w.write_record(["co_occurrence", "", "", "", "", label.as_str(), count.as_str()])?;
+        w.write_record([
+            "co_occurrence",
+            "",
+            "",
+            "",
+            "",
+            label.as_str(),
+            count.as_str(),
+        ])?;
     }
 
     w.flush()?;
     Ok(())
 }
 
-pub fn write_stats_markdown<W: Write>(
-    data: &ProjectExportData,
-    writer: &mut W,
-) -> AppResult<()> {
+pub fn write_stats_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResult<()> {
     writeln!(writer, "# Stats: {}", data.project_name)?;
     writeln!(writer)?;
     writeln!(writer, "## Code frequency\n")?;

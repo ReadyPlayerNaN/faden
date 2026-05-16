@@ -1,5 +1,5 @@
-use stt_app_lib::commands::interview::interview_create_with_audio_impl;
 use std::io::Write;
+use stt_app_lib::commands::interview::interview_create_with_audio_impl;
 use tempfile::{tempdir, NamedTempFile};
 
 #[tokio::test]
@@ -18,7 +18,8 @@ async fn copies_audio_into_media() {
     let src_path = tmp.path().to_string_lossy().to_string();
 
     let iv = interview_create_with_audio_impl(project_dir.clone(), "Test One".into(), src_path)
-        .await.unwrap();
+        .await
+        .unwrap();
 
     assert_eq!(iv.name, "Test One");
     let audio_rel = iv.audio_path.expect("audio_path should be set");
@@ -31,7 +32,8 @@ async fn rejects_missing_source_file() {
     let project = tempdir().unwrap();
     let project_dir = project.path().to_path_buf();
     let err = interview_create_with_audio_impl(project_dir, "X".into(), "/no/such/file.mp3".into())
-        .await.unwrap_err();
+        .await
+        .unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
 }
 
@@ -49,7 +51,9 @@ async fn stores_relative_path() {
     tmp.write_all(b"x").unwrap();
     let src = tmp.path().to_string_lossy().to_string();
 
-    let iv = interview_create_with_audio_impl(project_dir, "A".into(), src).await.unwrap();
+    let iv = interview_create_with_audio_impl(project_dir, "A".into(), src)
+        .await
+        .unwrap();
     let path = iv.audio_path.unwrap();
     // Must be relative; should not contain the temp dir prefix
     assert!(!path.starts_with('/'));

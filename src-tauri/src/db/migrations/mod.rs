@@ -13,10 +13,7 @@ pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {
     apply_migrations_with(conn, MIGRATIONS)
 }
 
-pub fn apply_migrations_with(
-    conn: &mut Connection,
-    migrations: &[(i64, &str)],
-) -> AppResult<()> {
+pub fn apply_migrations_with(conn: &mut Connection, migrations: &[(i64, &str)]) -> AppResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,

@@ -149,7 +149,15 @@ pub fn span_update_offsets_impl(
         start_offset,
         end_offset,
     );
-    tagged_span::update_offsets(conn, span_id, start_offset, end_offset, &snapshot, a_start, a_end)?;
+    tagged_span::update_offsets(
+        conn,
+        span_id,
+        start_offset,
+        end_offset,
+        &snapshot,
+        a_start,
+        a_end,
+    )?;
     build_span_dto(conn, span_id)
 }
 

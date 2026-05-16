@@ -169,11 +169,7 @@ impl GeminiClient {
         )
     }
 
-    pub async fn post_generate(
-        &self,
-        url: &str,
-        body: &serde_json::Value,
-    ) -> AppResult<String> {
+    pub async fn post_generate(&self, url: &str, body: &serde_json::Value) -> AppResult<String> {
         let resp = self
             .http
             .post(url)

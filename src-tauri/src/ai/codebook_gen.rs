@@ -62,11 +62,7 @@ pub fn prepare(
 }
 
 /// Sync finalize step: persist results to db. Call after awaiting api_result.
-pub fn finalize(
-    conn: &Connection,
-    run_id: i64,
-    api_result: AppResult<String>,
-) -> AppResult<i64> {
+pub fn finalize(conn: &Connection, run_id: i64, api_result: AppResult<String>) -> AppResult<i64> {
     let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {

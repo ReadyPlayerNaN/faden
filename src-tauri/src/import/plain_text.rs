@@ -53,9 +53,7 @@ pub fn parse(raw: &str) -> AppResult<ParsedTranscript> {
                  buffer: &mut String| {
         let txt = buffer.trim();
         if !txt.is_empty() {
-            let label = current_speaker
-                .clone()
-                .unwrap_or_else(|| "Speaker".into());
+            let label = current_speaker.clone().unwrap_or_else(|| "Speaker".into());
             // Synthetic timestamps: 5s per segment, 0.5s/word minimum 2s
             let idx = segments.len();
             let start = idx as f64 * 5.0;

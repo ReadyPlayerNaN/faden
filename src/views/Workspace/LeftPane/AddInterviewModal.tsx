@@ -7,6 +7,7 @@ import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
 import { TextField } from "../../../components/TextField/TextField";
 import {
+  interviewCreate,
   interviewCreateWithAudio,
   interviewImportText,
   interviewImportJson,
@@ -17,15 +18,15 @@ import {
 import { interviewListAtom, selectedInterviewIdAtom } from "../../../state/interview";
 import styles from "./AddInterviewModal.module.css";
 
-type Tab = "audio" | "text" | "json" | "audioText" | "audioJson";
+type TranscriptType = "none" | "text" | "json";
 type Props = { onClose: () => void };
 
 export const AddInterviewModal = ({ onClose }: Props) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
   const setSelected = useSetAtom(selectedInterviewIdAtom);
-  const [tab, setTab] = useState<Tab>("audio");
   const [name, setName] = useState("");
+  const [transcriptType, setTranscriptType] = useState<TranscriptType>("none");
   const [audioPath, setAudioPath] = useState<string | null>(null);
   const [bodyText, setBodyText] = useState("");
   const [bodyJson, setBodyJson] = useState("");
@@ -85,33 +86,29 @@ export const AddInterviewModal = ({ onClose }: Props) => {
     setError(null);
     setBusy(true);
     try {
-      if (!name.trim()) throw new Error(t("import.name") as string);
+      const trimmedName = name.trim();
+      if (!trimmedName) throw new Error(t("import.errorNameRequired") as string);
+
       let created;
-      if (tab === "audio") {
-        if (!audioPath) throw new Error(t("import.pickAudio") as string);
-        created = await interviewCreateWithAudio(name, audioPath);
-      } else if (tab === "text") {
+      if (transcriptType === "none") {
+        created = audioPath
+          ? await interviewCreateWithAudio(trimmedName, audioPath)
+          : await interviewCreate(trimmedName);
+      } else if (transcriptType === "text") {
         if (!bodyText.trim()) throw new Error(t("import.errorEmpty") as string);
-        created = await interviewImportText(name, bodyText);
-      } else if (tab === "json") {
+        created = audioPath
+          ? await interviewImportAudioText(trimmedName, audioPath, bodyText)
+          : await interviewImportText(trimmedName, bodyText);
+      } else {
         if (!bodyJson.trim()) throw new Error(t("import.errorEmpty") as string);
         try {
           JSON.parse(bodyJson);
         } catch {
           throw new Error(t("import.errorParse") as string);
         }
-        created = await interviewImportJson(name, bodyJson);
-      } else if (tab === "audioText") {
-        if (!audioPath || !bodyText.trim()) throw new Error(t("import.errorEmpty") as string);
-        created = await interviewImportAudioText(name, audioPath, bodyText);
-      } else {
-        if (!audioPath || !bodyJson.trim()) throw new Error(t("import.errorEmpty") as string);
-        try {
-          JSON.parse(bodyJson);
-        } catch {
-          throw new Error(t("import.errorParse") as string);
-        }
-        created = await interviewImportAudioJson(name, audioPath, bodyJson);
+        created = audioPath
+          ? await interviewImportAudioJson(trimmedName, audioPath, bodyJson)
+          : await interviewImportJson(trimmedName, bodyJson);
       }
       await refresh(created.id);
     } catch (e) {
@@ -136,59 +133,72 @@ export const AddInterviewModal = ({ onClose }: Props) => {
         </>
       }
     >
-      <div className={styles.tabs}>
-        {(["audio", "text", "json", "audioText", "audioJson"] as Tab[]).map((k) => (
-          <button
-            key={k}
-            className={`${styles.tab} ${tab === k ? styles.tabActive : ""}`}
-            onClick={() => setTab(k)}
-          >
-            {t(`import.tabs.${k}`)}
-          </button>
-        ))}
-      </div>
-      <TextField
-        label={t("import.name") as string}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      {(tab === "audio" || tab === "audioText") && (
-        <div className={styles.audioRow}>
-          <Button onClick={() => void pickAudio()}>{t("import.pickAudio")}</Button>
-          {audioPath && <span className={styles.path}>{audioPath}</span>}
+      <div className={styles.form}>
+        <TextField
+          label={t("import.name") as string}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>{t("import.audio")}</div>
+          <div className={styles.audioRow}>
+            <Button onClick={() => void pickAudio()}>{t("import.pickAudio")}</Button>
+            {audioPath && <span className={styles.path}>{audioPath}</span>}
+          </div>
         </div>
-      )}
-      {(tab === "text" || tab === "audioText") && (
-        <>
-          <div className={styles.audioRow}>
-            <Button onClick={() => void pickTranscriptTextFile()}>{t("import.pickFile")}</Button>
-            {bodyTextPath && <span className={styles.path}>{bodyTextPath}</span>}
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>{t("import.transcript")}</div>
+          <div className={styles.choiceList}>
+            {(["none", "text", "json"] as TranscriptType[]).map((value) => (
+              <label key={value} className={styles.choiceItem}>
+                <input
+                  type="radio"
+                  name="transcriptType"
+                  checked={transcriptType === value}
+                  onChange={() => setTranscriptType(value)}
+                />
+                <span>{t(`import.transcriptType.${value}`)}</span>
+              </label>
+            ))}
           </div>
-          <textarea
-            className={styles.area}
-            rows={8}
-            placeholder={t("import.pasteText") as string}
-            value={bodyText}
-            onChange={(e) => setBodyText(e.target.value)}
-          />
-        </>
-      )}
-      {(tab === "json" || tab === "audioJson") && (
-        <>
-          <div className={styles.audioRow}>
-            <Button onClick={() => void pickTranscriptJsonFile()}>{t("import.pickFile")}</Button>
-            {bodyJsonPath && <span className={styles.path}>{bodyJsonPath}</span>}
-          </div>
-          <textarea
-            className={styles.area}
-            rows={8}
-            placeholder={t("import.pasteJson") as string}
-            value={bodyJson}
-            onChange={(e) => setBodyJson(e.target.value)}
-          />
-        </>
-      )}
-      {error && <p className={styles.error}>{error}</p>}
+
+          {transcriptType === "text" && (
+            <>
+              <div className={styles.audioRow}>
+                <Button onClick={() => void pickTranscriptTextFile()}>{t("import.pickFile")}</Button>
+                {bodyTextPath && <span className={styles.path}>{bodyTextPath}</span>}
+              </div>
+              <textarea
+                className={styles.area}
+                rows={8}
+                placeholder={t("import.pasteText") as string}
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+              />
+            </>
+          )}
+
+          {transcriptType === "json" && (
+            <>
+              <div className={styles.audioRow}>
+                <Button onClick={() => void pickTranscriptJsonFile()}>{t("import.pickFile")}</Button>
+                {bodyJsonPath && <span className={styles.path}>{bodyJsonPath}</span>}
+              </div>
+              <textarea
+                className={styles.area}
+                rows={8}
+                placeholder={t("import.pasteJson") as string}
+                value={bodyJson}
+                onChange={(e) => setBodyJson(e.target.value)}
+              />
+            </>
+          )}
+        </div>
+
+        {error && <p className={styles.error}>{error}</p>}
+      </div>
     </Modal>
   );
 };

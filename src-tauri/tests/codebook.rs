@@ -262,7 +262,8 @@ fn tag_delete_rejected_when_in_use() {
     conn.execute(
         "INSERT INTO speaker (interview_id, label_raw) VALUES (?1, 'A')",
         rusqlite::params![iid],
-    ).unwrap();
+    )
+    .unwrap();
     let sid: i64 = conn.last_insert_rowid();
     conn.execute(
         "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, 0.0, 1.0, 'hi', 0)",
@@ -277,7 +278,8 @@ fn tag_delete_rejected_when_in_use() {
     conn.execute(
         "INSERT INTO span_tag (span_id, tag_id, source) VALUES (?1, ?2, 'manual')",
         rusqlite::params![span_id, t.id],
-    ).unwrap();
+    )
+    .unwrap();
 
     let err = tag::delete(&conn, t.id).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));

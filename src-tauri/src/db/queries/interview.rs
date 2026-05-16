@@ -54,7 +54,10 @@ fn map_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Interview> {
         rusqlite::Error::FromSqlConversionFailure(
             5,
             rusqlite::types::Type::Text,
-            Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())),
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                e.to_string(),
+            )),
         )
     })?;
     Ok(Interview {
@@ -110,7 +113,12 @@ pub fn get(conn: &Connection, id: i64) -> AppResult<Interview> {
     .ok_or_else(|| AppError::NotFound(format!("interview {id}")))
 }
 
-fn touch_update(conn: &Connection, id: i64, sql: &str, params: &[&dyn rusqlite::ToSql]) -> AppResult<()> {
+fn touch_update(
+    conn: &Connection,
+    id: i64,
+    sql: &str,
+    params: &[&dyn rusqlite::ToSql],
+) -> AppResult<()> {
     let affected = conn.execute(sql, params)?;
     if affected == 0 {
         return Err(AppError::NotFound(format!("interview {id}")));

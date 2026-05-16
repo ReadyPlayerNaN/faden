@@ -23,6 +23,10 @@
 .markSuggested {
   border-bottom: 1px dashed currentColor;
 }
+.markSelected {
+  border-bottom-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
 .aiBadge {
   font-size: 0.65em;
   vertical-align: super;

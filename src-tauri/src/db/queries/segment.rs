@@ -123,10 +123,7 @@ pub fn shift_order_indices_from(
     Ok(())
 }
 
-pub fn renumber_order_indices(
-    conn: &mut Connection,
-    interview_id: i64,
-) -> AppResult<()> {
+pub fn renumber_order_indices(conn: &mut Connection, interview_id: i64) -> AppResult<()> {
     let tx = conn.transaction()?;
     let ids: Vec<i64> = {
         let mut stmt = tx.prepare(

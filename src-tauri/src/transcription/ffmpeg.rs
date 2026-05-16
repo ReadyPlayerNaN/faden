@@ -11,7 +11,11 @@ pub struct NormalizeParams {
 
 impl Default for NormalizeParams {
     fn default() -> Self {
-        Self { channels: 1, sample_rate: 16000, bitrate: "64k".into() }
+        Self {
+            channels: 1,
+            sample_rate: 16000,
+            bitrate: "64k".into(),
+        }
     }
 }
 
@@ -21,10 +25,14 @@ pub async fn probe_duration(app: &tauri::AppHandle, path: &Path) -> AppResult<f6
         .sidecar("ffprobe")
         .map_err(|e| AppError::Invalid(format!("ffprobe sidecar: {e}")))?
         .args([
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            path.to_str().ok_or_else(|| AppError::Invalid("non-utf8 path".into()))?,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            path.to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 path".into()))?,
         ])
         .output()
         .await
@@ -34,7 +42,9 @@ pub async fn probe_duration(app: &tauri::AppHandle, path: &Path) -> AppResult<f6
         return Err(AppError::Invalid(format!("ffprobe failed: {stderr}")));
     }
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    stdout.parse::<f64>().map_err(|e| AppError::Invalid(format!("ffprobe parse: {e}")))
+    stdout
+        .parse::<f64>()
+        .map_err(|e| AppError::Invalid(format!("ffprobe parse: {e}")))
 }
 
 pub async fn normalize(
@@ -49,18 +59,28 @@ pub async fn normalize(
         .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
         .args([
             "-y",
-            "-i", input.to_str().ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
-            "-ac", &params.channels.to_string(),
-            "-ar", &params.sample_rate.to_string(),
-            "-b:a", &params.bitrate,
-            output.to_str().ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
+            "-i",
+            input
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
+            "-ac",
+            &params.channels.to_string(),
+            "-ar",
+            &params.sample_rate.to_string(),
+            "-b:a",
+            &params.bitrate,
+            output
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
         ])
         .output()
         .await
         .map_err(|e| AppError::Invalid(format!("ffmpeg exec: {e}")))?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-        return Err(AppError::Invalid(format!("ffmpeg normalize failed: {stderr}")));
+        return Err(AppError::Invalid(format!(
+            "ffmpeg normalize failed: {stderr}"
+        )));
     }
     Ok(())
 }
@@ -79,20 +99,32 @@ pub async fn extract_subchunk(
         .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
         .args([
             "-y",
-            "-ss", &format!("{start_seconds:.3}"),
-            "-t", &format!("{duration_seconds:.3}"),
-            "-i", input.to_str().ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
-            "-ac", &params.channels.to_string(),
-            "-ar", &params.sample_rate.to_string(),
-            "-b:a", &params.bitrate,
-            output.to_str().ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
+            "-ss",
+            &format!("{start_seconds:.3}"),
+            "-t",
+            &format!("{duration_seconds:.3}"),
+            "-i",
+            input
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
+            "-ac",
+            &params.channels.to_string(),
+            "-ar",
+            &params.sample_rate.to_string(),
+            "-b:a",
+            &params.bitrate,
+            output
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
         ])
         .output()
         .await
         .map_err(|e| AppError::Invalid(format!("ffmpeg exec: {e}")))?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-        return Err(AppError::Invalid(format!("ffmpeg extract failed: {stderr}")));
+        return Err(AppError::Invalid(format!(
+            "ffmpeg extract failed: {stderr}"
+        )));
     }
     Ok(())
 }
@@ -110,11 +142,19 @@ pub async fn split_into_chunks(
         .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
         .args([
             "-y",
-            "-i", input.to_str().ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
-            "-f", "segment",
-            "-segment_time", &chunk_seconds.to_string(),
-            "-c", "copy",
-            pattern.to_str().ok_or_else(|| AppError::Invalid("non-utf8 pattern".into()))?,
+            "-i",
+            input
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 input".into()))?,
+            "-f",
+            "segment",
+            "-segment_time",
+            &chunk_seconds.to_string(),
+            "-c",
+            "copy",
+            pattern
+                .to_str()
+                .ok_or_else(|| AppError::Invalid("non-utf8 pattern".into()))?,
         ])
         .output()
         .await

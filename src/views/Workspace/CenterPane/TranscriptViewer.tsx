@@ -47,14 +47,32 @@ type SegmentSpan = {
   source: "manual" | "ai_suggested" | "ai_accepted";
 };
 
-const computeRangesForSegment = (text: string, spans: SegmentSpan[]) => {
+type SegmentSelection = {
+  startOffset: number;
+  endOffset: number;
+} | null;
+
+const computeRangesForSegment = (
+  text: string,
+  spans: SegmentSpan[],
+  selection: SegmentSelection,
+) => {
   const boundaries = new Set<number>([0, text.length]);
   for (const s of spans) {
     boundaries.add(Math.max(0, Math.min(text.length, s.startOffset)));
     boundaries.add(Math.max(0, Math.min(text.length, s.endOffset)));
   }
+  if (selection) {
+    boundaries.add(Math.max(0, Math.min(text.length, selection.startOffset)));
+    boundaries.add(Math.max(0, Math.min(text.length, selection.endOffset)));
+  }
   const sorted = Array.from(boundaries).sort((a, b) => a - b);
-  const ranges: { start: number; end: number; covering: SegmentSpan[] }[] = [];
+  const ranges: {
+    start: number;
+    end: number;
+    covering: SegmentSpan[];
+    selected: boolean;
+  }[] = [];
   for (let i = 0; i < sorted.length - 1; i++) {
     const start = sorted[i];
     const end = sorted[i + 1];
@@ -62,7 +80,11 @@ const computeRangesForSegment = (text: string, spans: SegmentSpan[]) => {
     const covering = spans.filter(
       (s) => s.startOffset <= start && s.endOffset >= end,
     );
-    ranges.push({ start, end, covering });
+    const selected =
+      selection !== null &&
+      selection.startOffset <= start &&
+      selection.endOffset >= end;
+    ranges.push({ start, end, covering, selected });
   }
   return ranges;
 };
@@ -337,6 +359,7 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [editMode, setEditMode] = useState(false);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
+  const activeSelection = useAtomValue(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
@@ -493,7 +516,14 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
             );
           }
           const segSpans = spansBySegment.get(s.id) ?? [];
-          const ranges = computeRangesForSegment(s.text, segSpans);
+          const selection =
+            activeSelection?.segmentId === s.id
+              ? {
+                  startOffset: activeSelection.startOffset,
+                  endOffset: activeSelection.endOffset,
+                }
+              : null;
+          const ranges = computeRangesForSegment(s.text, segSpans, selection);
           return (
             <div
               key={s.id}
@@ -511,31 +541,43 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
               <span className={styles.text}>
                 {ranges.map((r, i) => {
                   const slice = s.text.slice(r.start, r.end);
-                  if (r.covering.length === 0) {
+                  if (r.covering.length === 0 && !r.selected) {
                     return <span key={i}>{slice}</span>;
                   }
                   const first = r.covering[0];
-                  const firstTagId = first.tagIds[0];
+                  const firstTagId = first?.tagIds[0];
                   const color =
                     firstTagId !== undefined
                       ? tagColorById.get(firstTagId)
                       : undefined;
-                  const isSuggested = first.source === "ai_suggested";
-                  const markClassName = isSuggested
-                    ? `${styles.mark} ${styles.markSuggested}`
-                    : styles.mark;
+                  const isSuggested = first?.source === "ai_suggested";
+                  const markClassName = [
+                    styles.mark,
+                    isSuggested ? styles.markSuggested : "",
+                    r.selected ? styles.markSelected : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
                   return (
                     <mark
                       key={i}
                       className={markClassName}
-                      style={{ background: (color ?? "#5b9aff") + "33" }}
-                      data-span-id={first.spanId}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSpan(first.spanId);
+                      style={{
+                        background: r.selected
+                          ? "color-mix(in srgb, var(--accent) 28%, transparent)"
+                          : (color ?? "#5b9aff") + "33",
                       }}
+                      data-span-id={first?.spanId}
+                      onClick={
+                        first
+                          ? (e) => {
+                              e.stopPropagation();
+                              setSelectedSpan(first.spanId);
+                            }
+                          : undefined
+                      }
                       title={
-                        r.covering.length > 1
+                        first && r.covering.length > 1
                           ? `${r.covering.length} overlapping spans`
                           : undefined
                       }

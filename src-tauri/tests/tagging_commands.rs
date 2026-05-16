@@ -130,9 +130,11 @@ fn delete_cascades_span_tag_and_memo() {
     memo::upsert(&conn, dto.id, "note").unwrap();
     tagged_span::delete(&conn, dto.id).unwrap();
     assert!(memo::get_for_span(&conn, dto.id).unwrap().is_none());
-    assert!(stt_app_lib::db::queries::span_tag::list_for_span(&conn, dto.id)
-        .unwrap()
-        .is_empty());
+    assert!(
+        stt_app_lib::db::queries::span_tag::list_for_span(&conn, dto.id)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

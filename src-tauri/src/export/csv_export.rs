@@ -29,8 +29,9 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
                 Some(cid) => {
                     let cat = data.categories.iter().find(|c| c.id == cid);
                     let cl = cat.and_then(|c| {
-                        c.cluster_id
-                            .and_then(|cluster_id| data.clusters.iter().find(|cl| cl.id == cluster_id))
+                        c.cluster_id.and_then(|cluster_id| {
+                            data.clusters.iter().find(|cl| cl.id == cluster_id)
+                        })
                     });
                     (
                         cl.map(|c| c.name.as_str()).unwrap_or(""),
@@ -48,14 +49,11 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
             let seg = iv.segments.iter().find(|s| s.id == span.span.segment_id);
             let speaker = seg.and_then(|s| iv.speakers.get(&s.speaker_id));
             for tag_id in &span.tags {
-                let (cl, cat, tg) =
-                    tag_lookup.get(tag_id).copied().unwrap_or(("", "", ""));
+                let (cl, cat, tg) = tag_lookup.get(tag_id).copied().unwrap_or(("", "", ""));
                 let seg_start = seg
                     .map(|s| format!("{:.3}", s.start_sec))
                     .unwrap_or_default();
-                let seg_end = seg
-                    .map(|s| format!("{:.3}", s.end_sec))
-                    .unwrap_or_default();
+                let seg_end = seg.map(|s| format!("{:.3}", s.end_sec)).unwrap_or_default();
                 let span_start = format!("{:.3}", span.span.audio_start_sec);
                 let span_end = format!("{:.3}", span.span.audio_end_sec);
                 w.write_record([

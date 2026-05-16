@@ -66,10 +66,7 @@ pub async fn project_settings_get(app: tauri::AppHandle) -> AppResult<ProjectSet
 }
 
 #[tauri::command]
-pub async fn project_settings_set(
-    app: tauri::AppHandle,
-    value: ProjectSettings,
-) -> AppResult<()> {
+pub async fn project_settings_set(app: tauri::AppHandle, value: ProjectSettings) -> AppResult<()> {
     let conn = project_conn(&app)?;
     project_meta::write_settings(&conn, &value)
 }

@@ -29,10 +29,7 @@ pub fn plan_chunks(total_duration: f64, chunk_seconds: u32) -> Vec<ChunkPlan> {
     out
 }
 
-pub fn plan_subchunks(
-    chunk_duration: f64,
-    min_split_seconds: f64,
-) -> AppResult<Vec<ChunkPlan>> {
+pub fn plan_subchunks(chunk_duration: f64, min_split_seconds: f64) -> AppResult<Vec<ChunkPlan>> {
     if chunk_duration < 2.0 * min_split_seconds {
         return Err(AppError::Invalid(format!(
             "cannot split further: chunk={chunk_duration:.1}s, min={min_split_seconds:.1}s"

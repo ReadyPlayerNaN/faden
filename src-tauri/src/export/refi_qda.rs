@@ -54,7 +54,11 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
         e.push_attribute(("guid", cl_id_str.as_str()));
         e.push_attribute(("name", cl.name.as_str()));
         w.write_event(Event::Start(e)).map_err(xml_err)?;
-        for cat in data.categories.iter().filter(|c| c.cluster_id == Some(cl.id)) {
+        for cat in data
+            .categories
+            .iter()
+            .filter(|c| c.cluster_id == Some(cl.id))
+        {
             let cat_id = ns_uuid(&project_ns, &format!("category:{}", cat.name));
             let cat_id_str = cat_id.to_string();
             let mut ec = BytesStart::new("Code");
@@ -133,14 +137,10 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             cum += seg.text.chars().count() as i32 + 1; // +1 for newline
         }
         for span in &iv.spans {
-            let base = seg_offsets
-                .get(&span.span.segment_id)
-                .copied()
-                .unwrap_or(0);
+            let base = seg_offsets.get(&span.span.segment_id).copied().unwrap_or(0);
             let g_start = base + span.span.start_offset;
             let g_end = base + span.span.end_offset;
-            let sel_guid =
-                ns_uuid(&project_ns, &format!("span:{}", span.span.id)).to_string();
+            let sel_guid = ns_uuid(&project_ns, &format!("span:{}", span.span.id)).to_string();
             let g_start_str = g_start.to_string();
             let g_end_str = g_end.to_string();
             let mut sel = BytesStart::new("PlainTextSelection");
@@ -150,11 +150,9 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             w.write_event(Event::Start(sel)).map_err(xml_err)?;
             for tag_id in &span.tags {
                 if let Some(g) = tag_guids.get(tag_id) {
-                    let coding_guid = ns_uuid(
-                        &project_ns,
-                        &format!("coding:{}:{}", span.span.id, tag_id),
-                    )
-                    .to_string();
+                    let coding_guid =
+                        ns_uuid(&project_ns, &format!("coding:{}:{}", span.span.id, tag_id))
+                            .to_string();
                     let mut c = BytesStart::new("Coding");
                     c.push_attribute(("guid", coding_guid.as_str()));
                     let mut cref = BytesStart::new("CodeRef");

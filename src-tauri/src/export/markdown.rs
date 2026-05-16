@@ -46,7 +46,11 @@ pub fn write_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             let speaker = iv.speakers.get(&seg.speaker_id);
             let speaker_label = speaker.map(|s| s.label_raw.as_str()).unwrap_or("?");
             let timestamp = format_seconds(seg.start_sec);
-            writeln!(writer, "[{}] **{}:** {}", timestamp, speaker_label, seg.text)?;
+            writeln!(
+                writer,
+                "[{}] **{}:** {}",
+                timestamp, speaker_label, seg.text
+            )?;
             if let Some(spans) = spans_by_seg.get(&seg.id) {
                 for span in spans {
                     let tag_names: Vec<&str> = span

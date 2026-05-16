@@ -206,11 +206,7 @@ pub fn delete(conn: &Connection, id: i64) -> AppResult<()> {
     Ok(())
 }
 
-pub fn move_to_category(
-    conn: &Connection,
-    id: i64,
-    new_category_id: Option<i64>,
-) -> AppResult<()> {
+pub fn move_to_category(conn: &Connection, id: i64, new_category_id: Option<i64>) -> AppResult<()> {
     // Validate target category exists (when given).
     if let Some(cid) = new_category_id {
         category::get(conn, cid)?;
@@ -228,11 +224,7 @@ pub fn move_to_category(
     Ok(())
 }
 
-pub fn reorder(
-    conn: &mut Connection,
-    category_id: i64,
-    ids_in_order: &[i64],
-) -> AppResult<()> {
+pub fn reorder(conn: &mut Connection, category_id: i64, ids_in_order: &[i64]) -> AppResult<()> {
     let tx = conn.transaction()?;
     for (idx, id) in ids_in_order.iter().enumerate() {
         let affected = tx.execute(

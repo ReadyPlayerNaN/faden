@@ -22,7 +22,11 @@ fn save_and_load_round_trip() {
     let loaded = store.load().unwrap();
     assert_eq!(loaded.gemini_api_key, "k-123");
     assert_eq!(
-        loaded.recent_projects.iter().map(|r| r.path.clone()).collect::<Vec<_>>(),
+        loaded
+            .recent_projects
+            .iter()
+            .map(|r| r.path.clone())
+            .collect::<Vec<_>>(),
         vec!["/b".to_string(), "/a".into()]
     );
 }

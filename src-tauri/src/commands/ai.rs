@@ -159,11 +159,10 @@ pub async fn ai_proposal_accept(
                             if !cat.get("accept").and_then(|v| v.as_bool()).unwrap_or(false) {
                                 continue;
                             }
-                            let cat_name =
-                                cat.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let cat_name = cat.get("name").and_then(|v| v.as_str()).unwrap_or("");
                             let cat_id = match category::create(
                                 &conn,
-                                cl_id,
+                                Some(cl_id),
                                 cat_name,
                                 cat.get("description").and_then(|v| v.as_str()),
                                 None,
@@ -315,12 +314,18 @@ pub async fn ai_cost_estimate(
             )?
         }
         "pretag" => {
-            let iid = args.get("interview_id").and_then(|v| v.as_i64()).unwrap_or(-1);
+            let iid = args
+                .get("interview_id")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
             pretag::build_prompt(&conn, &pretag::PretagInput { interview_id: iid }, None)?
         }
         "find_more" => {
             let tag_id = args.get("tag_id").and_then(|v| v.as_i64()).unwrap_or(-1);
-            let iid = args.get("interview_id").and_then(|v| v.as_i64()).unwrap_or(-1);
+            let iid = args
+                .get("interview_id")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
             find_more::build_prompt(
                 &conn,
                 &find_more::FindMoreInput {
