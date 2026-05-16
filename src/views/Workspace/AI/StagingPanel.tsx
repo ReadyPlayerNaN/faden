@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   pendingProposalsAtom,
   activeProposalIdAtom,
+  hasOngoingAiOperationsAtom,
 } from "../../../state/ai";
 import {
   aiProposalList,
@@ -25,6 +26,7 @@ export const StagingPanel = () => {
   const { t } = useTranslation();
   const [proposals, setProposals] = useAtom(pendingProposalsAtom);
   const [activeId, setActiveId] = useAtom(activeProposalIdAtom);
+  const hasOngoingAiOperations = useAtomValue(hasOngoingAiOperationsAtom);
   const setInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const setCodebookTree = useSetAtom(codebookTreeAtom);
   const [active, setActive] = useState<ProposalDTO | null>(null);
@@ -33,9 +35,23 @@ export const StagingPanel = () => {
   ]);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
+  const prevHasOngoingRef = useRef(false);
+
+  const refreshProposals = async () => {
+    const nextProposals = await aiProposalList();
+    setProposals(nextProposals);
+    return nextProposals;
+  };
+
+  const refreshActiveProposal = async () => {
+    if (activeId === null) return null;
+    const nextActive = await aiProposalGet(activeId).catch(() => null);
+    setActive(nextActive);
+    return nextActive;
+  };
 
   useEffect(() => {
-    void aiProposalList().then(setProposals);
+    void refreshProposals();
   }, [setProposals]);
 
   useEffect(() => {
@@ -43,8 +59,28 @@ export const StagingPanel = () => {
       setActive(null);
       return;
     }
-    void aiProposalGet(activeId).then(setActive);
+    void refreshActiveProposal();
   }, [activeId]);
+
+  useEffect(() => {
+    const hadOngoing = prevHasOngoingRef.current;
+    prevHasOngoingRef.current = hasOngoingAiOperations;
+
+    if (!hasOngoingAiOperations) {
+      if (hadOngoing) {
+        void Promise.all([refreshProposals(), refreshActiveProposal()]);
+      }
+      return;
+    }
+
+    void Promise.all([refreshProposals(), refreshActiveProposal()]);
+    const interval = window.setInterval(() => {
+      void Promise.all([refreshProposals(), refreshActiveProposal()]);
+    }, 2000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeId, hasOngoingAiOperations, setProposals]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -66,17 +102,16 @@ export const StagingPanel = () => {
 
   const onReject = async (id: number) => {
     await aiProposalReject(id);
-    const [nextProposals, nextActive] = await Promise.all([
-      aiProposalList(),
-      activeId === id ? aiProposalGet(id) : Promise.resolve(null),
+    const [, nextActive] = await Promise.all([
+      refreshProposals(),
+      activeId === id ? refreshActiveProposal() : Promise.resolve(null),
     ]);
-    setProposals(nextProposals);
     if (nextActive) setActive(nextActive);
   };
 
   const onClose = async () => {
     setActiveId(null);
-    setProposals(await aiProposalList());
+    await refreshProposals();
   };
 
   const toggleStatus = (status: ProposalStatus) => {
