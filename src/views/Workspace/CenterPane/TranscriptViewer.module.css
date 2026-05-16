@@ -59,9 +59,13 @@
   padding: 0 1px;
   cursor: pointer;
   border-bottom: 1px solid currentColor;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .mark:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.08);
 }
 .markSuggested {
   border-bottom: 1px dashed currentColor;
@@ -69,6 +73,26 @@
 .markSelected {
   border-bottom-color: var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.markOverlapping {
+  border-bottom-width: 2px;
+}
+.markOverlapping::after {
+  content: attr(data-overlap-count);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.18rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  font-size: 0.62em;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--bg) 82%, var(--fg) 18%);
+  border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
 }
 .aiBadge {
   font-size: 0.65em;
