@@ -80,6 +80,88 @@ pub fn delete_all_for_interview(conn: &Connection, interview_id: i64) -> AppResu
     Ok(affected)
 }
 
+pub fn update_text(conn: &Connection, id: i64, text: &str) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE segment SET text = ?1 WHERE id = ?2",
+        params![text, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("segment {id}")));
+    }
+    Ok(())
+}
+
+pub fn set_speaker(conn: &Connection, id: i64, speaker_id: i64) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE segment SET speaker_id = ?1 WHERE id = ?2",
+        params![speaker_id, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("segment {id}")));
+    }
+    Ok(())
+}
+
+pub fn delete(conn: &Connection, id: i64) -> AppResult<()> {
+    let affected = conn.execute("DELETE FROM segment WHERE id = ?1", params![id])?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("segment {id}")));
+    }
+    Ok(())
+}
+
+pub fn shift_order_indices_from(
+    conn: &Connection,
+    interview_id: i64,
+    from_order: i64,
+    delta: i64,
+) -> AppResult<()> {
+    conn.execute(
+        "UPDATE segment SET order_index = order_index + ?1 WHERE interview_id = ?2 AND order_index >= ?3",
+        params![delta, interview_id, from_order],
+    )?;
+    Ok(())
+}
+
+pub fn renumber_order_indices(
+    conn: &mut Connection,
+    interview_id: i64,
+) -> AppResult<()> {
+    let tx = conn.transaction()?;
+    let ids: Vec<i64> = {
+        let mut stmt = tx.prepare(
+            "SELECT id FROM segment WHERE interview_id = ?1 ORDER BY order_index ASC, id ASC",
+        )?;
+        let rows = stmt.query_map(params![interview_id], |r| r.get::<_, i64>(0))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        out
+    };
+    for (idx, id) in ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE segment SET order_index = ?1 WHERE id = ?2",
+            params![idx as i64, id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn insert_at_order(
+    conn: &Connection,
+    interview_id: i64,
+    order_index: i64,
+    new: &NewSegment,
+) -> AppResult<i64> {
+    conn.execute(
+        "INSERT INTO segment (interview_id, speaker_id, start_sec, end_sec, text, order_index) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![interview_id, new.speaker_id, new.start_sec, new.end_sec, new.text, order_index],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
 pub fn get(conn: &Connection, id: i64) -> AppResult<Segment> {
     conn.query_row(
         "SELECT id, interview_id, speaker_id, start_sec, end_sec, text, order_index FROM segment WHERE id = ?1",

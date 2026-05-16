@@ -17,7 +17,7 @@ pub fn write_codebook_json<W: Write>(
                 let tags: Vec<_> = data
                     .tags
                     .iter()
-                    .filter(|t| t.category_id == cat.id)
+                    .filter(|t| t.category_id == Some(cat.id))
                     .map(|t| {
                         json!({
                             "name": t.name,
@@ -51,7 +51,7 @@ pub fn write_codebook_csv<W: Write>(data: &ProjectExportData, writer: &mut W) ->
     w.write_record(["cluster", "category", "tag", "description"])?;
     for cl in &data.clusters {
         for cat in data.categories.iter().filter(|c| c.cluster_id == cl.id) {
-            for t in data.tags.iter().filter(|t| t.category_id == cat.id) {
+            for t in data.tags.iter().filter(|t| t.category_id == Some(cat.id)) {
                 w.write_record([
                     cl.name.as_str(),
                     cat.name.as_str(),

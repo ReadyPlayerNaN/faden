@@ -61,7 +61,7 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             ec.push_attribute(("guid", cat_id_str.as_str()));
             ec.push_attribute(("name", cat.name.as_str()));
             w.write_event(Event::Start(ec)).map_err(xml_err)?;
-            for t in data.tags.iter().filter(|t| t.category_id == cat.id) {
+            for t in data.tags.iter().filter(|t| t.category_id == Some(cat.id)) {
                 let t_id = ns_uuid(&project_ns, &format!("tag:{}", t.name));
                 let t_id_str = t_id.to_string();
                 tag_guids.insert(t.id, t_id_str.clone());

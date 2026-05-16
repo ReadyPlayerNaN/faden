@@ -41,7 +41,7 @@ fn make_span_and_tag(conn: &mut Connection) -> (i64, i64) {
     .unwrap();
     let cl = cluster::create(conn, "C", None, None).unwrap();
     let cat = category::create(conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(conn, cat.id, "T", None, None).unwrap();
+    let t = tag::create(conn, Some(cat.id), "T", None, None).unwrap();
     (span.id, t.id)
 }
 

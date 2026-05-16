@@ -18,7 +18,7 @@ pub fn format_codebook(conn: &Connection) -> AppResult<String> {
             if let Some(d) = &cat.description {
                 writeln!(out, "    {d}").ok();
             }
-            for t in tags.iter().filter(|t| t.category_id == cat.id) {
+            for t in tags.iter().filter(|t| t.category_id == Some(cat.id)) {
                 writeln!(
                     out,
                     "    - {}{}",

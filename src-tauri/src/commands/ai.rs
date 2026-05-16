@@ -186,7 +186,7 @@ pub async fn ai_proposal_accept(
                                         tg.get("name").and_then(|v| v.as_str()).unwrap_or("");
                                     match tag::create(
                                         &conn,
-                                        cat_id,
+                                        Some(cat_id),
                                         tg_name,
                                         tg.get("description").and_then(|v| v.as_str()),
                                         None,

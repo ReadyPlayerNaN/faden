@@ -201,6 +201,18 @@ pub async fn speaker_list_for_interview(
 }
 
 #[tauri::command]
+pub async fn speaker_create(
+    app: tauri::AppHandle,
+    interview_id: i64,
+    label_raw: String,
+    display_name: Option<String>,
+) -> AppResult<SpeakerDTO> {
+    let conn = project_conn(&app)?;
+    let sp = speaker::create_or_get(&conn, interview_id, &label_raw, display_name.as_deref())?;
+    Ok(sp.into())
+}
+
+#[tauri::command]
 pub async fn speaker_set_display_name(
     app: tauri::AppHandle,
     speaker_id: i64,
@@ -208,6 +220,62 @@ pub async fn speaker_set_display_name(
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     speaker::set_display_name(&conn, speaker_id, display_name.as_deref())
+}
+
+#[tauri::command]
+pub async fn interview_set_audio(
+    app: tauri::AppHandle,
+    interview_id: i64,
+    source_audio_path: String,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let state = app.state::<crate::app_state::AppState>();
+    let project_dir = state.current_project()?;
+
+    let sqlite = project_dir.join("project.sqlite");
+    let conn = crate::db::open(&sqlite)?;
+    let iv = interview::get(&conn, interview_id)?;
+
+    // Best-effort delete of existing audio file.
+    if let Some(old_rel) = &iv.audio_path {
+        let _ = std::fs::remove_file(project_dir.join(old_rel));
+    }
+
+    let src = Path::new(&source_audio_path);
+    if !src.exists() {
+        return Err(AppError::NotFound(format!("audio file: {}", src.display())));
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("audio");
+    let sanitized = sanitize_filename(&iv.name);
+    let short_uuid = uuid::Uuid::new_v4().simple().to_string()[..8].to_string();
+    let target_name = format!("{sanitized}-{short_uuid}.{ext}");
+    let media_dir = project_dir.join("media");
+    std::fs::create_dir_all(&media_dir)?;
+    let target_path = media_dir.join(&target_name);
+    std::fs::copy(src, &target_path)?;
+    let rel_path = format!("media/{target_name}");
+    interview::set_audio_path(&conn, interview_id, Some(&rel_path))?;
+    interview::get(&conn, interview_id)
+}
+
+#[tauri::command]
+pub async fn interview_clear_audio(
+    app: tauri::AppHandle,
+    interview_id: i64,
+) -> AppResult<Interview> {
+    use tauri::Manager;
+    let state = app.state::<crate::app_state::AppState>();
+    let project_dir = state.current_project()?;
+
+    let sqlite = project_dir.join("project.sqlite");
+    let conn = crate::db::open(&sqlite)?;
+    let iv = interview::get(&conn, interview_id)?;
+
+    if let Some(rel) = &iv.audio_path {
+        let _ = std::fs::remove_file(project_dir.join(rel));
+    }
+    interview::set_audio_path(&conn, interview_id, None)?;
+    interview::get(&conn, interview_id)
 }
 
 #[tauri::command]

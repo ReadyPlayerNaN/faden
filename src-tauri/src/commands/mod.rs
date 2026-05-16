@@ -3,6 +3,7 @@ pub mod codebook;
 pub mod export;
 pub mod interview;
 pub mod project;
+pub mod segment;
 pub mod settings;
 pub mod tagging;
 pub mod transcribe;

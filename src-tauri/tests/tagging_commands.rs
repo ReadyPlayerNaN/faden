@@ -39,8 +39,8 @@ fn setup(conn: &mut Connection) -> Setup {
     .unwrap();
     let cl = cluster::create(conn, "C", None, None).unwrap();
     let cat = category::create(conn, cl.id, "Cat", None, None).unwrap();
-    let tag_a = tag::create(conn, cat.id, "A", None, None).unwrap();
-    let tag_b = tag::create(conn, cat.id, "B", None, None).unwrap();
+    let tag_a = tag::create(conn, Some(cat.id), "A", None, None).unwrap();
+    let tag_b = tag::create(conn, Some(cat.id), "B", None, None).unwrap();
     Setup {
         interview_id: i.id,
         segment_id: seg_ids[0],

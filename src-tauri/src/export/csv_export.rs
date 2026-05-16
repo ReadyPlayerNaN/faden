@@ -24,10 +24,21 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
     let tag_lookup: HashMap<i64, (&str, &str, &str)> = data
         .tags
         .iter()
-        .filter_map(|t| {
-            let cat = data.categories.iter().find(|c| c.id == t.category_id)?;
-            let cl = data.clusters.iter().find(|c| c.id == cat.cluster_id)?;
-            Some((t.id, (cl.name.as_str(), cat.name.as_str(), t.name.as_str())))
+        .map(|t| {
+            let (cl_name, cat_name) = match t.category_id {
+                Some(cid) => {
+                    let cat = data.categories.iter().find(|c| c.id == cid);
+                    let cl = cat.and_then(|c| {
+                        data.clusters.iter().find(|cl| cl.id == c.cluster_id)
+                    });
+                    (
+                        cl.map(|c| c.name.as_str()).unwrap_or(""),
+                        cat.map(|c| c.name.as_str()).unwrap_or(""),
+                    )
+                }
+                None => ("", ""),
+            };
+            (t.id, (cl_name, cat_name, t.name.as_str()))
         })
         .collect();
 

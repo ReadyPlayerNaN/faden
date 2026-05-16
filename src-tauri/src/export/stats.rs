@@ -7,10 +7,21 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
     let tag_path: HashMap<i64, (String, String, String)> = data
         .tags
         .iter()
-        .filter_map(|t| {
-            let cat = data.categories.iter().find(|c| c.id == t.category_id)?;
-            let cl = data.clusters.iter().find(|c| c.id == cat.cluster_id)?;
-            Some((t.id, (cl.name.clone(), cat.name.clone(), t.name.clone())))
+        .map(|t| {
+            let (cl_name, cat_name) = match t.category_id {
+                Some(cid) => {
+                    let cat = data.categories.iter().find(|c| c.id == cid);
+                    let cl = cat.and_then(|c| {
+                        data.clusters.iter().find(|cl| cl.id == c.cluster_id)
+                    });
+                    (
+                        cl.map(|c| c.name.clone()).unwrap_or_default(),
+                        cat.map(|c| c.name.clone()).unwrap_or_default(),
+                    )
+                }
+                None => (String::new(), String::new()),
+            };
+            (t.id, (cl_name, cat_name, t.name.clone()))
         })
         .collect();
 
@@ -154,7 +165,9 @@ pub fn write_stats_markdown<W: Write>(
         }
     }
     for t in &data.tags {
-        let cat = data.categories.iter().find(|c| c.id == t.category_id);
+        let cat = t
+            .category_id
+            .and_then(|cid| data.categories.iter().find(|c| c.id == cid));
         let cl = cat.and_then(|c| data.clusters.iter().find(|cl| cl.id == c.cluster_id));
         let count = counts.get(&t.id).copied().unwrap_or(0);
         writeln!(

@@ -33,7 +33,7 @@ async fn pretag_persists_filtered_suggestions() {
 
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let _t1 = tag::create(&conn, cat.id, "known", None, None).unwrap();
+    let _t1 = tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
 
     let mut server = Server::new_async().await;
     let response_text = json!({

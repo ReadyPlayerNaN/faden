@@ -147,7 +147,7 @@ fn category_delete_empty_works() {
 #[test]
 fn tag_create_requires_existing_category() {
     let conn = fresh_conn();
-    let err = tag::create(&conn, 999, "X", None, None).unwrap_err();
+    let err = tag::create(&conn, Some(999), "X", None, None).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
 }
 
@@ -156,8 +156,8 @@ fn tag_create_appends_within_category() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let a = tag::create(&conn, cat.id, "A", None, None).unwrap();
-    let b = tag::create(&conn, cat.id, "B", None, None).unwrap();
+    let a = tag::create(&conn, Some(cat.id), "A", None, None).unwrap();
+    let b = tag::create(&conn, Some(cat.id), "B", None, None).unwrap();
     assert_eq!(b.order_index, a.order_index + 1);
 }
 
@@ -167,8 +167,8 @@ fn tag_name_unique_across_project() {
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
     let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
-    tag::create(&conn, c1.id, "Same", None, None).unwrap();
-    let err = tag::create(&conn, c2.id, "Same", None, None).unwrap_err();
+    tag::create(&conn, Some(c1.id), "Same", None, None).unwrap();
+    let err = tag::create(&conn, Some(c2.id), "Same", None, None).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
 }
 
@@ -178,8 +178,8 @@ fn tag_list_for_category_filters() {
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
     let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
-    tag::create(&conn, c1.id, "T1", None, None).unwrap();
-    tag::create(&conn, c2.id, "T2", None, None).unwrap();
+    tag::create(&conn, Some(c1.id), "T1", None, None).unwrap();
+    tag::create(&conn, Some(c2.id), "T2", None, None).unwrap();
     assert_eq!(tag::list_for_category(&conn, c1.id).unwrap().len(), 1);
 }
 
@@ -189,10 +189,10 @@ fn tag_move_to_category_works() {
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
     let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
-    let t = tag::create(&conn, c1.id, "Moveme", None, None).unwrap();
-    tag::move_to_category(&conn, t.id, c2.id).unwrap();
+    let t = tag::create(&conn, Some(c1.id), "Moveme", None, None).unwrap();
+    tag::move_to_category(&conn, t.id, Some(c2.id)).unwrap();
     let moved = tag::get(&conn, t.id).unwrap();
-    assert_eq!(moved.category_id, c2.id);
+    assert_eq!(moved.category_id, Some(c2.id));
 }
 
 #[test]
@@ -200,9 +200,9 @@ fn tag_reorder_within_category() {
     let mut conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let a = tag::create(&conn, cat.id, "A", None, None).unwrap();
-    let b = tag::create(&conn, cat.id, "B", None, None).unwrap();
-    let cc = tag::create(&conn, cat.id, "C", None, None).unwrap();
+    let a = tag::create(&conn, Some(cat.id), "A", None, None).unwrap();
+    let b = tag::create(&conn, Some(cat.id), "B", None, None).unwrap();
+    let cc = tag::create(&conn, Some(cat.id), "C", None, None).unwrap();
     tag::reorder(&mut conn, cat.id, &[cc.id, a.id, b.id]).unwrap();
     let listed = tag::list_for_category(&conn, cat.id).unwrap();
     let names: Vec<_> = listed.iter().map(|t| t.name.as_str()).collect();
@@ -214,7 +214,7 @@ fn tag_delete_empty_works() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "X", None, None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "X", None, None).unwrap();
     tag::delete(&conn, t.id).unwrap();
     assert!(tag::list_all(&conn).unwrap().is_empty());
 }
@@ -224,7 +224,7 @@ fn tag_delete_rejected_when_in_use() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
 
     // Insert interview + segment + tagged_span + span_tag via raw SQL
     conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', '2026-05-12', '2026-05-12')", []).unwrap();
@@ -258,7 +258,7 @@ fn stats_empty_db_zero_counts() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     let counts = stats::codebook_counts(&conn).unwrap();
     assert_eq!(counts.by_cluster.get(&cl.id).copied().unwrap_or(0), 0);
     assert_eq!(counts.by_category.get(&cat.id).copied().unwrap_or(0), 0);
@@ -270,7 +270,7 @@ fn stats_after_tagging_one_span() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "T", None, None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', 'now', 'now')", []).unwrap();
     let iid = conn.last_insert_rowid();
     conn.execute(
@@ -314,8 +314,8 @@ fn codebook_tree_full_hierarchy() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    tag::create(&conn, cat.id, "T1", None, None).unwrap();
-    tag::create(&conn, cat.id, "T2", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
     assert_eq!(tree.clusters.len(), 1);
     assert_eq!(tree.clusters[0].categories.len(), 1);
@@ -327,8 +327,8 @@ fn stats_two_tags_same_category() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t1 = tag::create(&conn, cat.id, "T1", None, None).unwrap();
-    let t2 = tag::create(&conn, cat.id, "T2", None, None).unwrap();
+    let t1 = tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
+    let t2 = tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     fn insert_tagged_span(conn: &rusqlite::Connection, tag_id: i64) {
         conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', 'now', 'now')", []).unwrap();
         let iid = conn.last_insert_rowid();

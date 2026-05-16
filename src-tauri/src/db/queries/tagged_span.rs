@@ -93,6 +93,39 @@ pub fn update_offsets(
     Ok(())
 }
 
+pub fn update_offsets_and_snapshot(
+    conn: &Connection,
+    id: i64,
+    start_offset: i32,
+    end_offset: i32,
+    text_snapshot: &str,
+) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE tagged_span SET start_offset = ?1, end_offset = ?2, text_snapshot = ?3 WHERE id = ?4",
+        params![start_offset, end_offset, text_snapshot, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("tagged_span {id}")));
+    }
+    Ok(())
+}
+
+pub fn reassign_to_segment(
+    conn: &Connection,
+    span_id: i64,
+    new_segment_id: i64,
+    start_offset_delta: i32,
+) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE tagged_span SET segment_id = ?1, start_offset = start_offset + ?2, end_offset = end_offset + ?2 WHERE id = ?3",
+        params![new_segment_id, start_offset_delta, span_id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("tagged_span {span_id}")));
+    }
+    Ok(())
+}
+
 pub fn delete(conn: &Connection, id: i64) -> AppResult<()> {
     let affected = conn.execute("DELETE FROM tagged_span WHERE id = ?1", params![id])?;
     if affected == 0 {

@@ -33,7 +33,7 @@ async fn find_more_persists_suggestions_with_target_tag() {
 
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "target", Some("definition"), None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "target", Some("definition"), None).unwrap();
 
     let mut server = Server::new_async().await;
     // model may return both valid in-range and out-of-range suggestions.
@@ -100,7 +100,7 @@ async fn find_more_invalid_json_fails_run() {
     let i = interview::create(&conn, "I").unwrap();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t = tag::create(&conn, cat.id, "target", None, None).unwrap();
+    let t = tag::create(&conn, Some(cat.id), "target", None, None).unwrap();
     let client = GeminiClient::with_base_url("k".into(), server.url());
     let err = find_more::run(
         &conn,

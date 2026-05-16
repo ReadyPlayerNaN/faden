@@ -12,9 +12,10 @@ pub fn build_tree(conn: &Connection) -> AppResult<CodebookTree> {
     let tags = tag::list_all(conn)?;
 
     let mut by_cat: HashMap<i64, Vec<TagNode>> = HashMap::new();
+    let mut standalone_tags: Vec<TagNode> = Vec::new();
     for t in tags {
         let count = counts.by_tag.get(&t.id).copied().unwrap_or(0);
-        by_cat.entry(t.category_id).or_default().push(TagNode {
+        let node = TagNode {
             id: t.id,
             category_id: t.category_id,
             name: t.name,
@@ -22,7 +23,11 @@ pub fn build_tree(conn: &Connection) -> AppResult<CodebookTree> {
             color: t.color,
             order_index: t.order_index,
             count,
-        });
+        };
+        match t.category_id {
+            Some(cid) => by_cat.entry(cid).or_default().push(node),
+            None => standalone_tags.push(node),
+        }
     }
 
     let mut by_cluster: HashMap<i64, Vec<CategoryNode>> = HashMap::new();
@@ -61,6 +66,7 @@ pub fn build_tree(conn: &Connection) -> AppResult<CodebookTree> {
 
     Ok(CodebookTree {
         clusters: out_clusters,
+        standalone_tags,
     })
 }
 
@@ -198,7 +204,7 @@ pub async fn category_move_to_cluster(
 #[tauri::command]
 pub async fn tag_create(
     app: tauri::AppHandle,
-    category_id: i64,
+    category_id: Option<i64>,
     name: String,
     description: Option<String>,
     color: Option<String>,
@@ -259,7 +265,7 @@ pub async fn tag_reorder(
 pub async fn tag_move_to_category(
     app: tauri::AppHandle,
     id: i64,
-    new_category_id: i64,
+    new_category_id: Option<i64>,
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     tag::move_to_category(&conn, id, new_category_id)

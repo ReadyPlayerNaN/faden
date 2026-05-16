@@ -5,6 +5,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("m001_init.sql")),
     (2, include_str!("m002_main.sql")),
     (3, include_str!("m003_ai_staging.sql")),
+    (4, include_str!("m004_tag_optional_parent.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {

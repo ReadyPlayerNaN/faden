@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag {
     pub id: i64,
-    pub category_id: i64,
+    pub category_id: Option<i64>,
     pub name: String,
     pub description: Option<String>,
     pub color: Option<String>,
@@ -35,24 +35,33 @@ fn map_delete_constraint(err: rusqlite::Error) -> AppError {
     AppError::Sqlite(err)
 }
 
-fn next_order(conn: &Connection, category_id: i64) -> AppResult<i64> {
-    let next: i64 = conn.query_row(
-        "SELECT COALESCE(MAX(order_index), -1) + 1 FROM tag WHERE category_id = ?1",
-        params![category_id],
-        |r| r.get(0),
-    )?;
+fn next_order(conn: &Connection, category_id: Option<i64>) -> AppResult<i64> {
+    let next: i64 = match category_id {
+        Some(cid) => conn.query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM tag WHERE category_id = ?1",
+            params![cid],
+            |r| r.get(0),
+        )?,
+        None => conn.query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM tag WHERE category_id IS NULL",
+            [],
+            |r| r.get(0),
+        )?,
+    };
     Ok(next)
 }
 
 pub fn create(
     conn: &Connection,
-    category_id: i64,
+    category_id: Option<i64>,
     name: &str,
     description: Option<&str>,
     color: Option<&str>,
 ) -> AppResult<Tag> {
-    // Validate parent exists.
-    category::get(conn, category_id)?;
+    // Validate parent exists (when given).
+    if let Some(cid) = category_id {
+        category::get(conn, cid)?;
+    }
     let order_index = next_order(conn, category_id)?;
     conn.execute(
         "INSERT INTO tag (category_id, name, description, color, order_index) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -98,6 +107,28 @@ pub fn list_for_category(conn: &Connection, category_id: i64) -> AppResult<Vec<T
          FROM tag WHERE category_id = ?1 ORDER BY order_index, id",
     )?;
     let rows = stmt.query_map(params![category_id], |r| {
+        Ok(Tag {
+            id: r.get(0)?,
+            category_id: r.get(1)?,
+            name: r.get(2)?,
+            description: r.get(3)?,
+            color: r.get(4)?,
+            order_index: r.get(5)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
+pub fn list_standalone(conn: &Connection) -> AppResult<Vec<Tag>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, category_id, name, description, color, order_index \
+         FROM tag WHERE category_id IS NULL ORDER BY order_index, id",
+    )?;
+    let rows = stmt.query_map([], |r| {
         Ok(Tag {
             id: r.get(0)?,
             category_id: r.get(1)?,
@@ -175,9 +206,15 @@ pub fn delete(conn: &Connection, id: i64) -> AppResult<()> {
     Ok(())
 }
 
-pub fn move_to_category(conn: &Connection, id: i64, new_category_id: i64) -> AppResult<()> {
-    // Validate target category exists.
-    category::get(conn, new_category_id)?;
+pub fn move_to_category(
+    conn: &Connection,
+    id: i64,
+    new_category_id: Option<i64>,
+) -> AppResult<()> {
+    // Validate target category exists (when given).
+    if let Some(cid) = new_category_id {
+        category::get(conn, cid)?;
+    }
     // Validate this tag exists.
     let _ = get(conn, id)?;
     let order_index = next_order(conn, new_category_id)?;

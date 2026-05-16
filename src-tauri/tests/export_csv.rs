@@ -47,8 +47,8 @@ fn csv_one_row_per_span_tag_pair() {
     let mut conn = fresh();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
-    let t1 = tag::create(&conn, cat.id, "T1", None, None).unwrap();
-    let t2 = tag::create(&conn, cat.id, "T2", None, None).unwrap();
+    let t1 = tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
+    let t2 = tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     let iv = interview::create(&conn, "I1").unwrap();
     let sp = speaker::create_or_get(&conn, iv.id, "A", None).unwrap();
     let seg_ids = segment::insert_batch(
