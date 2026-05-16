@@ -1,0 +1,269 @@
+.wrap { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; }
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.title { font-size: 1.5rem; margin: 0; }
+.headerActions { display: flex; gap: 0.5rem; }
+
+.topActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.section { margin-bottom: 2rem; }
+.sectionTitle {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  opacity: 0.85;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.empty {
+  opacity: 0.6;
+  font-style: italic;
+  padding: 0.75rem 0;
+}
+
+.clusterCard {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.clusterHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.clusterName {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.clusterName:hover { background: rgba(255, 255, 255, 0.05); }
+
+.categoryBlock {
+  margin-left: 1rem;
+  padding: 0.5rem 0;
+  border-left: 2px solid var(--border);
+  padding-left: 0.75rem;
+  margin-top: 0.5rem;
+}
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.categoryName {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.categoryName:hover { background: rgba(255, 255, 255, 0.05); }
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  margin-left: 1rem;
+}
+.tagRow:hover { background: rgba(255, 255, 255, 0.04); border-radius: 3px; }
+
+.tagName {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  font: inherit;
+}
+.tagName:hover { background: rgba(255, 255, 255, 0.06); }
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+}
+
+.moveSelect {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
+}
+
+.manageBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+.manageBtn:hover {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.delBtn {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  font-size: 1.1rem;
+}
+.delBtn:hover { opacity: 1; color: var(--danger); }
+
+.addNested {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  margin-top: 0.25rem;
+  font-size: 0.85em;
+  opacity: 0.7;
+  text-align: left;
+}
+.addNested:hover { opacity: 1; }
+
+.count { opacity: 0.6; font-size: 0.85em; }
+
+.standaloneList {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.managementRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.25rem;
+}
+.managementRow + .managementRow {
+  border-top: 1px solid var(--border);
+}
+.managementMeta {
+  min-width: 0;
+  flex: 1;
+}
+.managementTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.managementSubtitle {
+  opacity: 0.7;
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+.managementActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.modalField { display: flex; flex-direction: column; gap: 0.3rem; }
+.modalLabel { font-size: 0.85rem; opacity: 0.85; }
+.modalTextarea {
+  background: var(--bg-muted);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem;
+  font: inherit;
+  resize: vertical;
+}
+.modalSelect {
+  background: var(--bg-muted);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+.modalError {
+  color: var(--danger);
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+}
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.colorInput {
+  width: 48px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.confirmText { margin: 0; }

@@ -10,6 +10,12 @@ export const selectedSpanAtom = atom((get) => {
   return get(spansForCurrentInterviewAtom).find((s) => s.id === id) ?? null;
 });
 
+export const activeTagForFindMoreAtom = atom<number | null>((get) => {
+  const span = get(selectedSpanAtom);
+  if (!span || span.tags.length === 0) return null;
+  return span.tags[0].tagId;
+});
+
 export type ActiveSelection = {
   segmentId: number;
   startOffset: number;

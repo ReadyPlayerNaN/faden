@@ -85,7 +85,8 @@
     "remove": "Odebrat",
     "save": "Uložit",
     "delete": "Smazat",
-    "open": "Otevřít"
+    "open": "Otevřít",
+    "edit": "Upravit"
   },
   "speakers": {
     "title": "Mluvčí",
@@ -132,8 +133,10 @@
     "standalone": "Samostatný (bez kategorie)",
     "standaloneSection": "Samostatné štítky",
     "clustersSection": "Klastry",
+    "categoriesManagementSection": "Správa kategorií štítků",
     "noStandalone": "Žádné samostatné štítky",
     "noClusters": "Zatím žádné klastry",
+    "noCategories": "Zatím žádné kategorie",
     "movePrompt": "Přesunout do...",
     "color": "Barva",
     "description": "Popis",
@@ -148,7 +151,8 @@
     "errorDuplicate": "Položka s tímto názvem již existuje",
     "errorNameRequired": "Název je povinný",
     "errorClusterRequired": "Klastr je povinný",
-    "doubleClickRename": "Dvojklik pro přejmenování"
+    "doubleClickRename": "Dvojklik pro přejmenování",
+    "editCategory": "Upravit kategorii"
   },
   "transcript": {
     "editMode": "Upravit přepis",

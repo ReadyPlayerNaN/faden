@@ -22,3 +22,12 @@
 .speed { background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 0.15rem 0.3rem; border-radius: 3px; font: inherit; }
 .loop { display: flex; align-items: center; gap: 0.25rem; font-size: 0.85em; opacity: 0.85; }
 .empty { opacity: 0.5; font-style: italic; }
+.spacer { flex: 1; }
+.error {
+  max-width: 24rem;
+  color: #b42318;
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

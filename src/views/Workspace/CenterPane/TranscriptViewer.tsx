@@ -3,8 +3,18 @@ import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   segmentListForInterview,
+  segmentUpdateText,
+  segmentSetSpeaker,
+  segmentDelete,
+  segmentSplit,
+  segmentMerge,
   type SegmentDTO,
 } from "../../../ipc/segment";
+import {
+  speakerListForInterview,
+  speakerCreate,
+  type Speaker,
+} from "../../../ipc/speaker";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import {
   spansForCurrentInterviewAtom,
@@ -12,6 +22,7 @@ import {
   activeTextSelectionAtom,
 } from "../../../state/tagging";
 import { codebookTreeAtom } from "../../../state/codebook";
+import { Modal } from "../../../components/Modal/Modal";
 import styles from "./TranscriptViewer.module.css";
 
 type Props = { interviewId: number };
@@ -90,9 +101,241 @@ const textOffsetWithin = (
   return null;
 };
 
+type SegmentEditorProps = {
+  segment: SegmentDTO;
+  speakers: Speaker[];
+  interviewId: number;
+  isLast: boolean;
+  nextSegmentId: number | null;
+  onChanged: () => Promise<void> | void;
+  onSpeakersChanged: () => Promise<void> | void;
+};
+
+const SegmentEditor = ({
+  segment,
+  speakers,
+  interviewId,
+  isLast,
+  nextSegmentId,
+  onChanged,
+  onSpeakersChanged,
+}: SegmentEditorProps) => {
+  const { t } = useTranslation();
+  const [text, setText] = useState(segment.text);
+  const [addingSpeaker, setAddingSpeaker] = useState(false);
+  const [newSpeakerLabel, setNewSpeakerLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    setText(segment.text);
+  }, [segment.text]);
+
+  const onSpeakerSelectChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const value = e.target.value;
+    if (value === "__add__") {
+      setAddingSpeaker(true);
+      return;
+    }
+    const id = Number(value);
+    if (!Number.isFinite(id) || id === segment.speakerId) return;
+    setError(null);
+    try {
+      await segmentSetSpeaker(segment.id, id);
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const submitNewSpeaker = async () => {
+    const label = newSpeakerLabel.trim();
+    if (!label) {
+      setAddingSpeaker(false);
+      setNewSpeakerLabel("");
+      return;
+    }
+    setError(null);
+    try {
+      const created = await speakerCreate(interviewId, label, null);
+      await onSpeakersChanged();
+      await segmentSetSpeaker(segment.id, created.id);
+      await onChanged();
+      setAddingSpeaker(false);
+      setNewSpeakerLabel("");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const saveText = async () => {
+    if (text === segment.text) return;
+    setError(null);
+    try {
+      await segmentUpdateText(segment.id, text);
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const doDelete = async () => {
+    setError(null);
+    try {
+      await segmentDelete(segment.id);
+      setConfirmDeleteOpen(false);
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+      setConfirmDeleteOpen(false);
+    }
+  };
+
+  const doSplit = async () => {
+    setError(null);
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const cursor = ta.selectionStart;
+    if (cursor <= 0 || cursor >= segment.text.length) {
+      setError(
+        t("transcript.splitAtEdge", { defaultValue: "Cannot split at edge" }),
+      );
+      return;
+    }
+    const span = segment.endSec - segment.startSec;
+    const splitAudioSec =
+      segment.startSec + (cursor / segment.text.length) * span;
+    try {
+      await segmentSplit(segment.id, cursor, splitAudioSec);
+      await onChanged();
+    } catch (e) {
+      const msg = String(e);
+      if (msg.toLowerCase().includes("invalid")) {
+        setError(
+          t("transcript.spanCrosses", {
+            defaultValue: "Cannot split: a tagged span crosses the split point",
+          }),
+        );
+      } else {
+        setError(msg);
+      }
+    }
+  };
+
+  const doMerge = async () => {
+    if (nextSegmentId === null) return;
+    setError(null);
+    try {
+      await segmentMerge(segment.id, nextSegmentId);
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  return (
+    <div className={styles.editor} data-segment-id={segment.id}>
+      <div className={styles.editorRow}>
+        <span className={styles.timestamp}>
+          [{formatTimestamp(segment.startSec)}]
+        </span>
+        {addingSpeaker ? (
+          <input
+            className={styles.newSpeakerInput}
+            value={newSpeakerLabel}
+            autoFocus
+            placeholder={t("transcript.addSpeaker", {
+              defaultValue: "Add speaker…",
+            })}
+            onChange={(e) => setNewSpeakerLabel(e.target.value)}
+            onBlur={() => void submitNewSpeaker()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submitNewSpeaker();
+              if (e.key === "Escape") {
+                setAddingSpeaker(false);
+                setNewSpeakerLabel("");
+              }
+            }}
+          />
+        ) : (
+          <select
+            value={String(segment.speakerId)}
+            onChange={(e) => void onSpeakerSelectChange(e)}
+          >
+            {speakers.map((sp) => (
+              <option key={sp.id} value={String(sp.id)}>
+                {sp.displayName ?? sp.labelRaw}
+              </option>
+            ))}
+            <option value="__add__">
+              {t("transcript.addSpeaker", { defaultValue: "Add speaker…" })}
+            </option>
+          </select>
+        )}
+      </div>
+      <textarea
+        ref={textareaRef}
+        className={styles.editorTextarea}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => void saveText()}
+      />
+      <div className={styles.editorActions}>
+        <button type="button" onClick={() => setConfirmDeleteOpen(true)}>
+          {t("transcript.delete", { defaultValue: "Delete" })}
+        </button>
+        <button type="button" onClick={() => void doSplit()}>
+          {t("transcript.split", { defaultValue: "Split here" })}
+        </button>
+        <button
+          type="button"
+          disabled={isLast || nextSegmentId === null}
+          onClick={() => void doMerge()}
+        >
+          {t("transcript.mergeNext", { defaultValue: "Merge with next" })}
+        </button>
+      </div>
+      {error && <div className={styles.inlineError}>{error}</div>}
+      <Modal
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        title={t("transcript.confirmDelete", {
+          defaultValue: "Delete segment?",
+        })}
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteOpen(false)}
+            >
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </button>
+            <button type="button" onClick={() => void doDelete()}>
+              {t("transcript.delete", { defaultValue: "Delete" })}
+            </button>
+          </>
+        }
+      >
+        <p>
+          {t("transcript.confirmDeleteBody", {
+            defaultValue:
+              "This will permanently remove this segment and any tags on it.",
+          })}
+        </p>
+      </Modal>
+    </div>
+  );
+};
+
 export const TranscriptViewer = ({ interviewId }: Props) => {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [editMode, setEditMode] = useState(false);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
@@ -101,8 +344,20 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastProgress = runs[interviewId]?.lastProgress;
 
+  const refetchSegments = async () => {
+    setSegments(await segmentListForInterview(interviewId));
+  };
+
+  const refetchSpeakers = async () => {
+    setSpeakers(await speakerListForInterview(interviewId));
+  };
+
   useEffect(() => {
     void segmentListForInterview(interviewId).then(setSegments);
+  }, [interviewId, lastProgress?.stage]);
+
+  useEffect(() => {
+    void speakerListForInterview(interviewId).then(setSpeakers);
   }, [interviewId, lastProgress?.stage]);
 
   const spansBySegment = useMemo(() => {
@@ -134,6 +389,7 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
   }, [codebook]);
 
   const handleMouseUp = () => {
+    if (editMode) return;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
       setActiveSelection(null);
@@ -190,74 +446,110 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
     });
   };
 
+  const toolbar = (
+    <div className={styles.toolbar}>
+      <label className={styles.editToggle}>
+        <input
+          type="checkbox"
+          checked={editMode}
+          onChange={(e) => setEditMode(e.target.checked)}
+        />
+        {t("transcript.editMode", { defaultValue: "Edit transcript" })}
+      </label>
+    </div>
+  );
+
   if (segments.length === 0) {
-    return <p className={styles.empty}>{t("workspace.noSegments")}</p>;
+    return (
+      <>
+        {toolbar}
+        <p className={styles.empty}>{t("workspace.noSegments")}</p>
+      </>
+    );
   }
 
   return (
-    <div
-      className={styles.transcript}
-      ref={containerRef}
-      onMouseUp={handleMouseUp}
-    >
-      {segments.map((s) => {
-        const segSpans = spansBySegment.get(s.id) ?? [];
-        const ranges = computeRangesForSegment(s.text, segSpans);
-        return (
-          <div
-            key={s.id}
-            className={styles.segment}
-            data-segment-id={s.id}
-            data-text={s.text}
-          >
-            <span className={styles.timestamp}>
-              [{formatTimestamp(s.startSec)}]
-            </span>
-            <span className={styles.speaker}>
-              {t("workspace.speaker")}{" "}
-              {s.speakerDisplayName ?? s.speakerLabelRaw}:
-            </span>
-            <span className={styles.text}>
-              {ranges.map((r, i) => {
-                const slice = s.text.slice(r.start, r.end);
-                if (r.covering.length === 0) {
-                  return <span key={i}>{slice}</span>;
-                }
-                const first = r.covering[0];
-                const firstTagId = first.tagIds[0];
-                const color =
-                  firstTagId !== undefined
-                    ? tagColorById.get(firstTagId)
-                    : undefined;
-                const isSuggested = first.source === "ai_suggested";
-                const markClassName = isSuggested
-                  ? `${styles.mark} ${styles.markSuggested}`
-                  : styles.mark;
-                return (
-                  <mark
-                    key={i}
-                    className={markClassName}
-                    style={{ background: (color ?? "#5b9aff") + "33" }}
-                    data-span-id={first.spanId}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedSpan(first.spanId);
-                    }}
-                    title={
-                      r.covering.length > 1
-                        ? `${r.covering.length} overlapping spans`
-                        : undefined
-                    }
-                  >
-                    {slice}
-                    {isSuggested && <sup className={styles.aiBadge}>AI</sup>}
-                  </mark>
-                );
-              })}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+    <>
+      {toolbar}
+      <div
+        className={styles.transcript}
+        ref={containerRef}
+        onMouseUp={handleMouseUp}
+      >
+        {segments.map((s, idx) => {
+          if (editMode) {
+            const next = segments[idx + 1];
+            return (
+              <SegmentEditor
+                key={s.id}
+                segment={s}
+                speakers={speakers}
+                interviewId={interviewId}
+                isLast={idx === segments.length - 1}
+                nextSegmentId={next ? next.id : null}
+                onChanged={refetchSegments}
+                onSpeakersChanged={refetchSpeakers}
+              />
+            );
+          }
+          const segSpans = spansBySegment.get(s.id) ?? [];
+          const ranges = computeRangesForSegment(s.text, segSpans);
+          return (
+            <div
+              key={s.id}
+              className={styles.segment}
+              data-segment-id={s.id}
+              data-text={s.text}
+            >
+              <span className={styles.timestamp}>
+                [{formatTimestamp(s.startSec)}]
+              </span>
+              <span className={styles.speaker}>
+                {t("workspace.speaker")}{" "}
+                {s.speakerDisplayName ?? s.speakerLabelRaw}:
+              </span>
+              <span className={styles.text}>
+                {ranges.map((r, i) => {
+                  const slice = s.text.slice(r.start, r.end);
+                  if (r.covering.length === 0) {
+                    return <span key={i}>{slice}</span>;
+                  }
+                  const first = r.covering[0];
+                  const firstTagId = first.tagIds[0];
+                  const color =
+                    firstTagId !== undefined
+                      ? tagColorById.get(firstTagId)
+                      : undefined;
+                  const isSuggested = first.source === "ai_suggested";
+                  const markClassName = isSuggested
+                    ? `${styles.mark} ${styles.markSuggested}`
+                    : styles.mark;
+                  return (
+                    <mark
+                      key={i}
+                      className={markClassName}
+                      style={{ background: (color ?? "#5b9aff") + "33" }}
+                      data-span-id={first.spanId}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSpan(first.spanId);
+                      }}
+                      title={
+                        r.covering.length > 1
+                          ? `${r.covering.length} overlapping spans`
+                          : undefined
+                      }
+                    >
+                      {slice}
+                      {isSuggested && <sup className={styles.aiBadge}>AI</sup>}
+                    </mark>
+                  );
+                })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 };

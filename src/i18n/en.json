@@ -85,7 +85,8 @@
     "remove": "Remove",
     "save": "Save",
     "delete": "Delete",
-    "open": "Open"
+    "open": "Open",
+    "edit": "Edit"
   },
   "speakers": {
     "title": "Speakers",
@@ -132,8 +133,10 @@
     "standalone": "Standalone (no category)",
     "standaloneSection": "Standalone tags",
     "clustersSection": "Clusters",
+    "categoriesManagementSection": "Tag Category management",
     "noStandalone": "No standalone tags",
     "noClusters": "No clusters yet",
+    "noCategories": "No categories yet",
     "movePrompt": "Move to...",
     "color": "Color",
     "description": "Description",
@@ -148,7 +151,8 @@
     "errorDuplicate": "An item with that name already exists",
     "errorNameRequired": "Name is required",
     "errorClusterRequired": "Cluster is required",
-    "doubleClickRename": "Double-click to rename"
+    "doubleClickRename": "Double-click to rename",
+    "editCategory": "Edit category"
   },
   "transcript": {
     "editMode": "Edit transcript",

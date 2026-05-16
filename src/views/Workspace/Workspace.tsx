@@ -89,6 +89,9 @@ export const Workspace = () => {
           <Button onClick={() => setExportOpen(true)}>
             {t("export.title")}
           </Button>
+          <Button onClick={() => void navigate({ to: "/tags" })}>
+            {t("tags.title", { defaultValue: "Tags" })}
+          </Button>
           <Button onClick={() => void navigate({ to: "/settings" })}>
             {t("settings.title")}
           </Button>

@@ -7,6 +7,7 @@ import {
 import { ProjectPicker } from "./views/ProjectPicker/ProjectPicker";
 import { Workspace } from "./views/Workspace/Workspace";
 import { Settings } from "./views/Settings/Settings";
+import { TagsView } from "./views/Tags/TagsView";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -30,7 +31,18 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
-const routeTree = rootRoute.addChildren([pickerRoute, workspaceRoute, settingsRoute]);
+const tagsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tags",
+  component: TagsView,
+});
+
+const routeTree = rootRoute.addChildren([
+  pickerRoute,
+  workspaceRoute,
+  settingsRoute,
+  tagsRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

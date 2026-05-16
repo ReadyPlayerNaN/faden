@@ -38,3 +38,21 @@ const fromRaw = (r: Raw): SegmentDTO => ({
 
 export const segmentListForInterview = async (interviewId: number): Promise<SegmentDTO[]> =>
   (await invoke<Raw[]>("segment_list_for_interview", { interviewId })).map(fromRaw);
+
+export const segmentUpdateText = (segmentId: number, text: string): Promise<void> =>
+  invoke("segment_update_text", { segmentId, text });
+
+export const segmentSetSpeaker = (segmentId: number, speakerId: number): Promise<void> =>
+  invoke("segment_set_speaker", { segmentId, speakerId });
+
+export const segmentDelete = (segmentId: number): Promise<void> =>
+  invoke("segment_delete", { segmentId });
+
+export const segmentSplit = (
+  segmentId: number,
+  splitOffset: number,
+  splitAudioSec: number,
+): Promise<number> => invoke("segment_split", { segmentId, splitOffset, splitAudioSec });
+
+export const segmentMerge = (firstId: number, secondId: number): Promise<void> =>
+  invoke("segment_merge", { firstId, secondId });

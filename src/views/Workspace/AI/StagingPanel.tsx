@@ -14,6 +14,7 @@ import {
 import { CodebookProposalView } from "./CodebookProposalView";
 import { SpanProposalView } from "./SpanProposalView";
 import { Button } from "../../../components/Button/Button";
+import { Modal } from "../../../components/Modal/Modal";
 import styles from "./StagingPanel.module.css";
 
 export const StagingPanel = () => {
@@ -67,23 +68,24 @@ export const StagingPanel = () => {
           ))}
         </ul>
       )}
-      {active && (
-        <div className={styles.backdrop} onClick={() => void onClose()}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            {active.kind === "codebook_gen" ? (
-              <CodebookProposalView
-                proposal={active}
-                onDone={() => void onClose()}
-              />
-            ) : (
-              <SpanProposalView
-                proposal={active}
-                onDone={() => void onClose()}
-              />
-            )}
-          </div>
-        </div>
-      )}
+      <Modal
+        open={active !== null}
+        onClose={() => void onClose()}
+        size="lg"
+      >
+        {active &&
+          (active.kind === "codebook_gen" ? (
+            <CodebookProposalView
+              proposal={active}
+              onDone={() => void onClose()}
+            />
+          ) : (
+            <SpanProposalView
+              proposal={active}
+              onDone={() => void onClose()}
+            />
+          ))}
+      </Modal>
     </div>
   );
 };

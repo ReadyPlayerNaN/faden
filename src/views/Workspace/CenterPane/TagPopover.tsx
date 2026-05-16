@@ -105,10 +105,6 @@ export const TagPopover = () => {
       setError(t("tagging.search") + "?");
       return;
     }
-    if (newCategoryId === null) {
-      setError(t("tagging.categoryRequired"));
-      return;
-    }
     try {
       const tg = await tagCreate(newCategoryId, newName.trim());
       setTree(await fetchTree());
@@ -212,7 +208,11 @@ export const TagPopover = () => {
               setNewCategoryId(e.target.value ? Number(e.target.value) : null)
             }
           >
-            <option value="">{t("tagging.categoryRequired")}</option>
+            <option value="">
+              {t("tagging.standalone", {
+                defaultValue: "Standalone (no category)",
+              })}
+            </option>
             {allCategories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.clusterName} › {c.name}

@@ -1,25 +1,3 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: var(--bg-muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  min-width: 480px;
-  max-width: 720px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .section {
   margin: 0.5rem 0 0.25rem;
   font-size: 0.85rem;
@@ -28,7 +6,7 @@
   letter-spacing: 0.04em;
 }
 
-.modal label {
+section > label {
   display: block;
   margin-bottom: 0.2rem;
 }
@@ -77,11 +55,4 @@
   color: var(--accent);
   font-size: 0.85rem;
   margin: 0;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
 }

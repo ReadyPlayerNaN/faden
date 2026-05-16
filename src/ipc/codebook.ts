@@ -19,7 +19,7 @@ export type Category = {
 
 export type Tag = {
   id: number;
-  categoryId: number;
+  categoryId: number | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -28,7 +28,7 @@ export type Tag = {
 
 export type TagNode = {
   id: number;
-  categoryId: number;
+  categoryId: number | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -57,7 +57,10 @@ export type ClusterNode = {
   categories: CategoryNode[];
 };
 
-export type CodebookTree = { clusters: ClusterNode[] };
+export type CodebookTree = {
+  clusters: ClusterNode[];
+  standaloneTags: TagNode[];
+};
 
 type RawCluster = {
   id: number;
@@ -67,14 +70,17 @@ type RawCluster = {
   order_index: number;
 };
 type RawCategory = RawCluster & { cluster_id: number };
-type RawTag = RawCluster & { category_id: number };
+type RawTag = RawCluster & { category_id: number | null };
 type RawTagNode = RawTag & { count: number };
 type RawCategoryNode = RawCategory & { count: number; tags: RawTagNode[] };
 type RawClusterNode = RawCluster & {
   count: number;
   categories: RawCategoryNode[];
 };
-type RawCodebookTree = { clusters: RawClusterNode[] };
+type RawCodebookTree = {
+  clusters: RawClusterNode[];
+  standalone_tags: RawTagNode[];
+};
 
 const tagFromRaw = (r: RawTag): Tag => ({
   id: r.id,
@@ -121,6 +127,7 @@ const clusterNodeFromRaw = (r: RawClusterNode): ClusterNode => ({
 
 const treeFromRaw = (r: RawCodebookTree): CodebookTree => ({
   clusters: r.clusters.map(clusterNodeFromRaw),
+  standaloneTags: r.standalone_tags.map(tagNodeFromRaw),
 });
 
 export const codebookTree = async (): Promise<CodebookTree> =>
@@ -189,7 +196,7 @@ export const categoryMoveToCluster = (
 ): Promise<void> => invoke("category_move_to_cluster", { id, newClusterId });
 
 export const tagCreate = async (
-  categoryId: number,
+  categoryId: number | null,
   name: string,
   description?: string | null,
   color?: string | null,
@@ -218,5 +225,5 @@ export const tagReorder = (
 ): Promise<void> => invoke("tag_reorder", { categoryId, ids });
 export const tagMoveToCategory = (
   id: number,
-  newCategoryId: number,
+  newCategoryId: number | null,
 ): Promise<void> => invoke("tag_move_to_category", { id, newCategoryId });

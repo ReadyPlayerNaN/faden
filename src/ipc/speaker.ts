@@ -28,3 +28,12 @@ export const speakerSetDisplayName = (
   speakerId: number,
   displayName: string | null,
 ): Promise<void> => invoke("speaker_set_display_name", { speakerId, displayName });
+
+export const speakerCreate = async (
+  interviewId: number,
+  labelRaw: string,
+  displayName: string | null,
+): Promise<Speaker> =>
+  fromRaw(
+    await invoke<Raw>("speaker_create", { interviewId, labelRaw, displayName }),
+  );

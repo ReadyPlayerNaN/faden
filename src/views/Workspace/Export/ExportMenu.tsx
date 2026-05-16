@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAtomValue } from "jotai";
 import { Button } from "../../../components/Button/Button";
+import { Modal } from "../../../components/Modal/Modal";
 import { selectedInterviewIdAtom } from "../../../state/interview";
 import { codebookTreeAtom } from "../../../state/codebook";
 import {
@@ -116,11 +117,25 @@ export const ExportMenu = ({ onClose, projectName }: Props) => {
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2>{t("export.title")}</h2>
-
-        <section>
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={t("export.title")}
+      size="lg"
+      footer={
+        <>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button
+            variant="primary"
+            onClick={() => void onRun()}
+            disabled={busy}
+          >
+            {t("export.run")}
+          </Button>
+        </>
+      }
+    >
+      <section>
           <h3 className={styles.section}>{t("export.scope")}</h3>
           <label>
             <input
@@ -245,18 +260,6 @@ export const ExportMenu = ({ onClose, projectName }: Props) => {
 
         {error && <p className={styles.error}>{error}</p>}
         {success && <p className={styles.success}>{success}</p>}
-
-        <div className={styles.actions}>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button
-            variant="primary"
-            onClick={() => void onRun()}
-            disabled={busy}
-          >
-            {t("export.run")}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

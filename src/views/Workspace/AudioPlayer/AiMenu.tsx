@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   interviewListAtom,
   selectedInterviewIdAtom,
 } from "../../../state/interview";
-import { selectedCodebookNodeAtom } from "../../../state/codebook";
+import { activeTagForFindMoreAtom } from "../../../state/tagging";
 import {
   skipCostConfirmAtom,
   pendingProposalsAtom,
@@ -20,8 +20,8 @@ import {
   type ProposalKind,
 } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
-import { CostPreviewModal } from "./CostPreviewModal";
-import styles from "./AiPanel.module.css";
+import { CostPreviewModal } from "../AI/CostPreviewModal";
+import styles from "./AiMenu.module.css";
 
 type PendingAction =
   | {
@@ -39,14 +39,15 @@ const errorMessage = (e: unknown): string => {
   return String(e);
 };
 
-export const AiPanel = () => {
+export const AiMenu = () => {
   const { t } = useTranslation();
   const interviews = useAtomValue(interviewListAtom);
   const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
-  const selectedNode = useAtomValue(selectedCodebookNodeAtom);
+  const activeTagId = useAtomValue(activeTagForFindMoreAtom);
   const setProposals = useSetAtom(pendingProposalsAtom);
   const skip = useAtomValue(skipCostConfirmAtom);
   const setSkip = useSetAtom(skipCostConfirmAtom);
+  const [open, setOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(
     null,
   );
@@ -54,6 +55,26 @@ export const AiPanel = () => {
   const [prompt, setPrompt] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const refreshProposals = async () => setProposals(await aiProposalList());
 
@@ -117,6 +138,7 @@ export const AiPanel = () => {
   };
 
   const onGenerateCodebook = () => {
+    setOpen(false);
     if (interviews.length === 0) {
       setStatus(t("ai.selectInterviewFirst"));
       return;
@@ -132,6 +154,7 @@ export const AiPanel = () => {
   };
 
   const onPreTag = () => {
+    setOpen(false);
     if (selectedInterviewId === null) {
       setStatus(t("ai.selectInterviewFirst"));
       return;
@@ -143,7 +166,8 @@ export const AiPanel = () => {
   };
 
   const onFindMore = () => {
-    if (!selectedNode || selectedNode.kind !== "tag") {
+    setOpen(false);
+    if (activeTagId === null) {
       setStatus(t("ai.selectTag"));
       return;
     }
@@ -153,31 +177,53 @@ export const AiPanel = () => {
     }
     void launch({
       kind: "find_more",
-      args: { tag_id: selectedNode.id, interview_id: selectedInterviewId },
+      args: { tag_id: activeTagId, interview_id: selectedInterviewId },
     });
   };
 
   return (
-    <div className={styles.panel}>
-      <h3 className={styles.title}>{t("ai.panel")}</h3>
-      <div className={styles.actions}>
-        <Button onClick={onGenerateCodebook} disabled={busy}>
-          {t("ai.generateCodebook")}
-        </Button>
-        <Button
-          onClick={onPreTag}
-          disabled={busy || selectedInterviewId === null}
-        >
-          {t("ai.preTag")}
-        </Button>
-        <Button
-          onClick={onFindMore}
-          disabled={busy || !selectedNode || selectedNode.kind !== "tag"}
-        >
-          {t("ai.findMore")}
-        </Button>
-      </div>
-      {status && <p className={styles.status}>{status}</p>}
+    <div className={styles.root} ref={containerRef}>
+      <Button
+        onClick={() => setOpen((v) => !v)}
+        disabled={busy}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={styles.trigger}
+      >
+        {t("ai.menuLabel", { defaultValue: "AI" })} ▾
+      </Button>
+      {open && (
+        <div className={styles.menu} role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.item}
+            onClick={onGenerateCodebook}
+            disabled={busy}
+          >
+            {t("ai.generateCodebook")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.item}
+            onClick={onPreTag}
+            disabled={busy || selectedInterviewId === null}
+          >
+            {t("ai.preTag")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.item}
+            onClick={onFindMore}
+            disabled={busy || activeTagId === null}
+          >
+            {t("ai.findMore")}
+          </button>
+        </div>
+      )}
+      {status && <span className={styles.status}>{status}</span>}
       {pendingAction && estimate && (
         <CostPreviewModal
           estimate={estimate}
