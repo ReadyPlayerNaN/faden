@@ -3,7 +3,9 @@ use rusqlite::Connection;
 use serde_json::json;
 use stt_app_lib::ai::find_more::{self, FindMoreInput};
 use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{ai_run, category, cluster, interview, proposal, segment, speaker, tag};
+use stt_app_lib::db::queries::{
+    ai_run, category, cluster, interview, proposal, segment, speaker, tag,
+};
 use stt_app_lib::transcription::gemini::GeminiClient;
 
 fn fresh() -> Connection {

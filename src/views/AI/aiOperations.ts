@@ -6,6 +6,7 @@ import type { RunSnapshot } from "../../state/transcription";
 
 export type DisplayOperation = {
   id: string;
+  runId: number | null;
   kind: AiRunKind;
   status: AiRunStatus;
   startedAt: string;
@@ -87,6 +88,7 @@ export const buildDisplayOperations = ({
       const interviewName = interviewNameById.get(numericInterviewId) ?? null;
       return {
         id: `transcribe-live-${interviewId}`,
+        runId: null,
         kind: "transcribe",
         status: "running",
         startedAt: new Date(run.updatedAt).toISOString(),
@@ -106,6 +108,7 @@ export const buildDisplayOperations = ({
       op.interviewId !== null ? interviewNameById.get(op.interviewId) ?? null : null;
     return {
       id: op.id,
+      runId: op.runId ?? null,
       kind: op.kind,
       status: "running",
       startedAt: op.startedAt,
@@ -152,6 +155,7 @@ export const buildDisplayOperations = ({
         run.interviewId !== null ? interviewNameById.get(run.interviewId) ?? null : null;
       return {
         id: `run-${run.id}`,
+        runId: run.id,
         kind: run.kind,
         status: run.status,
         startedAt: run.startedAt,

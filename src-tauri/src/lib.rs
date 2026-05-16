@@ -102,6 +102,7 @@ pub fn run() {
             commands::ai::ai_pretag_start,
             commands::ai::ai_find_more_start,
             commands::ai::ai_run_list,
+            commands::ai::ai_run_get,
             commands::ai::ai_proposal_get,
             commands::ai::ai_proposal_list,
             commands::ai::ai_proposal_accept,

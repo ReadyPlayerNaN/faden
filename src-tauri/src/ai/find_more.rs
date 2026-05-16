@@ -116,7 +116,13 @@ pub fn finalize(
     }
     let filtered = SpanSuggestions { suggestions: valid };
     if filtered.suggestions.is_empty() {
-        ai_run::complete(conn, run_id, None, Some("No suggestions found"), Some(&resp_text))?;
+        ai_run::complete(
+            conn,
+            run_id,
+            None,
+            Some("No suggestions found"),
+            Some(&resp_text),
+        )?;
         return Ok(None);
     }
 

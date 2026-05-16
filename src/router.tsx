@@ -9,6 +9,7 @@ import { Workspace } from "./views/Workspace/Workspace";
 import { Settings } from "./views/Settings/Settings";
 import { TagsView } from "./views/Tags/TagsView";
 import { AiOpsView } from "./views/AI/AiOpsView";
+import { AiOpDetailView } from "./views/AI/AiOpDetailView";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -44,6 +45,12 @@ const aiOpsRoute = createRoute({
   component: AiOpsView,
 });
 
+const aiOpDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workspace/$projectPath/ai-ops/$runId",
+  component: AiOpDetailView,
+});
+
 const tagsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tags",
@@ -56,6 +63,7 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
   settingsProjectRoute,
   aiOpsRoute,
+  aiOpDetailRoute,
   tagsRoute,
 ]);
 

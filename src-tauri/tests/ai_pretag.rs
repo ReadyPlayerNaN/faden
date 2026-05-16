@@ -3,7 +3,9 @@ use rusqlite::Connection;
 use serde_json::json;
 use stt_app_lib::ai::pretag::{self, PretagInput};
 use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{ai_run, category, cluster, interview, proposal, segment, speaker, tag};
+use stt_app_lib::db::queries::{
+    ai_run, category, cluster, interview, proposal, segment, speaker, tag,
+};
 use stt_app_lib::transcription::gemini::GeminiClient;
 
 fn fresh() -> Connection {
@@ -158,8 +160,22 @@ fn pretag_prompt_includes_all_available_tags_with_descriptions() {
     .unwrap();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
     let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
-    tag::create(&conn, Some(cat.id), "known", Some("Known description"), None).unwrap();
-    tag::create(&conn, None, "standalone", Some("Standalone description"), None).unwrap();
+    tag::create(
+        &conn,
+        Some(cat.id),
+        "known",
+        Some("Known description"),
+        None,
+    )
+    .unwrap();
+    tag::create(
+        &conn,
+        None,
+        "standalone",
+        Some("Standalone description"),
+        None,
+    )
+    .unwrap();
 
     let prompt = pretag::build_prompt(&conn, &PretagInput { interview_id: i.id }, None).unwrap();
     assert!(prompt.contains("existing tags from the provided codebook"));

@@ -132,7 +132,7 @@ export const AiOpsView = () => {
         ) : (
           <ul className={styles.opsList}>
             {ongoing.map((op) => (
-              <OperationCard key={op.id} {...op} />
+              <OperationCard key={op.id} projectPath={projectPath} {...op} />
             ))}
           </ul>
         )}
@@ -154,7 +154,7 @@ export const AiOpsView = () => {
         ) : (
           <ul className={styles.opsList}>
             {history.map((op) => (
-              <OperationCard key={op.id} {...op} />
+              <OperationCard key={op.id} projectPath={projectPath} {...op} />
             ))}
           </ul>
         )}
@@ -163,9 +163,12 @@ export const AiOpsView = () => {
   );
 };
 
-type OperationCardProps = ReturnType<typeof buildDisplayOperations>["all"][number];
+type OperationCardProps = ReturnType<typeof buildDisplayOperations>["all"][number] & {
+  projectPath: string;
+};
 
 const OperationCard = ({
+  runId,
   kind,
   status,
   title,
@@ -175,11 +178,14 @@ const OperationCard = ({
   startedAt,
   completedAt,
   model,
+  projectPath,
 }: OperationCardProps) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const clickable = runId !== null;
 
-  return (
-    <li className={styles.opsItem}>
+  const body = (
+    <>
       <div className={styles.opsTopRow}>
         <span className={styles.kind}>{title}</span>
         <span className={`${styles.statusBadge} ${styles[`status_${status}`]}`}>
@@ -202,6 +208,27 @@ const OperationCard = ({
         {model && <span>{model}</span>}
         <span>{t(`ai.kinds.${kind}`)}</span>
       </div>
+    </>
+  );
+
+  return (
+    <li className={styles.opsItem}>
+      {clickable ? (
+        <button
+          type="button"
+          className={styles.opsButton}
+          onClick={() =>
+            void navigate({
+              to: "/workspace/$projectPath/ai-ops/$runId",
+              params: { projectPath, runId: String(runId) },
+            })
+          }
+        >
+          {body}
+        </button>
+      ) : (
+        body
+      )}
     </li>
   );
 };
