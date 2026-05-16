@@ -71,15 +71,12 @@ fn write_project_metadata(dir: &Path, name: &str) -> AppResult<()> {
     Ok(())
 }
 
-fn read_project_metadata(dir: &Path) -> AppResult<ProjectMetadata> {
+fn read_project_metadata(dir: &Path) -> AppResult<Option<ProjectMetadata>> {
     let path = project_metadata_path(dir);
     if !path.exists() {
-        return Err(AppError::NotFound(format!(
-            "missing project metadata at {}",
-            path.display()
-        )));
+        return Ok(None);
     }
-    Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
+    Ok(Some(serde_json::from_str(&std::fs::read_to_string(path)?)?))
 }
 
 pub async fn project_create_impl(root: PathBuf, name: String) -> AppResult<ProjectInfo> {
@@ -118,9 +115,18 @@ pub async fn project_open_impl(path: String) -> AppResult<ProjectInfo> {
             dir.display()
         )));
     }
-    let metadata = read_project_metadata(dir)?;
     let conn = db::open(&sqlite)?;
-    let _ = project_meta::read(&conn)?;
+    let db_meta = project_meta::read(&conn)?;
+    let metadata = match read_project_metadata(dir)? {
+        Some(metadata) => metadata,
+        None => {
+            let metadata = ProjectMetadata {
+                name: db_meta.name.clone(),
+            };
+            write_project_metadata(dir, &metadata.name)?;
+            metadata
+        }
+    };
     Ok(ProjectInfo {
         path,
         name: metadata.name,

@@ -67,6 +67,23 @@ async fn project_open_reads_name_from_metadata_file() {
 }
 
 #[tokio::test]
+async fn project_open_falls_back_to_db_name_when_metadata_is_missing() {
+    let dir = tempdir().unwrap();
+    let info = project_create_impl(dir.path().to_path_buf(), "Legacy Project".into())
+        .await
+        .unwrap();
+    let path = PathBuf::from(&info.path);
+    std::fs::remove_file(path.join("project.json")).unwrap();
+
+    let opened = project_open_impl(path.to_string_lossy().to_string())
+        .await
+        .unwrap();
+
+    assert_eq!(opened.name, "Legacy Project");
+    assert!(path.join("project.json").exists());
+}
+
+#[tokio::test]
 async fn project_create_rejects_existing_project() {
     let dir = tempdir().unwrap();
     project_create_impl(dir.path().to_path_buf(), "A".into())

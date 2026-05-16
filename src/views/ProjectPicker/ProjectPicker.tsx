@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
@@ -13,6 +13,8 @@ import {
 import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner";
+import { ProjectCreateModal } from "./ProjectCreateModal";
 import styles from "./ProjectPicker.module.css";
 
 export const ProjectPicker = () => {
@@ -20,6 +22,8 @@ export const ProjectPicker = () => {
   const navigate = useNavigate();
   const [settings, setSettings] = useAtom(globalSettingsAtom);
   const [, setCurrent] = useAtom(currentProjectAtom);
+  const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     setCurrent(null);
@@ -35,9 +39,8 @@ export const ProjectPicker = () => {
     });
   };
 
-  const onNew = async () => {
-    const name = window.prompt(t("picker.newProjectPrompt"), "");
-    if (!name) return;
+  const onCreateProject = async (name: string) => {
+    setError(null);
     const info = await projectCreate(name);
     goTo(info.path, info.name);
   };
@@ -45,13 +48,23 @@ export const ProjectPicker = () => {
   const onOpenFolder = async () => {
     const dir = await open({ directory: true, multiple: false });
     if (!dir || Array.isArray(dir)) return;
-    const info = await projectOpen(dir);
-    goTo(info.path, info.name);
+    setError(null);
+    try {
+      const info = await projectOpen(dir);
+      goTo(info.path, info.name);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const onOpenRecent = async (path: string) => {
-    const info = await projectOpen(path);
-    goTo(info.path, info.name);
+    setError(null);
+    try {
+      const info = await projectOpen(path);
+      goTo(info.path, info.name);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const onRenameRecent = async (path: string, currentName: string) => {
@@ -70,14 +83,20 @@ export const ProjectPicker = () => {
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>{t("picker.title")}</h1>
+      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <div className={styles.actions}>
-        <Button variant="primary" onClick={() => void onNew()}>
+        <Button variant="primary" onClick={() => setCreateOpen(true)}>
           {t("picker.newProject")}
         </Button>
         <Button onClick={() => void onOpenFolder()}>
           {t("picker.openFolder")}
         </Button>
       </div>
+      <ProjectCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreate={onCreateProject}
+      />
       <h2 className={styles.subtitle}>{t("picker.recent")}</h2>
       {settings && settings.recentProjects.length > 0 ? (
         <ul className={styles.recents}>
