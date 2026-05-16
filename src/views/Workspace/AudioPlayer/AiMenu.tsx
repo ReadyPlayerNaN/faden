@@ -234,7 +234,8 @@ export const AiMenu = () => {
     [activeOps, aiRuns, interviews, t, transcriptionRuns],
   );
 
-  const hasOngoing = ongoing.length > 0;
+  const runningCount = ongoing.length;
+  const triggerTitle = t("ai.triggerTitle", { defaultValue: "Operations" });
 
   return (
     <div className={styles.root} ref={containerRef}>
@@ -242,12 +243,15 @@ export const AiMenu = () => {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`${triggerTitle} (${runningCount})`}
+        title={triggerTitle}
         className={styles.trigger}
       >
         <span className={styles.triggerContent}>
-          {hasOngoing && <span className={styles.loader} aria-hidden="true" />}
-          <span>{t("ai.menuLabel", { defaultValue: "AI" })}</span>
-          <span aria-hidden="true">▾</span>
+          <span className={styles.triggerIcon} aria-hidden="true">⚙</span>
+          <span className={styles.triggerCount} aria-label={`${runningCount} running operations`}>
+            {runningCount}
+          </span>
         </span>
       </Button>
       {open && (

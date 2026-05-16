@@ -17,6 +17,17 @@
   gap: 0.35rem;
 }
 
+.triggerIcon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.triggerCount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .loader,
 .loaderInline {
   display: inline-block;

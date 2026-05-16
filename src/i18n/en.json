@@ -218,6 +218,7 @@
   "ai": {
     "menuLabel": "AI",
     "panel": "AI",
+    "triggerTitle": "Operations",
     "generateCodebook": "Derive codebook",
     "preTag": "Supplement tags",
     "findMore": "Find more",
