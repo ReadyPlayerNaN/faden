@@ -1,4 +1,4 @@
-.wrap { max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; }
+.wrap { max-width: 760px; margin: 3rem auto; padding: 0 1.5rem; }
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
 .title { font-size: 1.5rem; margin: 0; }
 .section {
@@ -7,6 +7,13 @@
   border-bottom: 1px solid var(--border);
 }
 .sectionTitle { font-size: 1.1rem; margin: 0 0 0.75rem; opacity: 0.85; }
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
 .field { margin-bottom: 1rem; }
 .label { display: block; font-size: 0.85rem; opacity: 0.85; }
 .select {
@@ -31,8 +38,14 @@
   border-radius: 4px;
 }
 .projectName { font-weight: 500; }
-.providerCard {
-  margin: 0 0 1rem;
+.providerList,
+.modalFields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.providerListItem,
+.taskCard {
   padding: 0.9rem;
   background: var(--bg-muted);
   border: 1px solid var(--border);
@@ -40,30 +53,36 @@
 }
 .providerTitle { margin: 0 0 0.35rem; font-size: 1rem; }
 .helpText { margin: 0.25rem 0 0; font-size: 0.85rem; opacity: 0.8; }
+.providerListActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
 .fieldRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
-@media (max-width: 720px) {
-  .fieldRow { grid-template-columns: 1fr; }
-}
-.providerActions { margin-top: 0.75rem; }
 .testResult {
   margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }
-.testResultHeader {
+.testSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 0.45rem;
 }
-.testStatus,
+.testStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+}
 .testPill {
   display: inline-flex;
   align-items: center;
@@ -74,31 +93,23 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.testStatusOk,
 .testPillOk {
   background: rgba(46, 160, 67, 0.14);
   color: #67d38a;
-}
-.testStatusError,
-.testPillError {
-  background: rgba(255, 99, 71, 0.14);
-  color: #ff8a76;
 }
 .testPillWarn {
   background: rgba(234, 179, 8, 0.14);
   color: #facc15;
 }
-.testSteps {
-  list-style: none;
-  margin: 0.6rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+.testPillError {
+  background: rgba(255, 99, 71, 0.14);
+  color: #ff8a76;
 }
-.testStep {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  font-size: 0.86rem;
+@media (max-width: 720px) {
+  .fieldRow { grid-template-columns: 1fr; }
+  .sectionHeaderRow,
+  .projectRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

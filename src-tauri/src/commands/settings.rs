@@ -2,7 +2,7 @@ use crate::ai::cost;
 use crate::commands::util::project_conn;
 use crate::db::queries::project_meta;
 use crate::error::{AppError, AppResult};
-use crate::secrets::{hydrate_global_settings, set_provider_api_key};
+use crate::secrets::{hydrate_global_settings, set_ollama_password, set_provider_api_key};
 use crate::settings::project::ProjectSettings;
 use crate::settings::{
     canonical_project_language, resolve_definitive_language, GlobalSettings, LlmProvider,
@@ -55,10 +55,12 @@ pub async fn settings_set(app: tauri::AppHandle, mut value: GlobalSettings) -> A
         LlmProvider::Anthropic,
         &value.providers.anthropic.api_key,
     )?;
+    set_ollama_password(&app, &value.providers.ollama.password)?;
 
     value.providers.gemini.api_key.clear();
     value.providers.openai.api_key.clear();
     value.providers.anthropic.api_key.clear();
+    value.providers.ollama.password.clear();
 
     store_for(&app)?.save(&value)
 }
@@ -251,7 +253,7 @@ async fn test_anthropic(
         .map_err(|e| AppError::Invalid(format!("anthropic connection failed: {e}")))?;
     let reachable = true;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let _body = response.text().await.unwrap_or_default();
     if !status.is_success() {
         steps.push(ProviderConnectionStep {
             label: "HTTP".into(),
@@ -280,12 +282,17 @@ async fn test_anthropic(
 
 async fn test_ollama(
     base_url: &str,
+    username: &str,
+    password: &str,
     model: &str,
 ) -> AppResult<(bool, bool, Option<bool>, Vec<ProviderConnectionStep>)> {
     let mut steps = Vec::new();
     let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
-    let response = reqwest::Client::new()
-        .get(&url)
+    let mut request = reqwest::Client::new().get(&url);
+    if !username.trim().is_empty() {
+        request = request.basic_auth(username, Some(password));
+    }
+    let response = request
         .send()
         .await
         .map_err(|e| AppError::Invalid(format!("ollama connection failed: {e}")))?;
@@ -303,6 +310,20 @@ async fn test_ollama(
         label: "HTTP".into(),
         status: "ok".into(),
         detail: "Ollama server reachable".into(),
+    });
+    steps.push(ProviderConnectionStep {
+        label: "Auth".into(),
+        status: if username.trim().is_empty() {
+            "warn"
+        } else {
+            "ok"
+        }
+        .into(),
+        detail: if username.trim().is_empty() {
+            "No Ollama auth configured; tested anonymous access".into()
+        } else {
+            "Ollama auth credentials accepted".into()
+        },
     });
     let model_available = serde_json::from_str::<serde_json::Value>(&body)
         .ok()
@@ -424,7 +445,13 @@ pub async fn settings_provider_test(
             .await?
         }
         LlmProvider::Ollama => {
-            test_ollama(base_url.as_deref().unwrap_or_default(), &model_name).await?
+            test_ollama(
+                base_url.as_deref().unwrap_or_default(),
+                &settings.providers.ollama.username,
+                &settings.providers.ollama.password,
+                &model_name,
+            )
+            .await?
         }
     };
     let pricing_known = checked_model
@@ -472,7 +499,10 @@ pub async fn project_settings_get(app: tauri::AppHandle) -> AppResult<ProjectSet
 }
 
 #[tauri::command]
-pub async fn project_settings_set(app: tauri::AppHandle, mut value: ProjectSettings) -> AppResult<()> {
+pub async fn project_settings_set(
+    app: tauri::AppHandle,
+    mut value: ProjectSettings,
+) -> AppResult<()> {
     let global = store_for(&app)?.load()?;
     value.language = Some(match value.language.as_deref() {
         Some(language) => canonical_project_language(language).ok_or_else(|| {

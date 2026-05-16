@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppResult};
-use crate::settings::project::ProjectSettings;
 use crate::settings::canonical_project_language;
+use crate::settings::project::ProjectSettings;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 

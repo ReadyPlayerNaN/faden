@@ -7,7 +7,7 @@ use crate::app_state::AppState;
 use crate::commands::transcribe::start_transcription_run;
 use crate::commands::util::project_conn;
 use crate::db::queries::ai_run;
-use crate::db::queries::ai_run::{AiRunKind, AiRunStatus};
+use crate::db::queries::ai_run::AiRunKind;
 use crate::db::queries::ai_run_ops;
 use crate::db::queries::interview;
 use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
@@ -90,7 +90,7 @@ pub async fn ai_codebook_gen_start(
     )
     .await;
     let conn = project_conn(&app)?;
-    codebook_gen::finalize(&conn, run_id, api_result)?;
+    let _ = codebook_gen::finalize(&conn, run_id, api_result);
     Ok(run_id)
 }
 
@@ -132,7 +132,7 @@ pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppRes
     )
     .await;
     let conn = project_conn(&app)?;
-    pretag::finalize(&conn, run_id, interview_id, api_result)?;
+    let _ = pretag::finalize(&conn, run_id, interview_id, api_result);
     Ok(run_id)
 }
 
@@ -181,7 +181,7 @@ pub async fn ai_find_more_start(
     )
     .await;
     let conn = project_conn(&app)?;
-    find_more::finalize(&conn, run_id, &input, api_result)?;
+    let _ = find_more::finalize(&conn, run_id, &input, api_result);
     Ok(run_id)
 }
 

@@ -100,6 +100,7 @@ pub async fn generate_text_json(
                 &join_url(&settings.providers.openai.base_url, "/chat/completions"),
                 Some((&settings.providers.openai.api_key, "Bearer")),
                 None,
+                None,
                 &body,
             )
             .await?;
@@ -120,6 +121,7 @@ pub async fn generate_text_json(
                 &join_url(&settings.providers.anthropic.base_url, "/v1/messages"),
                 Some((&settings.providers.anthropic.api_key, "x-api-key")),
                 Some(("anthropic-version", "2023-06-01")),
+                None,
                 &body,
             )
             .await?;
@@ -140,6 +142,10 @@ pub async fn generate_text_json(
                 &join_url(&settings.providers.ollama.base_url, "/api/generate"),
                 None,
                 None,
+                (!settings.providers.ollama.username.trim().is_empty()).then_some((
+                    settings.providers.ollama.username.as_str(),
+                    settings.providers.ollama.password.as_str(),
+                )),
                 &body,
             )
             .await?;
@@ -156,6 +162,7 @@ async fn post_json(
     url: &str,
     auth: Option<(&str, &str)>,
     extra_header: Option<(&str, &str)>,
+    basic_auth: Option<(&str, &str)>,
     body: &Value,
 ) -> AppResult<Value> {
     let client = Client::new();
@@ -169,6 +176,9 @@ async fn post_json(
     }
     if let Some((name, value)) = extra_header {
         request = request.header(name, value);
+    }
+    if let Some((username, password)) = basic_auth {
+        request = request.basic_auth(username, Some(password));
     }
     let response = request
         .send()

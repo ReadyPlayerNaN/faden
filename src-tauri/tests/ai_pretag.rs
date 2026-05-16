@@ -179,7 +179,8 @@ fn pretag_prompt_includes_all_available_tags_with_descriptions() {
     )
     .unwrap();
 
-    let prompt = pretag::build_prompt(&conn, &PretagInput { interview_id: i.id }, None, "cs").unwrap();
+    let prompt =
+        pretag::build_prompt(&conn, &PretagInput { interview_id: i.id }, None, "cs").unwrap();
     assert!(prompt.contains("Produce all generated labels, descriptions, rationales, summaries, and other free-text output in Czech."));
     assert!(prompt.contains("existing tags from the provided codebook"));
     assert!(prompt.contains("Avoid unnecessary duplication"));

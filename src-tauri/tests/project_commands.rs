@@ -76,10 +76,13 @@ async fn project_open_reads_name_from_metadata_file() {
 #[tokio::test]
 async fn project_open_falls_back_to_db_name_when_metadata_is_missing() {
     let dir = tempdir().unwrap();
-    let info =
-        project_create_impl(dir.path().to_path_buf(), "Legacy Project".into(), "en".into())
-            .await
-            .unwrap();
+    let info = project_create_impl(
+        dir.path().to_path_buf(),
+        "Legacy Project".into(),
+        "en".into(),
+    )
+    .await
+    .unwrap();
     let path = PathBuf::from(&info.path);
     std::fs::remove_file(path.join("project.json")).unwrap();
 

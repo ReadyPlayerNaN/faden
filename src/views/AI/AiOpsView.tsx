@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner";
 import {
   aiRunList,
   aiRunRetry,
@@ -37,6 +38,7 @@ export const AiOpsView = () => {
   const [aiRuns, setAiRuns] = useAtom(aiRunHistoryAtom);
   const [loading, setLoading] = useState(true);
   const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -121,7 +123,7 @@ export const AiOpsView = () => {
       await aiRunRetry(runId);
       await refresh();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setRetryingRunId(null);
     }
@@ -129,6 +131,7 @@ export const AiOpsView = () => {
 
   return (
     <div className={styles.wrap}>
+      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{t("ai.opsTitle")}</h1>

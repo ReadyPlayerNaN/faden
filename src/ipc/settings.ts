@@ -16,7 +16,7 @@ export type ProviderSettings = {
   gemini: { apiKey: string };
   openai: { apiKey: string; baseUrl: string };
   anthropic: { apiKey: string; baseUrl: string };
-  ollama: { baseUrl: string };
+  ollama: { baseUrl: string; username: string; password: string };
 };
 
 export type GlobalSettings = {
@@ -67,7 +67,7 @@ type RawGlobalSettings = {
     gemini?: { api_key?: string };
     openai?: { api_key?: string; base_url?: string };
     anthropic?: { api_key?: string; base_url?: string };
-    ollama?: { base_url?: string };
+    ollama?: { base_url?: string; username?: string; password?: string };
   };
 };
 
@@ -85,7 +85,7 @@ const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   gemini: { apiKey: "" },
   openai: { apiKey: "", baseUrl: "https://api.openai.com/v1" },
   anthropic: { apiKey: "", baseUrl: "https://api.anthropic.com" },
-  ollama: { baseUrl: "http://127.0.0.1:11434" },
+  ollama: { baseUrl: "http://127.0.0.1:11434", username: "", password: "" },
 };
 
 const fileName = (p: string): string => {
@@ -133,6 +133,10 @@ const rsToTs = (raw: RawGlobalSettings): GlobalSettings => ({
     ollama: {
       baseUrl:
         raw.providers?.ollama?.base_url ?? DEFAULT_PROVIDER_SETTINGS.ollama.baseUrl,
+      username:
+        raw.providers?.ollama?.username ?? DEFAULT_PROVIDER_SETTINGS.ollama.username,
+      password:
+        raw.providers?.ollama?.password ?? DEFAULT_PROVIDER_SETTINGS.ollama.password,
     },
   },
 });
@@ -157,6 +161,8 @@ const tsToRs = (s: GlobalSettings): RawGlobalSettings => ({
     },
     ollama: {
       base_url: s.providers.ollama.baseUrl,
+      username: s.providers.ollama.username,
+      password: s.providers.ollama.password,
     },
   },
 });

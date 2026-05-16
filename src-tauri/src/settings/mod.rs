@@ -146,6 +146,10 @@ pub struct AnthropicProviderSettings {
 pub struct OllamaProviderSettings {
     #[serde(default = "default_ollama_base_url")]
     pub base_url: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,7 +229,9 @@ pub fn canonical_project_language(value: &str) -> Option<String> {
     PROJECT_LANGUAGES
         .iter()
         .find(|(code, name)| {
-            *code == primary || name.to_ascii_lowercase() == normalized || (*code == "cs" && primary == "cz")
+            *code == primary
+                || name.to_ascii_lowercase() == normalized
+                || (*code == "cs" && primary == "cz")
         })
         .map(|(code, _)| (*code).to_string())
 }
@@ -272,6 +278,8 @@ struct StoredAnthropicProviderSettings {
 struct StoredOllamaProviderSettings {
     #[serde(default = "default_ollama_base_url")]
     base_url: String,
+    #[serde(default)]
+    username: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -333,6 +341,8 @@ impl Default for OllamaProviderSettings {
     fn default() -> Self {
         Self {
             base_url: default_ollama_base_url(),
+            username: String::new(),
+            password: String::new(),
         }
     }
 }
@@ -368,6 +378,7 @@ impl Default for StoredOllamaProviderSettings {
     fn default() -> Self {
         Self {
             base_url: default_ollama_base_url(),
+            username: String::new(),
         }
     }
 }
@@ -426,6 +437,8 @@ impl From<StoredSettings> for GlobalSettings {
                 },
                 ollama: OllamaProviderSettings {
                     base_url: value.providers.ollama.base_url,
+                    username: value.providers.ollama.username,
+                    password: String::new(),
                 },
             },
         }
@@ -449,6 +462,7 @@ impl From<&GlobalSettings> for StoredSettings {
                 },
                 ollama: StoredOllamaProviderSettings {
                     base_url: value.providers.ollama.base_url.clone(),
+                    username: value.providers.ollama.username.clone(),
                 },
             },
         }

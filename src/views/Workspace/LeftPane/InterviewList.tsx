@@ -29,6 +29,7 @@ import {
 } from "../../../state/interview";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import { Button } from "../../../components/Button/Button";
+import { ErrorBanner } from "../../../components/ErrorBanner";
 import { Modal } from "../../../components/Modal/Modal";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
 import { EditInterviewModal } from "./EditInterviewModal";
@@ -56,6 +57,7 @@ export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
     kind: ProposalKind;
   } | null>(null);
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchList().then(setList);
@@ -110,7 +112,7 @@ export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
       await Promise.all([refreshProposals(), refreshRuns()]);
     } catch (e) {
       await refreshRuns().catch(() => undefined);
-      window.alert(String((e as { message?: string }).message ?? e));
+      setError(String((e as { message?: string }).message ?? e));
     } finally {
       finishLocalOperation(localId);
     }
@@ -142,7 +144,7 @@ export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
       setPendingAction({ interview, kind });
       setEstimate(nextEstimate);
     } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
+      setError(String((e as { message?: string }).message ?? e));
     }
   };
 
@@ -164,6 +166,7 @@ export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
 
   return (
     <div className={styles.wrap}>
+      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       {list.length === 0 ? (
         <div className={styles.emptyState}>
           <p className={styles.empty}>{t("workspace.noInterviews")}</p>
@@ -236,6 +239,7 @@ const InterviewRow = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const menuWrapRef = useRef<HTMLSpanElement | null>(null);
 
   const isAiActionRunning = useMemo(
@@ -272,7 +276,11 @@ const InterviewRow = ({
   }, [menuOpen]);
 
   const onCancel = async () => {
-    try { await transcribeCancel(iv.id); } catch (e) { window.alert(String((e as { message?: string }).message ?? e)); }
+    try {
+      await transcribeCancel(iv.id);
+    } catch (e) {
+      setError(String((e as { message?: string }).message ?? e));
+    }
   };
 
   const addAudio = async () => {
@@ -286,7 +294,7 @@ const InterviewRow = ({
       await interviewSetAudio(iv.id, p);
       setList(await fetchList());
     } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
+      setError(String((e as { message?: string }).message ?? e));
     }
   };
 
@@ -297,7 +305,7 @@ const InterviewRow = ({
       setSelectedInterviewId((prev) => (prev === iv.id ? null : prev));
       setConfirmDelete(false);
     } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
+      setError(String((e as { message?: string }).message ?? e));
     }
   };
 
@@ -347,6 +355,7 @@ const InterviewRow = ({
 
   return (
     <li>
+      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <div
         className={`${styles.item} ${selected ? styles.selected : ""}`}
         onClick={onSelect}

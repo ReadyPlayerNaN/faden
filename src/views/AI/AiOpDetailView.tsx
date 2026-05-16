@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner";
 import {
   aiProposalList,
   aiRunDetail,
@@ -280,6 +281,7 @@ export const AiOpDetailView = () => {
   }, [run?.tasks]);
   const retryAvailable =
     run?.kind === "transcribe" && (run.status === "failed" || run.status === "cancelled");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleRetry = async () => {
     if (!run) return;
@@ -291,7 +293,7 @@ export const AiOpDetailView = () => {
         params: { projectPath },
       });
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e));
+      setActionError(e instanceof Error ? e.message : String(e));
     } finally {
       setRetrying(false);
     }
@@ -299,6 +301,7 @@ export const AiOpDetailView = () => {
 
   return (
     <div className={styles.wrap}>
+      {actionError ? <ErrorBanner message={actionError} onDismiss={() => setActionError(null)} /> : null}
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{t("ai.opDetailTitle", { defaultValue: "Operation detail" })}</h1>

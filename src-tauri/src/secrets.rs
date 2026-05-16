@@ -6,6 +6,7 @@ use tauri::AppHandle;
 const GEMINI_API_KEY_ACCOUNT: &str = "gemini_api_key";
 const OPENAI_API_KEY_ACCOUNT: &str = "openai_api_key";
 const ANTHROPIC_API_KEY_ACCOUNT: &str = "anthropic_api_key";
+const OLLAMA_PASSWORD_ACCOUNT: &str = "ollama_password";
 
 fn entry(app: &AppHandle, account: &str) -> AppResult<Entry> {
     Entry::new(&app.config().identifier, account)
@@ -18,6 +19,15 @@ fn account_for(provider: LlmProvider) -> Option<&'static str> {
         LlmProvider::OpenAi => Some(OPENAI_API_KEY_ACCOUNT),
         LlmProvider::Anthropic => Some(ANTHROPIC_API_KEY_ACCOUNT),
         LlmProvider::Ollama => None,
+    }
+}
+
+fn label_for(provider: LlmProvider) -> &'static str {
+    match provider {
+        LlmProvider::Gemini => "gemini API key",
+        LlmProvider::OpenAi => "openai API key",
+        LlmProvider::Anthropic => "anthropic API key",
+        LlmProvider::Ollama => "ollama password",
     }
 }
 
@@ -55,7 +65,7 @@ pub fn resolve_provider_api_key(
     let Some(account) = account_for(provider) else {
         return Ok(String::new());
     };
-    let label = format!("{} API key", provider.as_str());
+    let label = label_for(provider).to_string();
     let legacy_key = match provider {
         LlmProvider::Gemini => store.legacy_gemini_api_key()?,
         _ => None,
@@ -81,8 +91,16 @@ pub fn set_provider_api_key(app: &AppHandle, provider: LlmProvider, value: &str)
     let Some(account) = account_for(provider) else {
         return Ok(());
     };
-    let label = format!("{} API key", provider.as_str());
+    let label = label_for(provider).to_string();
     set_secret(app, account, &label, value)
+}
+
+pub fn resolve_ollama_password(app: &AppHandle) -> AppResult<String> {
+    Ok(get_secret(app, OLLAMA_PASSWORD_ACCOUNT, "ollama password")?.unwrap_or_default())
+}
+
+pub fn set_ollama_password(app: &AppHandle, value: &str) -> AppResult<()> {
+    set_secret(app, OLLAMA_PASSWORD_ACCOUNT, "ollama password", value)
 }
 
 pub fn hydrate_global_settings(
@@ -94,5 +112,6 @@ pub fn hydrate_global_settings(
     settings.providers.openai.api_key = resolve_provider_api_key(app, store, LlmProvider::OpenAi)?;
     settings.providers.anthropic.api_key =
         resolve_provider_api_key(app, store, LlmProvider::Anthropic)?;
+    settings.providers.ollama.password = resolve_ollama_password(app)?;
     Ok(settings)
 }

@@ -33,6 +33,14 @@ fn emit(app: &tauri::AppHandle, progress: &TranscriptionProgress) {
     let _ = app.emit(EVENT_NAME, progress);
 }
 
+fn transcription_selection(
+    app: &tauri::AppHandle,
+) -> AppResult<crate::settings::TaskModelSelection> {
+    let store = SettingsStore::new(app.path().app_config_dir()?);
+    let settings = hydrate_global_settings(app, &store)?;
+    Ok(settings.transcription)
+}
+
 fn build_config(app: &tauri::AppHandle) -> AppResult<TranscriptionConfig> {
     let store = SettingsStore::new(app.path().app_config_dir()?);
     let settings = hydrate_global_settings(app, &store)?;
@@ -88,6 +96,35 @@ fn build_config(app: &tauri::AppHandle) -> AppResult<TranscriptionConfig> {
     }
 }
 
+fn record_failed_transcription_start(
+    app: &tauri::AppHandle,
+    interview_id: i64,
+    message: &str,
+) -> AppResult<()> {
+    let conn = project_conn(app)?;
+    let selection = transcription_selection(app)?;
+    let project_settings = project_meta::read_settings(&conn)?;
+    let prompt = project_settings
+        .prompts
+        .transcription_user
+        .unwrap_or_else(|| prompts::PROMPT_TEMPLATE.to_string());
+    let input_json = serde_json::json!({
+        "provider": selection.provider.as_str(),
+        "model": selection.model,
+        "mode": "failed_before_start"
+    })
+    .to_string();
+    let run_id = ai_run::start(
+        &conn,
+        AiRunKind::Transcribe,
+        Some(interview_id),
+        &selection.model_ref(),
+        &prompt,
+        Some(&input_json),
+    )?;
+    ai_run::fail(&conn, run_id, message, None)
+}
+
 pub fn start_transcription_run(app: tauri::AppHandle, interview_id: i64) -> AppResult<()> {
     if app.state::<AppState>().has_run_for_interview(interview_id) {
         return Err(AppError::Conflict(format!(
@@ -95,7 +132,14 @@ pub fn start_transcription_run(app: tauri::AppHandle, interview_id: i64) -> AppR
         )));
     }
 
-    let config = build_config(&app)?;
+    let config = match build_config(&app) {
+        Ok(config) => config,
+        Err(AppError::Invalid(message)) => {
+            let _ = record_failed_transcription_start(&app, interview_id, &message);
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    };
     let token = CancellationToken::new();
     app.state::<AppState>()
         .register_run_for_interview(interview_id, token.clone());
