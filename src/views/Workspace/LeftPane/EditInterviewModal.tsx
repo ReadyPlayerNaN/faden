@@ -7,6 +7,7 @@ import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
 import { TextField } from "../../../components/TextField/TextField";
 import {
+  interviewClearAudio,
   interviewList as fetchList,
   interviewRename,
   interviewReplaceTranscriptJson,
@@ -21,6 +22,7 @@ import {
 import styles from "./AddInterviewModal.module.css";
 
 type TranscriptUpdateMode = "none" | "text" | "json";
+type AudioUpdateMode = "keep" | "replace" | "remove";
 
 type Props = {
   interview: Interview;
@@ -33,6 +35,7 @@ export const EditInterviewModal = ({ interview, onClose }: Props) => {
   const bumpInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const [name, setName] = useState(interview.name);
   const [audioPath, setAudioPath] = useState<string | null>(null);
+  const [audioMode, setAudioMode] = useState<AudioUpdateMode>("keep");
   const [transcriptMode, setTranscriptMode] = useState<TranscriptUpdateMode>("none");
   const [bodyText, setBodyText] = useState("");
   const [bodyJson, setBodyJson] = useState("");
@@ -46,7 +49,10 @@ export const EditInterviewModal = ({ interview, onClose }: Props) => {
       multiple: false,
       filters: [{ name: "Audio", extensions: ["mp3", "m4a", "wav", "ogg", "flac", "aac"] }],
     });
-    if (p && !Array.isArray(p)) setAudioPath(p);
+    if (p && !Array.isArray(p)) {
+      setAudioPath(p);
+      setAudioMode("replace");
+    }
   };
 
   const pickTranscriptTextFile = async () => {
@@ -83,8 +89,12 @@ export const EditInterviewModal = ({ interview, onClose }: Props) => {
       if (trimmedName !== interview.name) {
         await interviewRename(interview.id, trimmedName);
       }
-      if (audioPath) {
+      if (audioMode === "replace" && audioPath) {
         await interviewSetAudio(interview.id, audioPath);
+        contentChanged = true;
+      }
+      if (audioMode === "remove" && interview.audioPath) {
+        await interviewClearAudio(interview.id);
         contentChanged = true;
       }
       if (transcriptMode === "text") {
@@ -145,8 +155,23 @@ export const EditInterviewModal = ({ interview, onClose }: Props) => {
                 defaultValue: interview.audioPath ? "Replace audio…" : "Add audio…",
               })}
             </Button>
+            {interview.audioPath && (
+              <Button
+                variant={audioMode === "remove" ? "secondary" : "danger"}
+                onClick={() => {
+                  setAudioPath(null);
+                  setAudioMode(audioMode === "remove" ? "keep" : "remove");
+                }}
+              >
+                {t(audioMode === "remove" ? "audio.keep" : "audio.remove", {
+                  defaultValue: audioMode === "remove" ? "Keep audio" : "Remove audio",
+                })}
+              </Button>
+            )}
             <span className={styles.path}>
-              {audioPath ?? interview.audioPath ?? t("audio.none", { defaultValue: "No audio selected" })}
+              {audioMode === "remove"
+                ? t("audio.willRemove", { defaultValue: "Audio will be removed" })
+                : audioPath ?? interview.audioPath ?? t("audio.none", { defaultValue: "No audio selected" })}
             </span>
           </div>
         </div>

@@ -193,6 +193,8 @@
     "attach": "Připojit zvuk…",
     "replace": "Nahradit zvuk…",
     "remove": "Odebrat zvuk",
+    "keep": "Ponechat zvuk",
+    "willRemove": "Zvuk bude odebrán",
     "confirmRemove": "Odebrat zvuk?",
     "confirmRemoveBody": "Zvukový soubor bude smazán z projektu. Přepis bude zachován."
   },

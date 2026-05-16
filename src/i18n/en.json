@@ -194,6 +194,8 @@
     "attach": "Attach audio…",
     "replace": "Replace audio…",
     "remove": "Remove audio",
+    "keep": "Keep audio",
+    "willRemove": "Audio will be removed",
     "confirmRemove": "Remove audio?",
     "confirmRemoveBody": "The audio file will be deleted from the project. The transcript will be kept."
   },
