@@ -67,8 +67,16 @@ export const settingsGet = async (): Promise<GlobalSettings> =>
 export const settingsSet = (s: GlobalSettings): Promise<void> =>
   invoke("settings_set", { value: tsToRs(s) });
 
-export const settingsAddRecent = async (path: string): Promise<GlobalSettings> =>
-  rsToTs(await invoke<RawGlobalSettings>("settings_add_recent", { path }));
+export const settingsAddRecent = async (
+  path: string,
+  displayName?: string,
+): Promise<GlobalSettings> =>
+  rsToTs(
+    await invoke<RawGlobalSettings>("settings_add_recent", {
+      path,
+      displayName,
+    }),
+  );
 
 export const settingsRecentRename = async (
   path: string,

@@ -16,8 +16,8 @@ fn save_and_load_round_trip() {
     let store = SettingsStore::new(dir.path().to_path_buf());
     let mut s = GlobalSettings::default();
     s.gemini_api_key = "k-123".into();
-    s.add_recent("/a".into());
-    s.add_recent("/b".into());
+    s.add_recent("/a".into(), None);
+    s.add_recent("/b".into(), None);
     store.save(&s).unwrap();
     let loaded = store.load().unwrap();
     assert_eq!(loaded.gemini_api_key, "k-123");
@@ -42,9 +42,9 @@ fn load_missing_returns_default() {
 #[test]
 fn add_recent_dedupes_and_prepends() {
     let mut s = GlobalSettings::default();
-    s.add_recent("/a".into());
-    s.add_recent("/b".into());
-    s.add_recent("/a".into()); // bumps to top
+    s.add_recent("/a".into(), None);
+    s.add_recent("/b".into(), None);
+    s.add_recent("/a".into(), None); // bumps to top
     let paths: Vec<String> = s.recent_projects.iter().map(|r| r.path.clone()).collect();
     assert_eq!(paths, vec!["/a".to_string(), "/b".into()]);
 }
@@ -53,7 +53,7 @@ fn add_recent_dedupes_and_prepends() {
 fn add_recent_caps_at_ten() {
     let mut s = GlobalSettings::default();
     for i in 0..12 {
-        s.add_recent(format!("/{i}"));
+        s.add_recent(format!("/{i}"), None);
     }
     assert_eq!(s.recent_projects.len(), 10);
     assert_eq!(s.recent_projects[0].path, "/11");
@@ -62,9 +62,16 @@ fn add_recent_caps_at_ten() {
 #[test]
 fn add_recent_derives_display_name_from_filename() {
     let mut s = GlobalSettings::default();
-    s.add_recent("/tmp/research/Project A".into());
+    s.add_recent("/tmp/research/Project A".into(), None);
     assert_eq!(s.recent_projects[0].display_name, "Project A");
     assert_eq!(s.recent_projects[0].path, "/tmp/research/Project A");
+}
+
+#[test]
+fn add_recent_uses_explicit_display_name_when_provided() {
+    let mut s = GlobalSettings::default();
+    s.add_recent("/tmp/research/project-a".into(), Some("Project A".into()));
+    assert_eq!(s.recent_projects[0].display_name, "Project A");
 }
 
 #[test]

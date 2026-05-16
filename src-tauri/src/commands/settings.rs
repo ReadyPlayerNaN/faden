@@ -22,10 +22,14 @@ pub async fn settings_set(app: tauri::AppHandle, value: GlobalSettings) -> AppRe
 }
 
 #[tauri::command]
-pub async fn settings_add_recent(app: tauri::AppHandle, path: String) -> AppResult<GlobalSettings> {
+pub async fn settings_add_recent(
+    app: tauri::AppHandle,
+    path: String,
+    display_name: Option<String>,
+) -> AppResult<GlobalSettings> {
     let store = store_for(&app)?;
     let mut s = store.load()?;
-    s.add_recent(path);
+    s.add_recent(path, display_name);
     store.save(&s)?;
     Ok(s)
 }

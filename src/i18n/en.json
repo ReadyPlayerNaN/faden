@@ -2,6 +2,7 @@
   "picker": {
     "title": "Open a project",
     "newProject": "New project",
+    "newProjectPrompt": "Name for the new project:",
     "openFolder": "Open folder…",
     "recent": "Recent",
     "empty": "No recent projects yet.",

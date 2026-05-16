@@ -22,6 +22,14 @@ impl RecentProject {
             .to_string();
         Self { path, display_name }
     }
+
+    pub fn new(path: String, display_name: Option<String>) -> Self {
+        let mut entry = Self::from_path(path);
+        if let Some(display_name) = display_name {
+            entry.display_name = display_name;
+        }
+        entry
+    }
 }
 
 fn deserialize_recents<'de, D: serde::Deserializer<'de>>(
@@ -42,16 +50,7 @@ fn deserialize_recents<'de, D: serde::Deserializer<'de>>(
         .into_iter()
         .map(|o| match o {
             One::Str(path) => RecentProject::from_path(path),
-            One::Obj { path, display_name } => {
-                let display_name = display_name.unwrap_or_else(|| {
-                    std::path::Path::new(&path)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or(&path)
-                        .to_string()
-                });
-                RecentProject { path, display_name }
-            }
+            One::Obj { path, display_name } => RecentProject::new(path, display_name),
         })
         .collect())
 }
@@ -91,8 +90,8 @@ impl Default for GlobalSettings {
 }
 
 impl GlobalSettings {
-    pub fn add_recent(&mut self, path: String) {
-        let entry = RecentProject::from_path(path);
+    pub fn add_recent(&mut self, path: String, display_name: Option<String>) {
+        let entry = RecentProject::new(path, display_name);
         self.recent_projects.retain(|p| p.path != entry.path);
         self.recent_projects.insert(0, entry);
         if self.recent_projects.len() > RECENT_LIMIT {

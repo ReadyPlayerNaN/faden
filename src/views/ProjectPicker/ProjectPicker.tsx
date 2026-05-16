@@ -28,7 +28,7 @@ export const ProjectPicker = () => {
 
   const goTo = (path: string, name: string) => {
     setCurrent({ path, name });
-    void settingsAddRecent(path).then(setSettings);
+    void settingsAddRecent(path, name).then(setSettings);
     void navigate({
       to: "/workspace/$projectPath",
       params: { projectPath: encodeURIComponent(path) },
@@ -36,10 +36,9 @@ export const ProjectPicker = () => {
   };
 
   const onNew = async () => {
-    const dir = await open({ directory: true, multiple: false });
-    if (!dir || Array.isArray(dir)) return;
-    const name = dir.split(/[\\/]/).pop() ?? "project";
-    const info = await projectCreate(dir, name);
+    const name = window.prompt(t("picker.newProjectPrompt"), "");
+    if (!name) return;
+    const info = await projectCreate(name);
     goTo(info.path, info.name);
   };
 
