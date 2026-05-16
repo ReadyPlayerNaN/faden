@@ -81,7 +81,13 @@ pub async fn interview_delete(app: tauri::AppHandle, id: i64) -> AppResult<()> {
 // Helper to compute a sanitized filename. Keeps alphanum, dashes, underscores.
 fn sanitize_filename(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .trim_matches('_')
         .to_string()
@@ -256,6 +262,21 @@ pub async fn interview_set_audio(
     let rel_path = format!("media/{target_name}");
     interview::set_audio_path(&conn, interview_id, Some(&rel_path))?;
     interview::get(&conn, interview_id)
+}
+
+#[tauri::command]
+pub async fn interview_audio_stream_url(
+    app: tauri::AppHandle,
+    interview_id: i64,
+) -> AppResult<String> {
+    let conn = project_conn(&app)?;
+    let iv = interview::get(&conn, interview_id)?;
+    if iv.audio_path.is_none() {
+        return Err(AppError::NotFound(format!(
+            "interview {interview_id} has no audio"
+        )));
+    }
+    crate::media_server::url_for_interview(&app, interview_id)
 }
 
 #[tauri::command]

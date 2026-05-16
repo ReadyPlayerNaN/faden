@@ -6,6 +6,7 @@ pub mod domain;
 pub mod error;
 pub mod export;
 pub mod import;
+pub mod media_server;
 pub mod settings;
 pub mod transcription;
 
@@ -20,6 +21,10 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(app_state::AppState::default())
+        .setup(|app| {
+            media_server::start(app.handle().clone())?;
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
@@ -73,6 +78,7 @@ pub fn run() {
             commands::interview::speaker_set_display_name,
             commands::interview::interview_set_audio,
             commands::interview::interview_clear_audio,
+            commands::interview::interview_audio_stream_url,
             commands::segment::segment_update_text,
             commands::segment::segment_set_speaker,
             commands::segment::segment_delete,

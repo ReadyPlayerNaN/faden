@@ -1,24 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue } from "jotai";
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { readFile } from "@tauri-apps/plugin-fs";
-import { currentProjectAtom } from "../../../state/project";
 import { selectedInterviewAtom } from "../../../state/interview";
 import { selectedSpanAtom } from "../../../state/tagging";
+import { interviewAudioStreamUrl } from "../../../ipc/interview";
 import { AiMenu } from "./AiMenu";
 import styles from "./AudioPlayer.module.css";
 
 const SPEEDS = [0.75, 1.0, 1.25, 1.5, 2.0] as const;
-
-const MIME_BY_EXT: Record<string, string> = {
-  mp3: "audio/mpeg",
-  m4a: "audio/mp4",
-  aac: "audio/aac",
-  wav: "audio/wav",
-  ogg: "audio/ogg",
-  flac: "audio/flac",
-};
 
 const formatTime = (s: number): string => {
   if (!Number.isFinite(s)) return "0:00";
@@ -28,14 +17,23 @@ const formatTime = (s: number): string => {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 };
 
+const isAbortError = (error: unknown): boolean =>
+  error instanceof DOMException
+    ? error.name === "AbortError"
+    : String((error as { name?: string; message?: string })?.name ?? error).includes("AbortError") ||
+      String((error as { message?: string })?.message ?? error).includes("aborted");
+
 export const AudioPlayer = () => {
   const { t } = useTranslation();
-  const project = useAtomValue(currentProjectAtom);
   const interview = useAtomValue(selectedInterviewAtom);
   const span = useAtomValue(selectedSpanAtom);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
-  const triedBlobFallbackRef = useRef(false);
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
+  const pendingAutoplayRef = useRef(false);
+  const lastRetriedSrcRef = useRef<string | null>(null);
+  const srcRef = useRef<string | null>(null);
+  const timeRef = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -44,123 +42,116 @@ export const AudioPlayer = () => {
   const [src, setSrc] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
 
-  const absPath = useMemo(() => {
-    if (!project || !interview?.audioPath) return null;
-    return project.path + "/" + interview.audioPath;
-  }, [project, interview?.audioPath]);
-
-  const assetSrc = useMemo(() => {
-    if (!absPath) return null;
-    return convertFileSrc(absPath);
-  }, [absPath]);
-
-  const releaseBlobUrl = useCallback(() => {
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-  }, []);
-
-  const loadBlobFallback = useCallback(async (): Promise<boolean> => {
-    if (!absPath || !interview?.audioPath || triedBlobFallbackRef.current) {
-      return false;
-    }
-    triedBlobFallbackRef.current = true;
-    try {
-      const bytes = await readFile(absPath);
-      const ext = interview.audioPath.split(".").pop()?.toLowerCase() ?? "";
-      const mime = MIME_BY_EXT[ext] ?? "application/octet-stream";
-      releaseBlobUrl();
-      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
-      blobUrlRef.current = blobUrl;
-      setSrc(blobUrl);
-      return true;
-    } catch (error) {
-      console.error("Failed to load interview audio as blob fallback", {
-        absPath,
-        error,
-      });
-      return false;
-    }
-  }, [absPath, interview?.audioPath, releaseBlobUrl]);
+  const resolveStreamUrl = useCallback(
+    async ({ preserveTime = false, autoplay = false } = {}): Promise<string | null> => {
+      if (!interview?.audioPath) return null;
+      try {
+        const nextUrl = await interviewAudioStreamUrl(interview.id);
+        setPlaybackError(null);
+        if (srcRef.current !== nextUrl) {
+          pendingSeekRef.current = preserveTime
+            ? audioElRef.current?.currentTime ?? timeRef.current
+            : null;
+          pendingAutoplayRef.current = autoplay;
+          setSrc(nextUrl);
+        } else if (autoplay && audioElRef.current?.paused === true) {
+          await audioElRef.current.play();
+        }
+        return nextUrl;
+      } catch (error) {
+        const message = String((error as { message?: string })?.message ?? error);
+        console.error("Failed to resolve interview audio stream URL", {
+          interviewId: interview.id,
+          error,
+        });
+        setPlaybackError(message);
+        return null;
+      }
+    },
+    [interview?.audioPath, interview?.id],
+  );
 
   useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
-    el.playbackRate = speed;
-  }, [speed]);
-
-  useEffect(() => {
-    releaseBlobUrl();
-    triedBlobFallbackRef.current = false;
-    setSrc(assetSrc);
+    let cancelled = false;
+    setSrc(null);
     setPlaybackError(null);
     setPlaying(false);
     setTime(0);
     setDuration(0);
-  }, [assetSrc, releaseBlobUrl]);
+    pendingSeekRef.current = null;
+    pendingAutoplayRef.current = false;
+    lastRetriedSrcRef.current = null;
 
-  useEffect(() => () => releaseBlobUrl(), [releaseBlobUrl]);
+    if (!interview?.audioPath) return;
+
+    void resolveStreamUrl().then((url) => {
+      if (cancelled || !url) return;
+      lastRetriedSrcRef.current = null;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [interview?.audioPath, interview?.id, resolveStreamUrl]);
+
+  useEffect(() => {
+    srcRef.current = src;
+  }, [src]);
+
+  useEffect(() => {
+    timeRef.current = time;
+  }, [time]);
+
+  useEffect(() => {
+    audioElRef.current = audioEl;
+    if (!audioEl) return;
+    audioEl.playbackRate = speed;
+  }, [audioEl, speed]);
 
   const togglePlay = useCallback(async () => {
-    const el = audioRef.current;
-    if (!el) return;
-    if (!el.paused) {
-      el.pause();
+    if (!audioEl || !interview?.audioPath) return;
+    if (!audioEl.paused) {
+      audioEl.pause();
+      return;
+    }
+    const nextUrl = await resolveStreamUrl({ preserveTime: true });
+    if (!nextUrl) return;
+    if (nextUrl !== srcRef.current) {
+      pendingAutoplayRef.current = true;
       return;
     }
     try {
       setPlaybackError(null);
-      await el.play();
+      await audioEl.play();
     } catch (error) {
+      if (isAbortError(error)) return;
       const message = String((error as { message?: string })?.message ?? error);
       console.error("Interview audio playback failed", {
+        interviewId: interview?.id,
         src,
-        absPath,
         error,
       });
       setPlaybackError(message);
-      const switchedToBlob = await loadBlobFallback();
-      if (!switchedToBlob) return;
-      requestAnimationFrame(() => {
-        const retryEl = audioRef.current;
-        if (!retryEl) return;
-        void retryEl.play().then(
-          () => setPlaybackError(null),
-          (retryError) => {
-            const retryMessage = String(
-              (retryError as { message?: string })?.message ?? retryError,
-            );
-            console.error("Interview audio playback failed after blob fallback", {
-              src: blobUrlRef.current,
-              absPath,
-              error: retryError,
-            });
-            setPlaybackError(retryMessage);
-          },
-        );
-      });
     }
-  }, [absPath, loadBlobFallback, src]);
+  }, [audioEl, interview?.audioPath, interview?.id, resolveStreamUrl, src]);
 
   const seekTo = (target: number) => {
-    const el = audioRef.current;
-    if (!el) return;
-    el.currentTime = Math.max(0, Math.min(target, el.duration || 0));
+    if (!audioEl) return;
+    audioEl.currentTime = Math.max(0, Math.min(target, audioEl.duration || 0));
   };
 
-  // Loop within span boundary
   const onTimeUpdate = () => {
-    const el = audioRef.current;
-    if (!el) return;
-    setTime(el.currentTime);
-    if (loopSpan && span && el.currentTime >= span.audioEndSec) {
-      el.currentTime = span.audioStartSec;
+    if (!audioEl) return;
+    setTime(audioEl.currentTime);
+    if (loopSpan && span && audioEl.currentTime >= span.audioEndSec) {
+      audioEl.currentTime = span.audioStartSec;
     }
   };
 
   useEffect(() => {
-    const toggle = () => togglePlay();
+    const toggle = () => {
+      void togglePlay();
+    };
     const loop = () => setLoopSpan((v) => !v);
     window.addEventListener("stt:toggle-play", toggle);
     window.addEventListener("stt:toggle-loop", loop);
@@ -170,7 +161,7 @@ export const AudioPlayer = () => {
     };
   }, [togglePlay]);
 
-  if (!src) {
+  if (!interview?.audioPath) {
     return (
       <div className={styles.bar}>
         <span className={styles.empty}>{t("workspace.audioFilter")}</span>
@@ -187,6 +178,7 @@ export const AudioPlayer = () => {
         onClick={() => void togglePlay()}
         aria-label="play/pause"
         data-audio-toggle
+        disabled={!src}
       >
         {playing ? "⏸" : "▶"}
       </button>
@@ -228,26 +220,51 @@ export const AudioPlayer = () => {
       )}
       <AiMenu />
       <audio
-        ref={audioRef}
+        ref={(el) => {
+          audioElRef.current = el;
+          setAudioEl(el);
+        }}
         src={src ?? undefined}
-        onLoadedMetadata={(e) =>
-          setDuration((e.target as HTMLAudioElement).duration)
-        }
+        onLoadedMetadata={(e) => {
+          const el = e.target as HTMLAudioElement;
+          setDuration(el.duration);
+          if (pendingSeekRef.current !== null) {
+            el.currentTime = Math.max(0, Math.min(pendingSeekRef.current, el.duration || 0));
+            pendingSeekRef.current = null;
+          }
+        }}
+        onCanPlay={() => {
+          if (!pendingAutoplayRef.current || !audioEl) return;
+          pendingAutoplayRef.current = false;
+          void audioEl.play().catch((error) => {
+            if (isAbortError(error)) return;
+            const message = String((error as { message?: string })?.message ?? error);
+            console.error("Interview audio autoplay after stream refresh failed", {
+              interviewId: interview.id,
+              src,
+              error,
+            });
+            setPlaybackError(message);
+          });
+        }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={onTimeUpdate}
         onError={() => {
-          const el = audioRef.current;
-          const mediaError = el?.error;
+          const mediaError = audioEl?.error;
           const message = mediaError
             ? `media error ${mediaError.code}`
             : "unknown media error";
           console.error("Interview audio element error", {
+            interviewId: interview.id,
             src,
-            absPath,
             mediaError,
           });
           setPlaybackError(message);
+          if (src && lastRetriedSrcRef.current !== src) {
+            lastRetriedSrcRef.current = src;
+            void resolveStreamUrl({ preserveTime: true, autoplay: true });
+          }
         }}
         preload="metadata"
       />
