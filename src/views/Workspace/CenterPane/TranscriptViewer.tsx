@@ -654,7 +654,6 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                 [{formatTimestamp(s.startSec)}]
               </span>
               <span className={styles.speaker}>
-                {t("workspace.speaker")}{" "}
                 {s.speakerDisplayName ??
                   s.speakerLabelRaw ??
                   t("speakers.unassigned", { defaultValue: "Unassigned" })}
