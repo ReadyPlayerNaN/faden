@@ -75,11 +75,12 @@ jobs:
           [Desktop Entry]
           Type=Application
           Name=Faden
-          Comment=Faden - desktop app for qualitative interview research
+          Comment=Desktop app for qualitative interview research
           Exec=faden
           Icon=faden
           Terminal=false
-          Categories=Office;AudioVideo;
+          Categories=Science;Office;
+          Keywords=qualitative;research;interview;analysis;transcription;coding;
           StartupWMClass=faden
           EOF
 
