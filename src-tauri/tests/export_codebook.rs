@@ -27,7 +27,7 @@ fn codebook_json_empty_project_has_empty_clusters() {
 fn codebook_json_serializes_full_hierarchy() {
     let conn = fresh();
     let cl = cluster::create(&conn, "C", Some("cluster-desc"), Some("#ff0000")).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T1", Some("tag-desc"), None).unwrap();
     let data = compose(&conn, &ExportScope::default()).unwrap();
     let mut out = Vec::new();
@@ -48,7 +48,7 @@ fn codebook_json_serializes_full_hierarchy() {
 fn codebook_csv_writes_header_and_rows() {
     let conn = fresh();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T1", Some("desc1"), None).unwrap();
     tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     let data = compose(&conn, &ExportScope::default()).unwrap();

@@ -52,14 +52,6 @@ export const AddCategoryModal = ({
       );
       return;
     }
-    if (selectedCluster === null) {
-      setError(
-        t("tags.errorClusterRequired", {
-          defaultValue: "Cluster is required",
-        }),
-      );
-      return;
-    }
     setBusy(true);
     try {
       await categoryCreate(
@@ -108,7 +100,9 @@ export const AddCategoryModal = ({
             setSelectedCluster(e.target.value ? Number(e.target.value) : null)
           }
         >
-          <option value="">--</option>
+          <option value="">
+            {t("tags.noCluster", { defaultValue: "No cluster" })}
+          </option>
           {clusters.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

@@ -54,7 +54,7 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
         e.push_attribute(("guid", cl_id_str.as_str()));
         e.push_attribute(("name", cl.name.as_str()));
         w.write_event(Event::Start(e)).map_err(xml_err)?;
-        for cat in data.categories.iter().filter(|c| c.cluster_id == cl.id) {
+        for cat in data.categories.iter().filter(|c| c.cluster_id == Some(cl.id)) {
             let cat_id = ns_uuid(&project_ns, &format!("category:{}", cat.name));
             let cat_id_str = cat_id.to_string();
             let mut ec = BytesStart::new("Code");
@@ -72,6 +72,25 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             }
             w.write_event(Event::End(BytesEnd::new("Code")))
                 .map_err(xml_err)?;
+        }
+        w.write_event(Event::End(BytesEnd::new("Code")))
+            .map_err(xml_err)?;
+    }
+    for cat in data.categories.iter().filter(|c| c.cluster_id.is_none()) {
+        let cat_id = ns_uuid(&project_ns, &format!("category:{}", cat.name));
+        let cat_id_str = cat_id.to_string();
+        let mut ec = BytesStart::new("Code");
+        ec.push_attribute(("guid", cat_id_str.as_str()));
+        ec.push_attribute(("name", cat.name.as_str()));
+        w.write_event(Event::Start(ec)).map_err(xml_err)?;
+        for t in data.tags.iter().filter(|t| t.category_id == Some(cat.id)) {
+            let t_id = ns_uuid(&project_ns, &format!("tag:{}", t.name));
+            let t_id_str = t_id.to_string();
+            tag_guids.insert(t.id, t_id_str.clone());
+            let mut et = BytesStart::new("Code");
+            et.push_attribute(("guid", t_id_str.as_str()));
+            et.push_attribute(("name", t.name.as_str()));
+            w.write_event(Event::Empty(et)).map_err(xml_err)?;
         }
         w.write_event(Event::End(BytesEnd::new("Code")))
             .map_err(xml_err)?;

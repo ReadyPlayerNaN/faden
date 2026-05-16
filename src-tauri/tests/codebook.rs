@@ -78,16 +78,24 @@ fn cluster_reorder_swaps_indexes() {
 #[test]
 fn category_create_requires_existing_cluster() {
     let conn = fresh_conn();
-    let err = category::create(&conn, 999, "X", None, None).unwrap_err();
+    let err = category::create(&conn, Some(999), "X", None, None).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+}
+
+#[test]
+fn category_create_can_be_clusterless() {
+    let conn = fresh_conn();
+    let cat = category::create(&conn, None, "Loose", None, None).unwrap();
+    assert_eq!(cat.cluster_id, None);
+    assert_eq!(cat.order_index, 0);
 }
 
 #[test]
 fn category_create_appends_within_cluster() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Identity", None, None).unwrap();
-    let a = category::create(&conn, cl.id, "A", None, None).unwrap();
-    let b = category::create(&conn, cl.id, "B", None, None).unwrap();
+    let a = category::create(&conn, Some(cl.id), "A", None, None).unwrap();
+    let b = category::create(&conn, Some(cl.id), "B", None, None).unwrap();
     assert_eq!(b.order_index, a.order_index + 1);
 }
 
@@ -96,8 +104,8 @@ fn category_name_unique_across_project() {
     let conn = fresh_conn();
     let c1 = cluster::create(&conn, "C1", None, None).unwrap();
     let c2 = cluster::create(&conn, "C2", None, None).unwrap();
-    category::create(&conn, c1.id, "Same", None, None).unwrap();
-    let err = category::create(&conn, c2.id, "Same", None, None).unwrap_err();
+    category::create(&conn, Some(c1.id), "Same", None, None).unwrap();
+    let err = category::create(&conn, Some(c2.id), "Same", None, None).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
 }
 
@@ -106,8 +114,9 @@ fn category_list_for_cluster_filters() {
     let conn = fresh_conn();
     let c1 = cluster::create(&conn, "C1", None, None).unwrap();
     let c2 = cluster::create(&conn, "C2", None, None).unwrap();
-    category::create(&conn, c1.id, "A1", None, None).unwrap();
-    category::create(&conn, c2.id, "A2", None, None).unwrap();
+    category::create(&conn, Some(c1.id), "A1", None, None).unwrap();
+    category::create(&conn, Some(c2.id), "A2", None, None).unwrap();
+    category::create(&conn, None, "Loose", None, None).unwrap();
     assert_eq!(category::list_for_cluster(&conn, c1.id).unwrap().len(), 1);
 }
 
@@ -116,21 +125,43 @@ fn category_move_to_cluster_works() {
     let conn = fresh_conn();
     let c1 = cluster::create(&conn, "C1", None, None).unwrap();
     let c2 = cluster::create(&conn, "C2", None, None).unwrap();
-    let cat = category::create(&conn, c1.id, "Moveme", None, None).unwrap();
-    category::move_to_cluster(&conn, cat.id, c2.id).unwrap();
+    let cat = category::create(&conn, Some(c1.id), "Moveme", None, None).unwrap();
+    category::move_to_cluster(&conn, cat.id, Some(c2.id)).unwrap();
     let moved = category::get(&conn, cat.id).unwrap();
-    assert_eq!(moved.cluster_id, c2.id);
+    assert_eq!(moved.cluster_id, Some(c2.id));
+}
+
+#[test]
+fn category_move_to_clusterless_works() {
+    let conn = fresh_conn();
+    let c1 = cluster::create(&conn, "C1", None, None).unwrap();
+    let cat = category::create(&conn, Some(c1.id), "Moveme", None, None).unwrap();
+    category::move_to_cluster(&conn, cat.id, None).unwrap();
+    let moved = category::get(&conn, cat.id).unwrap();
+    assert_eq!(moved.cluster_id, None);
 }
 
 #[test]
 fn category_reorder_within_cluster() {
     let mut conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let a = category::create(&conn, cl.id, "A", None, None).unwrap();
-    let b = category::create(&conn, cl.id, "B", None, None).unwrap();
-    let cc = category::create(&conn, cl.id, "C2", None, None).unwrap();
-    category::reorder(&mut conn, cl.id, &[cc.id, a.id, b.id]).unwrap();
+    let a = category::create(&conn, Some(cl.id), "A", None, None).unwrap();
+    let b = category::create(&conn, Some(cl.id), "B", None, None).unwrap();
+    let cc = category::create(&conn, Some(cl.id), "C2", None, None).unwrap();
+    category::reorder(&mut conn, Some(cl.id), &[cc.id, a.id, b.id]).unwrap();
     let listed = category::list_for_cluster(&conn, cl.id).unwrap();
+    let names: Vec<_> = listed.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, vec!["C2", "A", "B"]);
+}
+
+#[test]
+fn category_reorder_clusterless() {
+    let mut conn = fresh_conn();
+    let a = category::create(&conn, None, "A", None, None).unwrap();
+    let b = category::create(&conn, None, "B", None, None).unwrap();
+    let cc = category::create(&conn, None, "C2", None, None).unwrap();
+    category::reorder(&mut conn, None, &[cc.id, a.id, b.id]).unwrap();
+    let listed = category::list_standalone(&conn).unwrap();
     let names: Vec<_> = listed.iter().map(|c| c.name.as_str()).collect();
     assert_eq!(names, vec!["C2", "A", "B"]);
 }
@@ -139,7 +170,7 @@ fn category_reorder_within_cluster() {
 fn category_delete_empty_works() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "X", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "X", None, None).unwrap();
     category::delete(&conn, cat.id).unwrap();
     assert!(category::list_all(&conn).unwrap().is_empty());
 }
@@ -155,7 +186,7 @@ fn tag_create_requires_existing_category() {
 fn tag_create_appends_within_category() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let a = tag::create(&conn, Some(cat.id), "A", None, None).unwrap();
     let b = tag::create(&conn, Some(cat.id), "B", None, None).unwrap();
     assert_eq!(b.order_index, a.order_index + 1);
@@ -165,8 +196,8 @@ fn tag_create_appends_within_category() {
 fn tag_name_unique_across_project() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
-    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    let c1 = category::create(&conn, Some(cl.id), "C1", None, None).unwrap();
+    let c2 = category::create(&conn, Some(cl.id), "C2", None, None).unwrap();
     tag::create(&conn, Some(c1.id), "Same", None, None).unwrap();
     let err = tag::create(&conn, Some(c2.id), "Same", None, None).unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
@@ -176,8 +207,8 @@ fn tag_name_unique_across_project() {
 fn tag_list_for_category_filters() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
-    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    let c1 = category::create(&conn, Some(cl.id), "C1", None, None).unwrap();
+    let c2 = category::create(&conn, Some(cl.id), "C2", None, None).unwrap();
     tag::create(&conn, Some(c1.id), "T1", None, None).unwrap();
     tag::create(&conn, Some(c2.id), "T2", None, None).unwrap();
     assert_eq!(tag::list_for_category(&conn, c1.id).unwrap().len(), 1);
@@ -187,8 +218,8 @@ fn tag_list_for_category_filters() {
 fn tag_move_to_category_works() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let c1 = category::create(&conn, cl.id, "C1", None, None).unwrap();
-    let c2 = category::create(&conn, cl.id, "C2", None, None).unwrap();
+    let c1 = category::create(&conn, Some(cl.id), "C1", None, None).unwrap();
+    let c2 = category::create(&conn, Some(cl.id), "C2", None, None).unwrap();
     let t = tag::create(&conn, Some(c1.id), "Moveme", None, None).unwrap();
     tag::move_to_category(&conn, t.id, Some(c2.id)).unwrap();
     let moved = tag::get(&conn, t.id).unwrap();
@@ -199,7 +230,7 @@ fn tag_move_to_category_works() {
 fn tag_reorder_within_category() {
     let mut conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let a = tag::create(&conn, Some(cat.id), "A", None, None).unwrap();
     let b = tag::create(&conn, Some(cat.id), "B", None, None).unwrap();
     let cc = tag::create(&conn, Some(cat.id), "C", None, None).unwrap();
@@ -213,7 +244,7 @@ fn tag_reorder_within_category() {
 fn tag_delete_empty_works() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "Cl", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "X", None, None).unwrap();
     tag::delete(&conn, t.id).unwrap();
     assert!(tag::list_all(&conn).unwrap().is_empty());
@@ -223,10 +254,9 @@ fn tag_delete_empty_works() {
 fn tag_delete_rejected_when_in_use() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
 
-    // Insert interview + segment + tagged_span + span_tag via raw SQL
     conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', '2026-05-12', '2026-05-12')", []).unwrap();
     let iid: i64 = conn.last_insert_rowid();
     conn.execute(
@@ -257,7 +287,7 @@ fn tag_delete_rejected_when_in_use() {
 fn stats_empty_db_zero_counts() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     let counts = stats::codebook_counts(&conn).unwrap();
     assert_eq!(counts.by_cluster.get(&cl.id).copied().unwrap_or(0), 0);
@@ -269,7 +299,7 @@ fn stats_empty_db_zero_counts() {
 fn stats_after_tagging_one_span() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     conn.execute("INSERT INTO interview (name, transcript_status, created_at, updated_at) VALUES ('I', 'none', 'now', 'now')", []).unwrap();
     let iid = conn.last_insert_rowid();
@@ -307,13 +337,14 @@ fn codebook_tree_empty() {
     let conn = fresh_conn();
     let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
     assert!(tree.clusters.is_empty());
+    assert!(tree.standalone_categories.is_empty());
 }
 
 #[test]
 fn codebook_tree_full_hierarchy() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
@@ -323,10 +354,20 @@ fn codebook_tree_full_hierarchy() {
 }
 
 #[test]
+fn codebook_tree_includes_standalone_categories() {
+    let conn = fresh_conn();
+    let cat = category::create(&conn, None, "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
+    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    assert_eq!(tree.standalone_categories.len(), 1);
+    assert_eq!(tree.standalone_categories[0].tags.len(), 1);
+}
+
+#[test]
 fn stats_two_tags_same_category() {
     let conn = fresh_conn();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t1 = tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
     let t2 = tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     fn insert_tagged_span(conn: &rusqlite::Connection, tag_id: i64) {

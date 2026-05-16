@@ -12,7 +12,8 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
                 Some(cid) => {
                     let cat = data.categories.iter().find(|c| c.id == cid);
                     let cl = cat.and_then(|c| {
-                        data.clusters.iter().find(|cl| cl.id == c.cluster_id)
+                        c.cluster_id
+                            .and_then(|cluster_id| data.clusters.iter().find(|cl| cl.id == cluster_id))
                     });
                     (
                         cl.map(|c| c.name.clone()).unwrap_or_default(),
@@ -168,7 +169,10 @@ pub fn write_stats_markdown<W: Write>(
         let cat = t
             .category_id
             .and_then(|cid| data.categories.iter().find(|c| c.id == cid));
-        let cl = cat.and_then(|c| data.clusters.iter().find(|cl| cl.id == c.cluster_id));
+        let cl = cat.and_then(|c| {
+            c.cluster_id
+                .and_then(|cluster_id| data.clusters.iter().find(|cl| cl.id == cluster_id))
+        });
         let count = counts.get(&t.id).copied().unwrap_or(0);
         writeln!(
             writer,

@@ -29,7 +29,8 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
                 Some(cid) => {
                     let cat = data.categories.iter().find(|c| c.id == cid);
                     let cl = cat.and_then(|c| {
-                        data.clusters.iter().find(|cl| cl.id == c.cluster_id)
+                        c.cluster_id
+                            .and_then(|cluster_id| data.clusters.iter().find(|cl| cl.id == cluster_id))
                     });
                     (
                         cl.map(|c| c.name.as_str()).unwrap_or(""),

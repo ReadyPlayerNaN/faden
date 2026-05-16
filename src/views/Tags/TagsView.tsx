@@ -37,7 +37,7 @@ type DeleteTarget =
 
 type EditableCategory = {
   id: number;
-  clusterId: number;
+  clusterId: number | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -101,22 +101,37 @@ export const TagsView = () => {
   const categoryOptions = useMemo<CategoryOption[]>(() => {
     if (!tree) return [];
     const out: CategoryOption[] = [];
+    tree.standaloneCategories.forEach((cat) => {
+      out.push({
+        id: cat.id,
+        label: t("tags.noClusterPrefix", {
+          defaultValue: "No cluster › {{name}}",
+          name: cat.name,
+        }),
+      });
+    });
     tree.clusters.forEach((cl) => {
       cl.categories.forEach((cat) => {
         out.push({ id: cat.id, label: `${cl.name} › ${cat.name}` });
       });
     });
     return out;
-  }, [tree]);
+  }, [tree, t]);
 
   const categories = useMemo(() => {
     if (!tree) return [];
-    return tree.clusters.flatMap((cluster) =>
-      cluster.categories.map((category) => ({
-        cluster,
+    return [
+      ...tree.standaloneCategories.map((category) => ({
+        cluster: null,
         category,
       })),
-    );
+      ...tree.clusters.flatMap((cluster) =>
+        cluster.categories.map((category) => ({
+          cluster,
+          category,
+        })),
+      ),
+    ];
   }, [tree]);
 
   const requestDelete = (target: DeleteTarget) => {
@@ -237,6 +252,64 @@ export const TagsView = () => {
                 category={category}
                 onEdit={() => setEditCategory(category)}
                 onRequestDelete={requestDelete}
+              />
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          {t("tags.clusterlessCategoriesSection", {
+            defaultValue: "Categories without cluster",
+          })}
+        </h2>
+        <div className={styles.standaloneList}>
+          {tree && tree.standaloneCategories.length === 0 ? (
+            <p className={styles.empty}>
+              {t("tags.noClusterlessCategories", {
+                defaultValue: "No categories without cluster",
+              })}
+            </p>
+          ) : (
+            tree?.standaloneCategories.map((category) => (
+              <CategoryBlock
+                key={category.id}
+                category={category}
+                categoryOptions={categoryOptions}
+                onReload={reload}
+                onError={handleError}
+                onAddTag={() => setAddTagFor(category.id)}
+                onEdit={() => setEditCategory(category)}
+                onRequestDelete={requestDelete}
+                onMoveTag={moveTag}
+              />
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          {t("tags.standaloneSection", { defaultValue: "Standalone tags" })}
+        </h2>
+        <div className={styles.standaloneList}>
+          {tree && tree.standaloneTags.length === 0 ? (
+            <p className={styles.empty}>
+              {t("tags.noStandalone", {
+                defaultValue: "No standalone tags",
+              })}
+            </p>
+          ) : (
+            tree?.standaloneTags.map((tag) => (
+              <TagRow
+                key={tag.id}
+                tag={tag}
+                categoryOptions={categoryOptions}
+                onReload={reload}
+                onError={handleError}
+                onRequestDelete={requestDelete}
+                onMoveTag={moveTag}
               />
             ))
           )}
@@ -565,7 +638,7 @@ const CategoryBlock = ({
 };
 
 type CategoryManagementRowProps = {
-  cluster: ClusterNode;
+  cluster: ClusterNode | null;
   category: CategoryNode;
   onEdit: () => void;
   onRequestDelete: (target: DeleteTarget) => void;
@@ -590,7 +663,10 @@ const CategoryManagementRow = ({
           <span className={styles.count}>({category.count})</span>
         </div>
         <div className={styles.managementSubtitle}>
-          {cluster.name}
+          {cluster?.name ??
+            t("tags.noCluster", {
+              defaultValue: "No cluster",
+            })}
           {category.description ? ` · ${category.description}` : ""}
         </div>
       </div>

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Category {
     pub id: i64,
-    pub cluster_id: i64,
+    pub cluster_id: Option<i64>,
     pub name: String,
     pub description: Option<String>,
     pub color: Option<String>,
@@ -35,24 +35,32 @@ fn map_delete_constraint(err: rusqlite::Error) -> AppError {
     AppError::Sqlite(err)
 }
 
-fn next_order(conn: &Connection, cluster_id: i64) -> AppResult<i64> {
-    let next: i64 = conn.query_row(
-        "SELECT COALESCE(MAX(order_index), -1) + 1 FROM category WHERE cluster_id = ?1",
-        params![cluster_id],
-        |r| r.get(0),
-    )?;
+fn next_order(conn: &Connection, cluster_id: Option<i64>) -> AppResult<i64> {
+    let next: i64 = match cluster_id {
+        Some(cluster_id) => conn.query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM category WHERE cluster_id = ?1",
+            params![cluster_id],
+            |r| r.get(0),
+        )?,
+        None => conn.query_row(
+            "SELECT COALESCE(MAX(order_index), -1) + 1 FROM category WHERE cluster_id IS NULL",
+            [],
+            |r| r.get(0),
+        )?,
+    };
     Ok(next)
 }
 
 pub fn create(
     conn: &Connection,
-    cluster_id: i64,
+    cluster_id: Option<i64>,
     name: &str,
     description: Option<&str>,
     color: Option<&str>,
 ) -> AppResult<Category> {
-    // Validate parent exists.
-    cluster::get(conn, cluster_id)?;
+    if let Some(cluster_id) = cluster_id {
+        cluster::get(conn, cluster_id)?;
+    }
     let order_index = next_order(conn, cluster_id)?;
     conn.execute(
         "INSERT INTO category (cluster_id, name, description, color, order_index) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -73,7 +81,8 @@ pub fn create(
 pub fn list_all(conn: &Connection) -> AppResult<Vec<Category>> {
     let mut stmt = conn.prepare(
         "SELECT id, cluster_id, name, description, color, order_index \
-         FROM category ORDER BY cluster_id, order_index, id",
+         FROM category \
+         ORDER BY CASE WHEN cluster_id IS NULL THEN 0 ELSE 1 END, cluster_id, order_index, id",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok(Category {
@@ -98,6 +107,28 @@ pub fn list_for_cluster(conn: &Connection, cluster_id: i64) -> AppResult<Vec<Cat
          FROM category WHERE cluster_id = ?1 ORDER BY order_index, id",
     )?;
     let rows = stmt.query_map(params![cluster_id], |r| {
+        Ok(Category {
+            id: r.get(0)?,
+            cluster_id: r.get(1)?,
+            name: r.get(2)?,
+            description: r.get(3)?,
+            color: r.get(4)?,
+            order_index: r.get(5)?,
+        })
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        out.push(row?);
+    }
+    Ok(out)
+}
+
+pub fn list_standalone(conn: &Connection) -> AppResult<Vec<Category>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, cluster_id, name, description, color, order_index \
+         FROM category WHERE cluster_id IS NULL ORDER BY order_index, id",
+    )?;
+    let rows = stmt.query_map([], |r| {
         Ok(Category {
             id: r.get(0)?,
             cluster_id: r.get(1)?,
@@ -178,10 +209,10 @@ pub fn delete(conn: &Connection, id: i64) -> AppResult<()> {
     Ok(())
 }
 
-pub fn move_to_cluster(conn: &Connection, id: i64, new_cluster_id: i64) -> AppResult<()> {
-    // Validate target cluster exists.
-    cluster::get(conn, new_cluster_id)?;
-    // Validate this category exists.
+pub fn move_to_cluster(conn: &Connection, id: i64, new_cluster_id: Option<i64>) -> AppResult<()> {
+    if let Some(cluster_id) = new_cluster_id {
+        cluster::get(conn, cluster_id)?;
+    }
     let _ = get(conn, id)?;
     let order_index = next_order(conn, new_cluster_id)?;
     let affected = conn.execute(
@@ -196,18 +227,25 @@ pub fn move_to_cluster(conn: &Connection, id: i64, new_cluster_id: i64) -> AppRe
 
 pub fn reorder(
     conn: &mut Connection,
-    cluster_id: i64,
+    cluster_id: Option<i64>,
     ids_in_order: &[i64],
 ) -> AppResult<()> {
     let tx = conn.transaction()?;
     for (idx, id) in ids_in_order.iter().enumerate() {
-        let affected = tx.execute(
-            "UPDATE category SET order_index = ?1 WHERE id = ?2 AND cluster_id = ?3",
-            params![idx as i64, id, cluster_id],
-        )?;
+        let affected = match cluster_id {
+            Some(cluster_id) => tx.execute(
+                "UPDATE category SET order_index = ?1 WHERE id = ?2 AND cluster_id = ?3",
+                params![idx as i64, id, cluster_id],
+            )?,
+            None => tx.execute(
+                "UPDATE category SET order_index = ?1 WHERE id = ?2 AND cluster_id IS NULL",
+                params![idx as i64, id],
+            )?,
+        };
         if affected == 0 {
             return Err(AppError::NotFound(format!(
-                "category {id} in cluster {cluster_id}"
+                "category {id} in cluster {:?}",
+                cluster_id
             )));
         }
     }

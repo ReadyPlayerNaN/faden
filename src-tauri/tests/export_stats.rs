@@ -17,7 +17,7 @@ fn fresh() -> Connection {
 
 fn setup_tagged(conn: &mut Connection) -> (i64, i64) {
     let cl = cluster::create(conn, "C", None, None).unwrap();
-    let cat = category::create(conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(conn, Some(cl.id), "Cat", None, None).unwrap();
     let t1 = tag::create(conn, Some(cat.id), "T1", None, None).unwrap();
     let t2 = tag::create(conn, Some(cat.id), "T2", None, None).unwrap();
     let iv = interview::create(conn, "I1").unwrap();

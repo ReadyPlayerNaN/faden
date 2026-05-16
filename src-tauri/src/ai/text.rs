@@ -13,7 +13,7 @@ pub fn format_codebook(conn: &Connection) -> AppResult<String> {
         if let Some(d) = &cl.description {
             writeln!(out, "  {d}").ok();
         }
-        for cat in categories.iter().filter(|c| c.cluster_id == cl.id) {
+        for cat in categories.iter().filter(|c| c.cluster_id == Some(cl.id)) {
             writeln!(out, "  ## Category: {}", cat.name).ok();
             if let Some(d) = &cat.description {
                 writeln!(out, "    {d}").ok();
@@ -30,6 +30,24 @@ pub fn format_codebook(conn: &Connection) -> AppResult<String> {
                 )
                 .ok();
             }
+        }
+    }
+    for cat in categories.iter().filter(|c| c.cluster_id.is_none()) {
+        writeln!(out, "# Category: {}", cat.name).ok();
+        if let Some(d) = &cat.description {
+            writeln!(out, "  {d}").ok();
+        }
+        for t in tags.iter().filter(|t| t.category_id == Some(cat.id)) {
+            writeln!(
+                out,
+                "  - {}{}",
+                t.name,
+                t.description
+                    .as_ref()
+                    .map(|d| format!(": {d}"))
+                    .unwrap_or_default()
+            )
+            .ok();
         }
     }
     Ok(out)

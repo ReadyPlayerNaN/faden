@@ -31,22 +31,23 @@ pub fn build_tree(conn: &Connection) -> AppResult<CodebookTree> {
     }
 
     let mut by_cluster: HashMap<i64, Vec<CategoryNode>> = HashMap::new();
+    let mut standalone_categories: Vec<CategoryNode> = Vec::new();
     for c in categories {
         let count = counts.by_category.get(&c.id).copied().unwrap_or(0);
-        let cat_tags = by_cat.remove(&c.id).unwrap_or_default();
-        by_cluster
-            .entry(c.cluster_id)
-            .or_default()
-            .push(CategoryNode {
-                id: c.id,
-                cluster_id: c.cluster_id,
-                name: c.name,
-                description: c.description,
-                color: c.color,
-                order_index: c.order_index,
-                count,
-                tags: cat_tags,
-            });
+        let node = CategoryNode {
+            id: c.id,
+            cluster_id: c.cluster_id,
+            name: c.name,
+            description: c.description,
+            color: c.color,
+            order_index: c.order_index,
+            count,
+            tags: by_cat.remove(&c.id).unwrap_or_default(),
+        };
+        match c.cluster_id {
+            Some(cluster_id) => by_cluster.entry(cluster_id).or_default().push(node),
+            None => standalone_categories.push(node),
+        }
     }
 
     let mut out_clusters = Vec::new();
@@ -66,6 +67,7 @@ pub fn build_tree(conn: &Connection) -> AppResult<CodebookTree> {
 
     Ok(CodebookTree {
         clusters: out_clusters,
+        standalone_categories,
         standalone_tags,
     })
 }
@@ -132,7 +134,7 @@ pub async fn cluster_reorder(app: tauri::AppHandle, ids: Vec<i64>) -> AppResult<
 #[tauri::command]
 pub async fn category_create(
     app: tauri::AppHandle,
-    cluster_id: i64,
+    cluster_id: Option<i64>,
     name: String,
     description: Option<String>,
     color: Option<String>,
@@ -182,7 +184,7 @@ pub async fn category_delete(app: tauri::AppHandle, id: i64) -> AppResult<()> {
 #[tauri::command]
 pub async fn category_reorder(
     app: tauri::AppHandle,
-    cluster_id: i64,
+    cluster_id: Option<i64>,
     ids: Vec<i64>,
 ) -> AppResult<()> {
     let mut conn = project_conn(&app)?;
@@ -193,7 +195,7 @@ pub async fn category_reorder(
 pub async fn category_move_to_cluster(
     app: tauri::AppHandle,
     id: i64,
-    new_cluster_id: i64,
+    new_cluster_id: Option<i64>,
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     category::move_to_cluster(&conn, id, new_cluster_id)

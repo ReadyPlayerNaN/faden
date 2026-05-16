@@ -10,7 +10,7 @@ export type Cluster = {
 
 export type Category = {
   id: number;
-  clusterId: number;
+  clusterId: number | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -38,7 +38,7 @@ export type TagNode = {
 
 export type CategoryNode = {
   id: number;
-  clusterId: number;
+  clusterId: number | null;
   name: string;
   description: string | null;
   color: string | null;
@@ -59,6 +59,7 @@ export type ClusterNode = {
 
 export type CodebookTree = {
   clusters: ClusterNode[];
+  standaloneCategories: CategoryNode[];
   standaloneTags: TagNode[];
 };
 
@@ -69,7 +70,7 @@ type RawCluster = {
   color: string | null;
   order_index: number;
 };
-type RawCategory = RawCluster & { cluster_id: number };
+type RawCategory = RawCluster & { cluster_id: number | null };
 type RawTag = RawCluster & { category_id: number | null };
 type RawTagNode = RawTag & { count: number };
 type RawCategoryNode = RawCategory & { count: number; tags: RawTagNode[] };
@@ -79,6 +80,7 @@ type RawClusterNode = RawCluster & {
 };
 type RawCodebookTree = {
   clusters: RawClusterNode[];
+  standalone_categories: RawCategoryNode[];
   standalone_tags: RawTagNode[];
 };
 
@@ -127,6 +129,7 @@ const clusterNodeFromRaw = (r: RawClusterNode): ClusterNode => ({
 
 const treeFromRaw = (r: RawCodebookTree): CodebookTree => ({
   clusters: r.clusters.map(clusterNodeFromRaw),
+  standaloneCategories: r.standalone_categories.map(categoryNodeFromRaw),
   standaloneTags: r.standalone_tags.map(tagNodeFromRaw),
 });
 
@@ -161,7 +164,7 @@ export const clusterReorder = (ids: number[]): Promise<void> =>
   invoke("cluster_reorder", { ids });
 
 export const categoryCreate = async (
-  clusterId: number,
+  clusterId: number | null,
   name: string,
   description?: string | null,
   color?: string | null,
@@ -187,12 +190,12 @@ export const categorySetColor = (
 export const categoryDelete = (id: number): Promise<void> =>
   invoke("category_delete", { id });
 export const categoryReorder = (
-  clusterId: number,
+  clusterId: number | null,
   ids: number[],
 ): Promise<void> => invoke("category_reorder", { clusterId, ids });
 export const categoryMoveToCluster = (
   id: number,
-  newClusterId: number,
+  newClusterId: number | null,
 ): Promise<void> => invoke("category_move_to_cluster", { id, newClusterId });
 
 export const tagCreate = async (

@@ -10,7 +10,7 @@ fn applies_initial_migration_on_empty_db() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5]);
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn is_idempotent() {
     apply_migrations(&mut conn).unwrap();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5]);
 }
 
 #[test]
@@ -41,12 +41,11 @@ fn applies_m002_main_schema() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5]);
 
     let expected_tables = [
-        "interview", "speaker", "segment",
-        "cluster", "category", "tag",
-        "tagged_span", "span_tag", "memo", "ai_run",
+        "interview", "speaker", "segment", "cluster", "category", "tag", "tagged_span",
+        "span_tag", "memo", "ai_run",
     ];
     for table in expected_tables {
         let count: i64 = conn
@@ -65,7 +64,7 @@ fn applies_m003_proposal_table() {
     let mut conn = open_mem();
     apply_migrations(&mut conn).unwrap();
     let versions = applied_versions(&conn).unwrap();
-    assert_eq!(versions, vec![1, 2, 3, 4]);
+    assert_eq!(versions, vec![1, 2, 3, 4, 5]);
     let count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='proposal'",
@@ -77,14 +76,27 @@ fn applies_m003_proposal_table() {
 }
 
 #[test]
+fn applies_m005_category_cluster_can_be_null() {
+    let mut conn = open_mem();
+    apply_migrations(&mut conn).unwrap();
+    conn.execute(
+        "INSERT INTO category (cluster_id, name, description, color, order_index) VALUES (NULL, 'Loose', NULL, NULL, 0)",
+        [],
+    )
+    .unwrap();
+    let cluster_id: Option<i64> = conn
+        .query_row("SELECT cluster_id FROM category WHERE name = 'Loose'", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(cluster_id, None);
+}
+
+#[test]
 fn applies_in_transaction() {
-    // If a migration fails, schema_version row should NOT be inserted.
     use stt_app_lib::db::migrations::apply_migrations_with;
     let mut conn = open_mem();
     let migrations: &[(i64, &str)] = &[(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;")];
     let result = apply_migrations_with(&mut conn, migrations);
     assert!(result.is_err());
-    // Neither the table nor the schema_version row should exist.
     let table_exists: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='good'",

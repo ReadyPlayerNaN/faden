@@ -61,7 +61,7 @@ fn compose_empty_project_has_no_interviews() {
 fn compose_full_project() {
     let mut conn = fresh();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     make_tagged_interview(&mut conn, "I1", "hello", t.id);
     let data = compose(&conn, &ExportScope::default()).unwrap();
@@ -74,7 +74,7 @@ fn compose_full_project() {
 fn compose_scoped_to_interview_id() {
     let mut conn = fresh();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "T", None, None).unwrap();
     let (i1, _) = make_tagged_interview(&mut conn, "I1", "hello", t.id);
     let (_i2, _) = make_tagged_interview(&mut conn, "I2", "world", t.id);
@@ -93,7 +93,7 @@ fn compose_scoped_to_interview_id() {
 fn compose_scoped_to_tag_filters_spans() {
     let mut conn = fresh();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t1 = tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
     let t2 = tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
     make_tagged_interview(&mut conn, "I1", "hello", t1.id);

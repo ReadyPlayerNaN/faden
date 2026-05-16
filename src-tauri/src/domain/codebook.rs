@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodebookTree {
     pub clusters: Vec<ClusterNode>,
+    pub standalone_categories: Vec<CategoryNode>,
     pub standalone_tags: Vec<TagNode>,
 }
 
@@ -20,7 +21,7 @@ pub struct ClusterNode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryNode {
     pub id: i64,
-    pub cluster_id: i64,
+    pub cluster_id: Option<i64>,
     pub name: String,
     pub description: Option<String>,
     pub color: Option<String>,

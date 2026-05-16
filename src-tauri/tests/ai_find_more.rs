@@ -32,7 +32,7 @@ async fn find_more_persists_suggestions_with_target_tag() {
     let seg_id = ids[0];
 
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "target", Some("definition"), None).unwrap();
 
     let mut server = Server::new_async().await;
@@ -99,7 +99,7 @@ async fn find_more_invalid_json_fails_run() {
     let conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
     let cl = cluster::create(&conn, "C", None, None).unwrap();
-    let cat = category::create(&conn, cl.id, "Cat", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     let t = tag::create(&conn, Some(cat.id), "target", None, None).unwrap();
     let client = GeminiClient::with_base_url("k".into(), server.url());
     let err = find_more::run(

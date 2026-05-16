@@ -71,15 +71,6 @@ export const EditCategoryModal = ({
       );
       return;
     }
-    if (selectedCluster === null) {
-      setError(
-        t("tags.errorClusterRequired", {
-          defaultValue: "Cluster is required",
-        }),
-      );
-      return;
-    }
-
     setBusy(true);
     try {
       const nextName = name.trim();
@@ -139,7 +130,9 @@ export const EditCategoryModal = ({
             setSelectedCluster(e.target.value ? Number(e.target.value) : null)
           }
         >
-          <option value="">--</option>
+          <option value="">
+            {t("tags.noCluster", { defaultValue: "No cluster" })}
+          </option>
           {clusters.map((cluster) => (
             <option key={cluster.id} value={cluster.id}>
               {cluster.name}
