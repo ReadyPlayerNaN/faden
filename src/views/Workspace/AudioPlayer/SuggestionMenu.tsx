@@ -4,6 +4,12 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { aiProposalList, type ProposalDTO } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
+import {
+  StatusMenu,
+  StatusMenuEmpty,
+  StatusMenuFooter,
+  StatusMenuHeader,
+} from "../../../components/StatusMenu/StatusMenu";
 import { activeProposalIdAtom } from "../../../state/ai";
 import { currentProjectAtom } from "../../../state/project";
 import styles from "./SuggestionMenu.module.css";
@@ -89,31 +95,19 @@ export const SuggestionMenu = () => {
         </span>
       </Button>
       {open && (
-        <div className={styles.menu} role="menu">
-          <div className={styles.headerRow}>
-            <span className={styles.header}>
-              {t("ai.unresolvedSuggestions", {
-                count: unresolvedCount,
-                defaultValue: "Unresolved suggestions ({{count}})",
-              })}
-            </span>
-            <button
-              type="button"
-              className={styles.linkBtn}
-              onClick={() => openSuggestionsCenter()}
-              disabled={!project}
-            >
-              {t("ai.openSuggestionsCenter", {
-                defaultValue: "Open suggestions center",
-              })}
-            </button>
-          </div>
+        <StatusMenu role="menu">
+          <StatusMenuHeader>
+            {t("ai.unresolvedSuggestions", {
+              count: unresolvedCount,
+              defaultValue: "Unresolved suggestions ({{count}})",
+            })}
+          </StatusMenuHeader>
           {overview.length === 0 ? (
-            <p className={styles.empty}>
+            <StatusMenuEmpty>
               {t("ai.noUnresolvedSuggestions", {
                 defaultValue: "No unresolved suggestions.",
               })}
-            </p>
+            </StatusMenuEmpty>
           ) : (
             <ul className={styles.list}>
               {overview.map((proposal) => (
@@ -133,11 +127,10 @@ export const SuggestionMenu = () => {
               ))}
             </ul>
           )}
-          {pendingProposals.length > overview.length && (
-            <div className={styles.footer}>
+          <StatusMenuFooter>
+            {pendingProposals.length > overview.length && (
               <button
                 type="button"
-                className={styles.linkBtn}
                 onClick={() => openSuggestionsCenter()}
                 disabled={!project}
               >
@@ -146,9 +139,18 @@ export const SuggestionMenu = () => {
                   defaultValue: "+{{count}} more",
                 })}
               </button>
-            </div>
-          )}
-        </div>
+            )}
+            <button
+              type="button"
+              onClick={() => openSuggestionsCenter()}
+              disabled={!project}
+            >
+              {t("ai.openSuggestionsCenter", {
+                defaultValue: "Open suggestions center",
+              })}
+            </button>
+          </StatusMenuFooter>
+        </StatusMenu>
       )}
     </div>
   );

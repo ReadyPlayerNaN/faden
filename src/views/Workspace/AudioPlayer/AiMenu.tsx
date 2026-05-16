@@ -2,12 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  effectiveSelectedInterviewIdAtom,
-  interviewListAtom,
-} from "../../../state/interview";
+import { interviewListAtom } from "../../../state/interview";
 import { currentProjectAtom } from "../../../state/project";
-import { activeTagForFindMoreAtom } from "../../../state/tagging";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import {
   activeAiOperationsAtom,
@@ -18,14 +14,18 @@ import {
 import {
   aiCodebookGenStart,
   aiPretagStart,
-  aiFindMoreStart,
-  aiCostEstimate,
   aiProposalList,
   aiRunList,
   type CostEstimate,
   type ProposalKind,
 } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
+import {
+  StatusMenu,
+  StatusMenuEmpty,
+  StatusMenuFooter,
+  StatusMenuHeader,
+} from "../../../components/StatusMenu/StatusMenu";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
 import { buildDisplayOperations } from "../../AI/aiOperations";
 import styles from "./AiMenu.module.css";
@@ -35,8 +35,7 @@ type PendingAction =
       kind: "codebook_gen";
       args: { interview_ids: number[]; include_existing_codebook: boolean };
     }
-  | { kind: "pretag"; args: { interview_id: number } }
-  | { kind: "find_more"; args: { tag_id: number; interview_id: number } };
+  | { kind: "pretag"; args: { interview_id: number } };
 
 const errorMessage = (e: unknown): string => {
   if (e && typeof e === "object" && "message" in e) {
@@ -51,8 +50,6 @@ export const AiMenu = () => {
   const navigate = useNavigate();
   const interviews = useAtomValue(interviewListAtom);
   const project = useAtomValue(currentProjectAtom);
-  const selectedInterviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
-  const activeTagId = useAtomValue(activeTagForFindMoreAtom);
   const transcriptionRuns = useAtomValue(transcriptionRunsAtom);
   const setProposals = useSetAtom(pendingProposalsAtom);
   const skip = useAtomValue(skipCostConfirmAtom);
@@ -66,8 +63,7 @@ export const AiMenu = () => {
     null,
   );
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
-  const [prompt, setPrompt] = useState<string>("");
-  const [busy, setBusy] = useState(false);
+  const [prompt] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -145,7 +141,6 @@ export const AiMenu = () => {
       action.kind,
       "interview_id" in action.args ? action.args.interview_id : null,
     );
-    setBusy(true);
     setStatus(t("ai.running"));
     try {
       const runId =
@@ -154,9 +149,7 @@ export const AiMenu = () => {
               action.args.interview_ids,
               action.args.include_existing_codebook,
             )
-          : action.kind === "pretag"
-            ? await aiPretagStart(action.args.interview_id)
-            : await aiFindMoreStart(action.args.tag_id, action.args.interview_id);
+          : await aiPretagStart(action.args.interview_id);
       setLocalOperationRunId(localId, runId);
       await Promise.all([refreshProposals(), refreshRuns()]);
       setStatus(null);
@@ -165,27 +158,8 @@ export const AiMenu = () => {
       setStatus(errorMessage(e));
     } finally {
       finishLocalOperation(localId);
-      setBusy(false);
       setPendingAction(null);
       setEstimate(null);
-    }
-  };
-
-  const launch = async (action: PendingAction) => {
-    if (skip[action.kind]) {
-      await actuallyStart(action);
-      return;
-    }
-    try {
-      const est = await aiCostEstimate(
-        action.kind as ProposalKind,
-        action.args,
-      );
-      setEstimate(est);
-      setPrompt("");
-      setPendingAction(action);
-    } catch (e) {
-      setStatus(errorMessage(e));
     }
   };
 
@@ -203,23 +177,6 @@ export const AiMenu = () => {
   const onCancelModal = () => {
     setPendingAction(null);
     setEstimate(null);
-  };
-
-
-  const onFindMore = () => {
-    setOpen(false);
-    if (activeTagId === null) {
-      setStatus(t("ai.selectTag"));
-      return;
-    }
-    if (selectedInterviewId === null) {
-      setStatus(t("ai.selectInterviewFirst"));
-      return;
-    }
-    void launch({
-      kind: "find_more",
-      args: { tag_id: activeTagId, interview_id: selectedInterviewId },
-    });
   };
 
   const { ongoing } = useMemo(
@@ -255,22 +212,27 @@ export const AiMenu = () => {
         </span>
       </Button>
       {open && (
-        <div className={styles.menu} role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.item}
-            onClick={onFindMore}
-            disabled={busy || activeTagId === null}
-          >
-            {t("ai.findMore")}
-          </button>
-          <div className={styles.separator} />
-          <div className={styles.opsHeaderRow}>
-            <span className={styles.opsHeader}>{t("ai.ongoingTitle", { defaultValue: "Ongoing" })}</span>
+        <StatusMenu role="menu">
+          <StatusMenuHeader>
+            {t("ai.ongoingTitle", { defaultValue: "Ongoing" })}
+          </StatusMenuHeader>
+          {ongoing.length === 0 ? (
+            <StatusMenuEmpty>
+              {t("ai.noOngoing", { defaultValue: "No ongoing operations" })}
+            </StatusMenuEmpty>
+          ) : (
+            <ul className={styles.ongoingList}>
+              {ongoing.map((op) => (
+                <li key={op.id} className={styles.ongoingItem}>
+                  <span className={styles.loaderInline} aria-hidden="true" />
+                  <span className={styles.ongoingLabel}>{op.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <StatusMenuFooter>
             <button
               type="button"
-              className={styles.linkBtn}
               onClick={() => {
                 setOpen(false);
                 if (!project) return;
@@ -283,22 +245,8 @@ export const AiMenu = () => {
             >
               {t("ai.viewAllOps", { defaultValue: "Open AI ops" })}
             </button>
-          </div>
-          {ongoing.length === 0 ? (
-            <p className={styles.emptyOps}>
-              {t("ai.noOngoing", { defaultValue: "No ongoing operations" })}
-            </p>
-          ) : (
-            <ul className={styles.ongoingList}>
-              {ongoing.map((op) => (
-                <li key={op.id} className={styles.ongoingItem}>
-                  <span className={styles.loaderInline} aria-hidden="true" />
-                  <span className={styles.ongoingLabel}>{op.title}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          </StatusMenuFooter>
+        </StatusMenu>
       )}
       {status && <span className={styles.status}>{status}</span>}
       {pendingAction && estimate && (
