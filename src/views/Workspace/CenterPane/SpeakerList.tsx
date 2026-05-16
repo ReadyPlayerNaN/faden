@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   speakerCreate,
@@ -29,8 +29,8 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
   const [action, setAction] = useState<Action>("");
   const [newLabel, setNewLabel] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
-  const [mergeSourceId, setMergeSourceId] = useState<number | null>(null);
-  const [mergeTargetId, setMergeTargetId] = useState<number | null>(null);
+  const [mergeSpeakerIds, setMergeSpeakerIds] = useState<number[]>([]);
+  const [mergeNewName, setMergeNewName] = useState("");
   const [removeSpeakerId, setRemoveSpeakerId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -62,28 +62,6 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
     };
   }, [menuOpen]);
 
-  const mergeTargets = useMemo(
-    () => speakers.filter((speaker) => speaker.id !== mergeSourceId),
-    [mergeSourceId, speakers],
-  );
-
-  useEffect(() => {
-    if (action !== "merge") return;
-    if (mergeSourceId === null && speakers.length > 0) {
-      setMergeSourceId(speakers[0].id);
-      setMergeTargetId(speakers[1]?.id ?? null);
-      return;
-    }
-    const nextTargets = speakers.filter((speaker) => speaker.id !== mergeSourceId);
-    if (nextTargets.length === 0) {
-      setMergeTargetId(null);
-      return;
-    }
-    if (!nextTargets.some((speaker) => speaker.id === mergeTargetId)) {
-      setMergeTargetId(nextTargets[0].id);
-    }
-  }, [action, mergeSourceId, mergeTargetId, speakers]);
-
   useEffect(() => {
     if (action !== "remove") return;
     if (removeSpeakerId === null && speakers.length > 0) {
@@ -112,8 +90,8 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
     setAction("");
     setNewLabel("");
     setNewDisplayName("");
-    setMergeSourceId(null);
-    setMergeTargetId(null);
+    setMergeSpeakerIds([]);
+    setMergeNewName("");
     setRemoveSpeakerId(null);
   };
 
@@ -121,6 +99,14 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
     setError(null);
     setMenuOpen(false);
     setAction(nextAction);
+  };
+
+  const toggleMergeSpeaker = (speakerId: number) => {
+    setMergeSpeakerIds((current) =>
+      current.includes(speakerId)
+        ? current.filter((id) => id !== speakerId)
+        : [...current, speakerId],
+    );
   };
 
   const submitAdd = async () => {
@@ -138,10 +124,25 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
   };
 
   const submitMerge = async () => {
-    if (mergeSourceId === null || mergeTargetId === null) return;
+    if (mergeSpeakerIds.length < 2) {
+      setError(
+        t("speakers.mergeSelectAtLeastTwo", {
+          defaultValue: "Select at least two speakers to merge.",
+        }),
+      );
+      return;
+    }
+    if (!mergeNewName.trim()) {
+      setError(
+        t("speakers.mergeNameRequired", {
+          defaultValue: "Enter a name for the merged speaker.",
+        }),
+      );
+      return;
+    }
     setError(null);
     try {
-      await speakerMerge(mergeSourceId, mergeTargetId);
+      await speakerMerge(interviewId, mergeSpeakerIds, mergeNewName.trim());
       await refresh();
       closeActionModal();
     } catch (err) {
@@ -282,7 +283,7 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
             <button type="button" onClick={closeActionModal}>
               {t("common.cancel", { defaultValue: "Cancel" })}
             </button>
-            <button type="button" onClick={() => void submitMerge()} disabled={mergeTargetId === null}>
+            <button type="button" onClick={() => void submitMerge()}>
               {t("speakers.merge", { defaultValue: "Merge speakers" })}
             </button>
           </>
@@ -292,35 +293,42 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
           <p className={styles.help}>
             {t("speakers.mergeHelp", {
               defaultValue:
-                "All segments from the source speaker will be reassigned to the target speaker.",
+                "Select multiple speakers to merge, then give the merged speaker a new name.",
             })}
           </p>
           <label className={styles.field}>
-            <span>{t("speakers.source", { defaultValue: "Source speaker" })}</span>
-            <select
-              value={mergeSourceId === null ? "" : String(mergeSourceId)}
-              onChange={(e) => setMergeSourceId(Number(e.target.value))}
-            >
-              {speakers.map((speaker) => (
-                <option key={speaker.id} value={String(speaker.id)}>
-                  {speaker.displayName ?? speaker.labelRaw}
-                </option>
-              ))}
-            </select>
+            <span>{t("speakers.mergeName", { defaultValue: "Merged speaker name" })}</span>
+            <input
+              value={mergeNewName}
+              onChange={(e) => setMergeNewName(e.target.value)}
+              placeholder={t("speakers.mergeNamePlaceholder", {
+                defaultValue: "Enter merged speaker name",
+              })}
+            />
           </label>
-          <label className={styles.field}>
-            <span>{t("speakers.target", { defaultValue: "Target speaker" })}</span>
-            <select
-              value={mergeTargetId === null ? "" : String(mergeTargetId)}
-              onChange={(e) => setMergeTargetId(Number(e.target.value))}
-            >
-              {mergeTargets.map((speaker) => (
-                <option key={speaker.id} value={String(speaker.id)}>
-                  {speaker.displayName ?? speaker.labelRaw}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className={styles.field}>
+            <span>{t("speakers.mergeSelection", { defaultValue: "Speakers to merge" })}</span>
+            <div className={styles.checkboxGroup}>
+              {speakers.map((speaker) => {
+                const checked = mergeSpeakerIds.includes(speaker.id);
+                return (
+                  <label key={speaker.id} className={styles.checkboxItem}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleMergeSpeaker(speaker.id)}
+                    />
+                    <span>
+                      {speaker.displayName ?? speaker.labelRaw}
+                      {speaker.displayName ? (
+                        <span className={styles.checkboxMeta}> ({speaker.labelRaw})</span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </Modal>
 

@@ -233,11 +233,13 @@ pub async fn speaker_set_display_name(
 #[tauri::command]
 pub async fn speaker_merge(
     app: tauri::AppHandle,
-    source_speaker_id: i64,
-    target_speaker_id: i64,
-) -> AppResult<()> {
+    interview_id: i64,
+    source_speaker_ids: Vec<i64>,
+    new_name: String,
+) -> AppResult<SpeakerDTO> {
     let mut conn = project_conn(&app)?;
-    speaker::merge_into(&mut conn, source_speaker_id, target_speaker_id)
+    let speaker = speaker::merge_many_into_new(&mut conn, interview_id, &source_speaker_ids, &new_name)?;
+    Ok(speaker.into())
 }
 
 #[tauri::command]

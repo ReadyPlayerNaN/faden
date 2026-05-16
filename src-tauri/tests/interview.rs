@@ -109,29 +109,30 @@ fn speaker_set_display_name() {
 }
 
 #[test]
-fn speaker_merge_reassigns_segments_and_deletes_source() {
+fn speaker_merge_reassigns_segments_and_deletes_sources() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
-    let source = speaker::create_or_get(&conn, i.id, "A", Some("Alice")).unwrap();
-    let target = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
+    let a = speaker::create_or_get(&conn, i.id, "A", Some("Alice")).unwrap();
+    let b = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
+    let c = speaker::create_or_get(&conn, i.id, "C", Some("Carol")).unwrap();
     segment::insert_batch(
         &mut conn,
         i.id,
         &[
             segment::NewSegment {
-                speaker_id: Some(source.id),
+                speaker_id: Some(a.id),
                 start_sec: 0.0,
                 end_sec: 5.0,
                 text: "first".into(),
             },
             segment::NewSegment {
-                speaker_id: Some(target.id),
+                speaker_id: Some(b.id),
                 start_sec: 5.0,
                 end_sec: 10.0,
                 text: "second".into(),
             },
             segment::NewSegment {
-                speaker_id: Some(source.id),
+                speaker_id: Some(c.id),
                 start_sec: 10.0,
                 end_sec: 15.0,
                 text: "third".into(),
@@ -140,18 +141,64 @@ fn speaker_merge_reassigns_segments_and_deletes_source() {
     )
     .unwrap();
 
-    speaker::merge_into(&mut conn, source.id, target.id).unwrap();
+    let merged = speaker::merge_many_into_new(&mut conn, i.id, &[a.id, b.id], "Merged").unwrap();
 
-    assert!(speaker::get(&conn, source.id).is_err());
+    assert_eq!(merged.label_raw, "Merged");
+    assert_eq!(merged.display_name.as_deref(), Some("Merged"));
+    assert!(speaker::get(&conn, a.id).is_err());
+    assert!(speaker::get(&conn, b.id).is_err());
     let listed = segment::list_for_interview(&conn, i.id).unwrap();
     assert_eq!(
         listed
             .iter()
-            .filter(|s| s.speaker_id == Some(target.id))
+            .filter(|s| s.speaker_id == Some(merged.id))
             .count(),
-        3
+        2
     );
-    assert_eq!(speaker::list_for_interview(&conn, i.id).unwrap().len(), 1);
+    assert_eq!(
+        listed
+            .iter()
+            .filter(|s| s.speaker_id == Some(c.id))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn speaker_merge_can_reuse_selected_speaker_name() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let main = speaker::create_or_get(&conn, i.id, "Main guy", Some("Main guy")).unwrap();
+    let other = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[
+            segment::NewSegment {
+                speaker_id: Some(main.id),
+                start_sec: 0.0,
+                end_sec: 5.0,
+                text: "first".into(),
+            },
+            segment::NewSegment {
+                speaker_id: Some(other.id),
+                start_sec: 5.0,
+                end_sec: 10.0,
+                text: "second".into(),
+            },
+        ],
+    )
+    .unwrap();
+
+    let merged =
+        speaker::merge_many_into_new(&mut conn, i.id, &[main.id, other.id], "Main guy").unwrap();
+
+    assert_eq!(merged.id, main.id);
+    assert_eq!(merged.label_raw, "Main guy");
+    assert_eq!(merged.display_name.as_deref(), Some("Main guy"));
+    assert!(speaker::get(&conn, other.id).is_err());
+    let listed = segment::list_for_interview(&conn, i.id).unwrap();
+    assert!(listed.iter().all(|s| s.speaker_id == Some(main.id)));
 }
 
 #[test]
@@ -162,7 +209,7 @@ fn speaker_merge_rejects_cross_interview_merge() {
     let a = speaker::create_or_get(&conn, i1.id, "A", None).unwrap();
     let b = speaker::create_or_get(&conn, i2.id, "B", None).unwrap();
 
-    let err = speaker::merge_into(&mut conn, a.id, b.id).unwrap_err();
+    let err = speaker::merge_many_into_new(&mut conn, i1.id, &[a.id, b.id], "Merged").unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
 }
 

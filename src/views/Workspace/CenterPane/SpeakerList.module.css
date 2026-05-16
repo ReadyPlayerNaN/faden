@@ -115,6 +115,29 @@
   gap: 0.35rem;
 }
 
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-muted);
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkboxMeta {
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
 .help {
   margin: 0;
   opacity: 0.8;

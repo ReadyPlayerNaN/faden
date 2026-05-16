@@ -102,7 +102,12 @@
     "displayNamePlaceholder": "Optional",
     "source": "Source speaker",
     "target": "Target speaker",
-    "mergeHelp": "All segments from the source speaker will be reassigned to the target speaker.",
+    "mergeHelp": "Select multiple speakers to merge, then give the merged speaker a new name.",
+    "mergeName": "Merged speaker name",
+    "mergeNamePlaceholder": "Enter merged speaker name",
+    "mergeSelection": "Speakers to merge",
+    "mergeSelectAtLeastTwo": "Select at least two speakers to merge.",
+    "mergeNameRequired": "Enter a name for the merged speaker.",
     "removeHelp": "Removing a speaker keeps the transcript segments, but clears that speaker assignment."
   },
   "import": {

@@ -102,7 +102,12 @@
     "displayNamePlaceholder": "Volitelné",
     "source": "Zdrojový mluvčí",
     "target": "Cílový mluvčí",
-    "mergeHelp": "Všechny segmenty zdrojového mluvčího budou přiřazeny cílovému mluvčímu.",
+    "mergeHelp": "Vyberte více mluvčích ke sloučení a potom zadejte nové jméno sloučeného mluvčího.",
+    "mergeName": "Jméno sloučeného mluvčího",
+    "mergeNamePlaceholder": "Zadejte jméno sloučeného mluvčího",
+    "mergeSelection": "Mluvčí ke sloučení",
+    "mergeSelectAtLeastTwo": "Vyberte alespoň dva mluvčí ke sloučení.",
+    "mergeNameRequired": "Zadejte jméno sloučeného mluvčího.",
     "removeHelp": "Odebrání mluvčího zachová segmenty přepisu, ale zruší přiřazení tohoto mluvčího."
   },
   "import": {
