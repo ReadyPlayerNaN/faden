@@ -8,6 +8,7 @@ import {
 } from "../../../state/audio";
 import { selectedSpanAtom } from "../../../state/tagging";
 import { interviewAudioStreamUrl } from "../../../ipc/interview";
+import { Button } from "../../../components/Button/Button";
 import { AiMenu } from "./AiMenu";
 import styles from "./AudioPlayer.module.css";
 
@@ -46,10 +47,12 @@ export const AudioPlayer = () => {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState<number>(1.0);
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   const [loopSpan, setLoopSpan] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const segmentPlaybackStateRef = useRef(segmentPlaybackState);
+  const speedMenuRef = useRef<HTMLDivElement | null>(null);
 
   const resolveStreamUrl = useCallback(
     async ({ preserveTime = false, autoplay = false } = {}): Promise<string | null> => {
@@ -255,6 +258,25 @@ export const AudioPlayer = () => {
     };
   }, [togglePlay]);
 
+  useEffect(() => {
+    if (!speedMenuOpen) return;
+    const onMouseDown = (event: MouseEvent) => {
+      if (!speedMenuRef.current) return;
+      if (!speedMenuRef.current.contains(event.target as Node)) {
+        setSpeedMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSpeedMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [speedMenuOpen]);
+
   if (!interview?.audioPath) {
     return (
       <div className={styles.bar}>
@@ -287,17 +309,36 @@ export const AudioPlayer = () => {
         onChange={(e) => seekTo(Number(e.target.value))}
       />
       <span className={styles.time}>{formatTime(duration)}</span>
-      <select
-        className={styles.speed}
-        value={speed}
-        onChange={(e) => setSpeed(Number(e.target.value))}
-      >
-        {SPEEDS.map((s) => (
-          <option key={s} value={s}>
-            {s.toFixed(2)}×
-          </option>
-        ))}
-      </select>
+      <div className={styles.menuRoot} ref={speedMenuRef}>
+        <Button
+          type="button"
+          className={styles.menuTrigger}
+          onClick={() => setSpeedMenuOpen((open) => !open)}
+          aria-haspopup="menu"
+          aria-expanded={speedMenuOpen}
+        >
+          {speed.toFixed(2)}× ▾
+        </Button>
+        {speedMenuOpen && (
+          <div className={styles.menu} role="menu">
+            {SPEEDS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="menuitemradio"
+                aria-checked={speed === option}
+                className={styles.menuItem}
+                onClick={() => {
+                  setSpeed(option);
+                  setSpeedMenuOpen(false);
+                }}
+              >
+                {option.toFixed(2)}×
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <label className={styles.loop}>
         <input
           type="checkbox"
