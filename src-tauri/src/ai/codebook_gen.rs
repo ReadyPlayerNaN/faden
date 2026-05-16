@@ -55,9 +55,17 @@ pub fn prepare(
     prompt_override: Option<&str>,
 ) -> AppResult<(i64, String, serde_json::Value)> {
     let prompt = build_prompt(conn, input, prompt_override)?;
-    let run_id = ai_run::start(conn, AiRunKind::CodebookGen, None, model, &prompt)?;
     let url = client.text_generate_url(model);
     let body = build_request_body(&prompt);
+    let input_json = serde_json::to_string(&body)?;
+    let run_id = ai_run::start(
+        conn,
+        AiRunKind::CodebookGen,
+        None,
+        model,
+        &prompt,
+        Some(&input_json),
+    )?;
     Ok((run_id, url, body))
 }
 

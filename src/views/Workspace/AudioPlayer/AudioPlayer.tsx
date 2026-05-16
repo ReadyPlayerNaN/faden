@@ -27,6 +27,9 @@ const isAbortError = (error: unknown): boolean =>
     : String((error as { name?: string; message?: string })?.name ?? error).includes("AbortError") ||
       String((error as { message?: string })?.message ?? error).includes("aborted");
 
+const isAbortedMediaError = (error: MediaError | null | undefined): boolean =>
+  error?.code === 1;
+
 export const AudioPlayer = () => {
   const { t } = useTranslation();
   const interview = useAtomValue(selectedInterviewAtom);
@@ -258,7 +261,20 @@ export const AudioPlayer = () => {
 
   const seekTo = (target: number) => {
     if (!audioEl) return;
+    pendingAutoplayRef.current = false;
+    pendingSeekRef.current = null;
+    setSegmentPlaybackRequest(null);
+    setSegmentPlaybackState((prev) => ({
+      ...prev,
+      activeSegmentId: null,
+      startSec: null,
+      endSec: null,
+      loop: false,
+      currentTime: Math.max(0, Math.min(target, audioEl.duration || 0)),
+      playing: false,
+    }));
     audioEl.currentTime = Math.max(0, Math.min(target, audioEl.duration || 0));
+    setPlaybackError(null);
   };
 
   const onTimeUpdate = () => {
@@ -456,6 +472,10 @@ export const AudioPlayer = () => {
         }}
         onError={() => {
           const mediaError = audioEl?.error;
+          if (isAbortedMediaError(mediaError)) {
+            setPlaybackError(null);
+            return;
+          }
           const message = mediaError
             ? `media error ${mediaError.code}`
             : "unknown media error";

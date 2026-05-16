@@ -21,6 +21,7 @@ export type AiRunStatus = "running" | "complete" | "failed" | "cancelled";
 
 export type ProposalDTO = {
   id: number;
+  aiRunId: number;
   kind: ProposalKind;
   payload: unknown;
   status: ProposalStatus;
@@ -34,12 +35,14 @@ export type AiRunDTO = {
   interviewId: number | null;
   model: string;
   prompt: string;
+  inputJson: string | null;
   startedAt: string;
   completedAt: string | null;
   status: AiRunStatus;
   error: string | null;
   tokenUsageJson: string | null;
   resultSummary: string | null;
+  rawOutput: string | null;
 };
 
 const costFromRaw = (r: RawCostEstimate): CostEstimate => ({
@@ -69,8 +72,9 @@ export const aiFindMoreStart = (
 
 export const aiProposalList = (
   statuses?: ProposalStatus[],
+  aiRunId?: number,
 ): Promise<ProposalDTO[]> =>
-  invoke<ProposalDTO[]>("ai_proposal_list", { statuses });
+  invoke<ProposalDTO[]>("ai_proposal_list", { statuses, aiRunId });
 
 export const aiProposalGet = (proposalId: number): Promise<ProposalDTO> =>
   invoke<ProposalDTO>("ai_proposal_get", { proposalId });
@@ -86,6 +90,9 @@ export const aiProposalReject = (proposalId: number): Promise<void> =>
 
 export const aiRunList = (): Promise<AiRunDTO[]> =>
   invoke<AiRunDTO[]>("ai_run_list");
+
+export const aiRunGet = (runId: number): Promise<AiRunDTO> =>
+  invoke<AiRunDTO>("ai_run_get", { runId });
 
 export const aiCostEstimate = async (
   kind: ProposalKind,

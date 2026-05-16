@@ -89,12 +89,27 @@ pub async fn run_pipeline(
     let cache = ChunkCache::new(chunk_results_dir.clone());
 
     // Step 2: ai_run + status
+    let transcription_input_json = serde_json::json!({
+        "provider": "gemini",
+        "mode": "chunked_audio_transcription",
+        "systemInstruction": {
+            "role": "system",
+            "parts": [{ "text": config.system_instruction }]
+        },
+        "userPromptTemplate": config.user_prompt,
+        "responseSchema": config.response_schema,
+        "chunkSeconds": config.chunk_seconds,
+        "maxOutputTokens": config.max_output_tokens,
+        "note": "Actual per-chunk user prompts are derived from this template and may include speaker-consistency context from earlier chunks."
+    })
+    .to_string();
     let run_id = ai_run::start(
         &conn,
         AiRunKind::Transcribe,
         Some(interview_id),
         &config.model,
         &config.user_prompt,
+        Some(&transcription_input_json),
     )?;
     interview::set_status(&conn, interview_id, TranscriptStatus::InProgress)?;
     emit(
@@ -107,7 +122,7 @@ pub async fn run_pipeline(
 
     // Helper to fail and return early
     let fail = |conn: &rusqlite::Connection, app: &tauri::AppHandle, msg: String| {
-        let _ = ai_run::fail(conn, run_id, &msg);
+        let _ = ai_run::fail(conn, run_id, &msg, None);
         let _ = interview::set_status(conn, interview_id, TranscriptStatus::Failed);
         emit(
             app,
@@ -327,6 +342,7 @@ pub async fn run_pipeline(
         run_id,
         None,
         Some(&format!("{total_segments} segments")),
+        None,
     )?;
     emit(
         &app,

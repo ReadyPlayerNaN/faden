@@ -8,6 +8,8 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (4, include_str!("m004_tag_optional_parent.sql")),
     (5, include_str!("m005_category_optional_cluster.sql")),
     (6, include_str!("m006_segment_speaker_nullable.sql")),
+    (7, include_str!("m007_ai_run_raw_output.sql")),
+    (8, include_str!("m008_ai_run_input_json.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {
