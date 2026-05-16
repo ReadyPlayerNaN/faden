@@ -1,0 +1,204 @@
+.wrap {
+  max-width: 1100px;
+  margin: 2rem auto 3rem;
+  padding: 0 1.5rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: color-mix(in srgb, var(--fg) 72%, transparent);
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  padding: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.subsection {
+  margin-top: 1rem;
+}
+
+.subsectionTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.metaLabel {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statusBadge,
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.countBadge {
+  background: var(--bg-muted);
+}
+
+.status_running {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.status_complete,
+.status_accepted {
+  background: rgba(46, 160, 67, 0.14);
+  color: #67d38a;
+}
+
+.status_failed,
+.status_rejected {
+  background: rgba(255, 99, 71, 0.14);
+  color: #ff8a76;
+}
+
+.status_cancelled,
+.status_pending {
+  background: rgba(255, 255, 255, 0.08);
+  color: color-mix(in srgb, var(--fg) 75%, transparent);
+}
+
+.pre {
+  margin: 0;
+  padding: 0.8rem;
+  border-radius: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: color-mix(in srgb, var(--bg) 88%, black);
+  border: 1px solid var(--border);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.errorPre {
+  color: #ff8a76;
+}
+
+.textBlock {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.proposalStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.suggestionList,
+.quoteList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.suggestionItem {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem;
+  background: color-mix(in srgb, var(--bg-muted) 30%, transparent);
+}
+
+.suggestionTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.suggestionMeta {
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  opacity: 0.72;
+}
+
+.rationale,
+.quoteItem {
+  margin: 0.5rem 0 0;
+  line-height: 1.45;
+}
+
+.empty,
+.emptyInline {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  opacity: 0.8;
+}
+
+.emptyInline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
