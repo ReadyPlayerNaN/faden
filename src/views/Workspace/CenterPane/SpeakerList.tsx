@@ -210,7 +210,6 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
         </div>
         {speakers.map((speaker) => (
           <span key={speaker.id} className={styles.item}>
-            <span className={styles.raw}>{speaker.labelRaw}</span>
             {editingId === speaker.id ? (
               <input
                 className={styles.input}
@@ -225,7 +224,7 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
               />
             ) : (
               <button className={styles.name} onClick={() => startEdit(speaker)}>
-                {speaker.displayName ?? "—"}
+                {speaker.displayName ?? speaker.labelRaw}
               </button>
             )}
           </span>
