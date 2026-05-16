@@ -11,6 +11,7 @@ import { TagsView } from "./views/Tags/TagsView";
 import { PeopleView } from "./views/People/PeopleView";
 import { AiOpsView } from "./views/AI/AiOpsView";
 import { AiOpDetailView } from "./views/AI/AiOpDetailView";
+import { SuggestionsView } from "./views/AI/SuggestionsView";
 
 const rootRoute = createRootRoute({
 	component: () => <Outlet />,
@@ -52,6 +53,12 @@ const aiOpDetailRoute = createRoute({
 	component: AiOpDetailView,
 });
 
+const suggestionsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/suggestions",
+	component: SuggestionsView,
+});
+
 const tagsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/tags",
@@ -77,6 +84,7 @@ const routeTree = rootRoute.addChildren([
 	settingsProjectRoute,
 	aiOpsRoute,
 	aiOpDetailRoute,
+	suggestionsRoute,
 	tagsRoute,
 	peopleRoute,
 	peopleProjectRoute,

@@ -24,9 +24,13 @@ import styles from "./StagingPanel.module.css";
 
 type StagingPanelProps = {
 	fullHeight?: boolean;
+	initialSelectedStatuses?: ProposalStatus[];
 };
 
-export const StagingPanel = ({ fullHeight = false }: StagingPanelProps) => {
+export const StagingPanel = ({
+	fullHeight = false,
+	initialSelectedStatuses = ["pending"],
+}: StagingPanelProps) => {
 	const { t } = useTranslation();
 	const [proposals, setProposals] = useAtom(pendingProposalsAtom);
 	const [activeId, setActiveId] = useAtom(activeProposalIdAtom);
@@ -34,9 +38,9 @@ export const StagingPanel = ({ fullHeight = false }: StagingPanelProps) => {
 	const setInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
 	const setCodebookTree = useSetAtom(codebookTreeAtom);
 	const [active, setActive] = useState<ProposalDTO | null>(null);
-	const [selectedStatuses, setSelectedStatuses] = useState<ProposalStatus[]>([
-		"pending",
-	]);
+	const [selectedStatuses, setSelectedStatuses] = useState<ProposalStatus[]>(
+		initialSelectedStatuses,
+	);
 	const [filterOpen, setFilterOpen] = useState(false);
 	const filterRef = useRef<HTMLDivElement | null>(null);
 	const prevHasOngoingRef = useRef(false);

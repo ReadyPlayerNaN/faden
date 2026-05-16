@@ -40,7 +40,7 @@ export const Workspace = () => {
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [exportOpen, setExportOpen] = useState(false);
-  const [mobilePane, setMobilePane] = useState<"left" | "edits" | "right" | "suggestions">("edits");
+  const [mobilePane, setMobilePane] = useState<"left" | "edits" | "right">("edits");
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -212,17 +212,11 @@ export const Workspace = () => {
           >
             {t("workspace.edits", { defaultValue: "Edits" })}
           </Button>
-          <Button
-            onClick={() => setMobilePane("suggestions")}
-            className={`${styles.paneSwitchButton} ${mobilePane === "suggestions" ? styles.paneSwitchButtonActive : ""}`.trim()}
-          >
-            {t("workspace.suggestions", { defaultValue: "Suggestions" })}
-          </Button>
         </div>
         <div className={styles.panes}>
           <LeftPane />
           <CenterPane />
-          <RightPane suggestionsOnly={mobilePane === "suggestions"} />
+          <RightPane />
         </div>
       </div>
       <AudioPlayer />

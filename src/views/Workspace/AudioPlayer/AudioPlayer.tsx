@@ -9,6 +9,7 @@ import {
 import { interviewAudioStreamUrl } from "../../../ipc/interview";
 import { Button } from "../../../components/Button/Button";
 import { AiMenu } from "./AiMenu";
+import { SuggestionMenu } from "./SuggestionMenu";
 import styles from "./AudioPlayer.module.css";
 
 const SPEEDS = [0.75, 1.0, 1.25, 1.5, 2.0] as const;
@@ -344,6 +345,7 @@ export const AudioPlayer = () => {
           <span className={styles.empty}>{t("workspace.audioFilter")}</span>
         </div>
         <div className={styles.statusArea}>
+          <SuggestionMenu />
           <AiMenu />
         </div>
       </div>
@@ -410,6 +412,7 @@ export const AudioPlayer = () => {
             Audio failed: {playbackError}
           </span>
         )}
+        <SuggestionMenu />
         <AiMenu />
       </div>
       <audio

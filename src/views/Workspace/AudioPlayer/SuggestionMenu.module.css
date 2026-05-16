@@ -1,0 +1,134 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.triggerContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.triggerIcon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.triggerCount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  width: min(22rem, calc(100vw - 1rem));
+  max-height: min(65vh, 24rem);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.headerRow,
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.85rem;
+}
+
+.footer {
+  padding-top: 0.35rem;
+}
+
+.header {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.linkBtn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.linkBtn:hover:not(:disabled),
+.item:hover {
+  background: var(--bg-muted);
+}
+
+.linkBtn:active:not(:disabled),
+.item:active {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
+}
+
+.linkBtn:disabled {
+  opacity: 0.5;
+}
+
+.empty {
+  margin: 0;
+  padding: 0.75rem 0.85rem 0.35rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.list {
+  list-style: none;
+  padding: 0.5rem 0.85rem 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+
+.kind {
+  flex: 1;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #4f46e5) 12%, transparent);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
