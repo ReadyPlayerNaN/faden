@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aur-release:
+    name: Publish Arch release metadata
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Generate faden PKGBUILD
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          PACKAGE_NAME: faden
+          BASE_NAME: faden
+          DISPLAY_NAME: Faden
+        run: ./scripts/generate-aur-package.sh
+
+      - name: Bundle AUR metadata
+        shell: bash
+        run: |
+          tar -C dist/aur -czf dist/aur/faden-${GITHUB_REF_NAME#v}-aur.tar.gz faden
+
+      - name: Create or update GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" \
+              dist/aur/faden/PKGBUILD \
+              dist/aur/faden/.SRCINFO \
+              dist/aur/faden-${GITHUB_REF_NAME#v}-aur.tar.gz \
+              --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              dist/aur/faden/PKGBUILD \
+              dist/aur/faden/.SRCINFO \
+              dist/aur/faden-${GITHUB_REF_NAME#v}-aur.tar.gz \
+              --title "${GITHUB_REF_NAME}" \
+              --notes "Automated Arch Linux release metadata for ${GITHUB_REF_NAME}."
+          fi
+
+      - name: Configure SSH for AUR
+        shell: bash
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+
+      - name: Commit and push AUR package files
+        shell: bash
+        env:
+          AUR_REPO: aur@aur.archlinux.org:faden.git
+        run: |
+          set -euo pipefail
+          git clone "$AUR_REPO" aur-faden
+          cp dist/aur/faden/PKGBUILD aur-faden/PKGBUILD
+          cp dist/aur/faden/.SRCINFO aur-faden/.SRCINFO
+
+          cd aur-faden
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+          if git diff --quiet -- PKGBUILD .SRCINFO; then
+            echo "No AUR changes to push"
+            exit 0
+          fi
+
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update faden to ${GITHUB_REF_NAME}"
+          git push origin HEAD

@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
-use tauri_plugin_shell::ShellExt;
+use tokio::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct NormalizeParams {
@@ -19,12 +19,18 @@ impl Default for NormalizeParams {
     }
 }
 
-pub async fn probe_duration(app: &tauri::AppHandle, path: &Path) -> AppResult<f64> {
-    let output = app
-        .shell()
-        .sidecar("ffprobe")
-        .map_err(|e| AppError::Invalid(format!("ffprobe sidecar: {e}")))?
-        .args([
+async fn run_command(binary: &str, args: &[&str]) -> AppResult<std::process::Output> {
+    Command::new(binary)
+        .args(args)
+        .output()
+        .await
+        .map_err(|e| AppError::Invalid(format!("{binary} exec: {e}")))
+}
+
+pub async fn probe_duration(_app: &tauri::AppHandle, path: &Path) -> AppResult<f64> {
+    let output = run_command(
+        "ffprobe",
+        &[
             "-v",
             "error",
             "-show_entries",
@@ -33,10 +39,9 @@ pub async fn probe_duration(app: &tauri::AppHandle, path: &Path) -> AppResult<f6
             "default=noprint_wrappers=1:nokey=1",
             path.to_str()
                 .ok_or_else(|| AppError::Invalid("non-utf8 path".into()))?,
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::Invalid(format!("ffprobe exec: {e}")))?;
+        ],
+    )
+    .await?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         return Err(AppError::Invalid(format!("ffprobe failed: {stderr}")));
@@ -48,16 +53,14 @@ pub async fn probe_duration(app: &tauri::AppHandle, path: &Path) -> AppResult<f6
 }
 
 pub async fn normalize(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     input: &Path,
     output: &Path,
     params: &NormalizeParams,
 ) -> AppResult<()> {
-    let out = app
-        .shell()
-        .sidecar("ffmpeg")
-        .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
-        .args([
+    let out = run_command(
+        "ffmpeg",
+        &[
             "-y",
             "-i",
             input
@@ -72,10 +75,9 @@ pub async fn normalize(
             output
                 .to_str()
                 .ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::Invalid(format!("ffmpeg exec: {e}")))?;
+        ],
+    )
+    .await?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
         return Err(AppError::Invalid(format!(
@@ -86,18 +88,16 @@ pub async fn normalize(
 }
 
 pub async fn extract_subchunk(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     input: &Path,
     output: &Path,
     start_seconds: f64,
     duration_seconds: f64,
     params: &NormalizeParams,
 ) -> AppResult<()> {
-    let out = app
-        .shell()
-        .sidecar("ffmpeg")
-        .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
-        .args([
+    let out = run_command(
+        "ffmpeg",
+        &[
             "-y",
             "-ss",
             &format!("{start_seconds:.3}"),
@@ -116,10 +116,9 @@ pub async fn extract_subchunk(
             output
                 .to_str()
                 .ok_or_else(|| AppError::Invalid("non-utf8 output".into()))?,
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::Invalid(format!("ffmpeg exec: {e}")))?;
+        ],
+    )
+    .await?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
         return Err(AppError::Invalid(format!(
@@ -130,17 +129,15 @@ pub async fn extract_subchunk(
 }
 
 pub async fn split_into_chunks(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     input: &Path,
     chunk_dir: &Path,
     chunk_seconds: u32,
 ) -> AppResult<Vec<PathBuf>> {
     let pattern = chunk_dir.join("chunk_%03d.mp3");
-    let out = app
-        .shell()
-        .sidecar("ffmpeg")
-        .map_err(|e| AppError::Invalid(format!("ffmpeg sidecar: {e}")))?
-        .args([
+    let out = run_command(
+        "ffmpeg",
+        &[
             "-y",
             "-i",
             input
@@ -155,10 +152,9 @@ pub async fn split_into_chunks(
             pattern
                 .to_str()
                 .ok_or_else(|| AppError::Invalid("non-utf8 pattern".into()))?,
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::Invalid(format!("ffmpeg exec: {e}")))?;
+        ],
+    )
+    .await?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
         return Err(AppError::Invalid(format!("ffmpeg split failed: {stderr}")));

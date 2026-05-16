@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+      - feat/**
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ffmpeg \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            patchelf
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Validate AUR packaging generators
+        shell: bash
+        run: |
+          TAG=v0.1.0 \
+          REPOSITORY=${{ github.repository }} \
+          PACKAGE_NAME=faden \
+          BASE_NAME=faden \
+          ./scripts/generate-aur-package.sh
+          REPOSITORY=${{ github.repository }} \
+          PACKAGE_NAME=faden-git \
+          BASE_NAME=faden \
+          ./scripts/generate-aur-git-package.sh
+
+  aur-git:
+    name: Push faden-git to AUR
+    runs-on: ubuntu-22.04
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Generate faden-git PKGBUILD
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PACKAGE_NAME: faden-git
+          BASE_NAME: faden
+          DISPLAY_NAME: Faden
+        run: ./scripts/generate-aur-git-package.sh
+
+      - name: Configure SSH for AUR
+        shell: bash
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+
+      - name: Commit and push AUR package files
+        shell: bash
+        env:
+          AUR_REPO: aur@aur.archlinux.org:faden-git.git
+        run: |
+          set -euo pipefail
+          git clone "$AUR_REPO" aur-faden-git
+          cp dist/aur/faden-git/PKGBUILD aur-faden-git/PKGBUILD
+          cp dist/aur/faden-git/.SRCINFO aur-faden-git/.SRCINFO
+
+          cd aur-faden-git
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+          if git diff --quiet -- PKGBUILD .SRCINFO; then
+            echo "No AUR changes to push"
+            exit 0
+          fi
+
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update faden-git to ${GITHUB_SHA}"
+          git push origin HEAD

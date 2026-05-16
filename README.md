@@ -35,6 +35,7 @@ it stabilises.
 
 - Rust toolchain (`rustup`)
 - Node.js 18+
+- `ffmpeg` and `ffprobe` installed on the system
 - A Gemini API key (https://aistudio.google.com/apikey)
 - System WebKitGTK on Linux (Tauri runtime)
 
@@ -44,7 +45,6 @@ it stabilises.
 git clone <repo-url> faden
 cd faden
 npm install
-scripts/fetch-binaries.sh   # downloads ffmpeg/ffprobe for your host triple
 npm run tauri dev           # development build with hot reload
 ```
 
@@ -66,7 +66,7 @@ or platform-specific installers).
    your Gemini key. Optionally set the default transcription / AI model
    and UI language.
 3. **Import an interview**. In the left pane click **+ From audio**, pick
-   an audio file. The app transcodes a working copy via the bundled
+   an audio file. The app transcodes a working copy via the system
    `ffmpeg` and creates a new interview row.
 4. **Transcribe**. Click **Transcribe** next to the interview. Long files
    are chunked; progress is shown per chunk. Failed chunks can be retried.
@@ -111,14 +111,13 @@ the same app installed, and reopen via **Open folder...**.
 
 - Rust toolchain (`rustup`)
 - Node.js 18+
-- `bash`, `curl`, `unzip` for the binary fetch script
+- `ffmpeg` + `ffprobe`
 - WebKitGTK + libsoup3 (Linux desktops)
 
 ### Common commands
 
 ```sh
 npm install                     # install JS deps
-scripts/fetch-binaries.sh       # fetch ffmpeg/ffprobe sidecars (host only)
 npm run dev                     # vite-only dev server
 npm run tauri dev               # full Tauri dev shell
 npm run build                   # tsc + vite production frontend build
@@ -126,14 +125,11 @@ npm run tauri build             # signed/unsigned platform installer
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-### Cross-platform sidecars
+### Linux packaging
 
-The fetch script accepts a `TARGETS` env var for release builds:
-
-```sh
-TARGETS="x86_64-unknown-linux-gnu aarch64-apple-darwin x86_64-pc-windows-msvc" \
-  scripts/fetch-binaries.sh
-```
+Linux builds use the system `ffmpeg` / `ffprobe` and Arch packaging is
+handled via the AUR metadata generated in `scripts/generate-aur-package.sh`
+and `scripts/generate-aur-git-package.sh`.
 
 ### Testing
 
