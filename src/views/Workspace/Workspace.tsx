@@ -88,18 +88,6 @@ export const Workspace = () => {
           <Button onClick={() => setExportOpen(true)}>
             {t("export.title")}
           </Button>
-          <Button
-            onClick={() =>
-              project &&
-              void navigate({
-                to: "/workspace/$projectPath/ai-ops",
-                params: { projectPath: encodeURIComponent(project.path) },
-              })
-            }
-            disabled={!project}
-          >
-            {t("ai.opsTitle")}
-          </Button>
           <Button onClick={() => void navigate({ to: "/tags" })}>
             {t("tags.title", { defaultValue: "Tags" })}
           </Button>
