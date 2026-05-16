@@ -8,7 +8,6 @@ import {
   settingsAddRecent,
   settingsGet,
   settingsRecentRemove,
-  settingsRecentRename,
 } from "../../ipc/settings";
 import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
@@ -67,13 +66,6 @@ export const ProjectPicker = () => {
     }
   };
 
-  const onRenameRecent = async (path: string, currentName: string) => {
-    const next = window.prompt(t("picker.renameRecent"), currentName);
-    if (!next || next === currentName) return;
-    const updated = await settingsRecentRename(path, next);
-    setSettings(updated);
-  };
-
   const onRemoveRecent = async (path: string) => {
     if (!window.confirm(t("picker.confirmRemove"))) return;
     const updated = await settingsRecentRemove(path);
@@ -110,12 +102,6 @@ export const ProjectPicker = () => {
                 <span className={styles.recentPath}>{p.path}</span>
               </button>
               <span className={styles.recentActions}>
-                <button
-                  className={styles.recentAction}
-                  onClick={() => void onRenameRecent(p.path, p.displayName)}
-                >
-                  {t("picker.rename")}
-                </button>
                 <button
                   className={styles.recentAction}
                   onClick={() => void onRemoveRecent(p.path)}

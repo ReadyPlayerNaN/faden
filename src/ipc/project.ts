@@ -10,3 +10,6 @@ export const projectCreate = (name: string): Promise<ProjectInfo> =>
 
 export const projectOpen = (path: string): Promise<ProjectInfo> =>
   invoke<ProjectInfo>("project_open", { path });
+
+export const projectRename = (name: string): Promise<void> =>
+  invoke("project_rename", { name });
