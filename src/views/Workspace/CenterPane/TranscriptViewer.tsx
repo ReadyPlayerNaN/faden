@@ -541,7 +541,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
 
   const requestSegmentPlayback = (
     segment: SegmentDTO,
-    { loop, autoplay }: { loop: boolean; autoplay: boolean },
+    { loop, action }: { loop: boolean; action: "play" | "pause" | "set-loop" },
   ) => {
     setSegmentPlaybackRequest({
       requestId: Date.now(),
@@ -550,7 +550,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       startSec: segment.startSec,
       endSec: segment.endSec,
       loop,
-      autoplay,
+      action,
     });
   };
 
@@ -611,6 +611,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
           const ranges = computeRangesForSegment(s.text, segSpans, selection);
           const isActiveSegment = segmentPlaybackState.activeSegmentId === s.id;
           const isPlayingSegment = isActiveSegment && segmentPlaybackState.playing;
+          const isLoopEnabled = Boolean(segmentPlaybackState.loopBySegmentId[s.id]);
           const segmentDuration = Math.max(0, s.endSec - s.startSec);
           const segmentProgress =
             isActiveSegment && segmentPlaybackState.currentTime >= s.startSec
@@ -723,23 +724,32 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                     <button
                       type="button"
                       className={styles.segmentPlayButton}
-                      onClick={() => requestSegmentPlayback(s, { loop: false, autoplay: true })}
+                      onClick={() =>
+                        requestSegmentPlayback(s, {
+                          loop: isLoopEnabled,
+                          action: isPlayingSegment ? "pause" : "play",
+                        })
+                      }
                       aria-label={
                         isPlayingSegment
                           ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
                           : t("transcript.playTurn", { defaultValue: "Play turn" })
                       }
-                      title={t("transcript.playTurn", { defaultValue: "Play turn" })}
+                      title={
+                        isPlayingSegment
+                          ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
+                          : t("transcript.playTurn", { defaultValue: "Play turn" })
+                      }
                     >
                       {isPlayingSegment ? "⏸" : "▶"}
                     </button>
                     <button
                       type="button"
-                      className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
+                      className={`${styles.segmentLoopButton} ${isLoopEnabled ? styles.segmentLoopButtonActive : ""}`}
                       onClick={() =>
                         requestSegmentPlayback(s, {
-                          loop: !(isActiveSegment && segmentPlaybackState.loop),
-                          autoplay: false,
+                          loop: !isLoopEnabled,
+                          action: "set-loop",
                         })
                       }
                       aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}

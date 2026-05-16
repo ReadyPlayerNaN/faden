@@ -104,6 +104,7 @@ export const AudioPlayer = () => {
       startSec: null,
       endSec: null,
       loop: false,
+      loopBySegmentId: {},
       playing: false,
       currentTime: 0,
       duration: 0,
@@ -153,30 +154,45 @@ export const AudioPlayer = () => {
     }
 
     const current = segmentPlaybackStateRef.current;
-    if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
-      if (segmentPlaybackRequest.autoplay) {
-        if (current.playing && current.loop === segmentPlaybackRequest.loop) {
-          audioEl.pause();
-          return;
-        }
 
-        const isWithinActiveSegment =
-          current.startSec !== null &&
-          current.endSec !== null &&
-          audioEl.currentTime >= current.startSec &&
-          audioEl.currentTime < current.endSec;
+    setSegmentPlaybackState((prev) => ({
+      ...prev,
+      loopBySegmentId: {
+        ...prev.loopBySegmentId,
+        [segmentPlaybackRequest.segmentId]: segmentPlaybackRequest.loop,
+      },
+    }));
 
-        if (!current.playing && current.loop === segmentPlaybackRequest.loop && isWithinActiveSegment) {
-          setPlaybackError(null);
-          void audioEl.play().catch((error) => {
-            if (isAbortError(error)) return;
-            const message = String((error as { message?: string })?.message ?? error);
-            setPlaybackError(message);
-          });
-          return;
-        }
-      } else {
+    if (segmentPlaybackRequest.action === "set-loop") {
+      if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
         setSegmentPlaybackState((prev) => ({ ...prev, loop: segmentPlaybackRequest.loop }));
+      }
+      return;
+    }
+
+    if (segmentPlaybackRequest.action === "pause") {
+      if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
+        audioEl.pause();
+      }
+      return;
+    }
+
+    if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
+      const isWithinActiveSegment =
+        current.startSec !== null &&
+        current.endSec !== null &&
+        audioEl.currentTime >= current.startSec &&
+        audioEl.currentTime < current.endSec;
+
+      setSegmentPlaybackState((prev) => ({ ...prev, loop: segmentPlaybackRequest.loop }));
+
+      if (!current.playing && isWithinActiveSegment) {
+        setPlaybackError(null);
+        void audioEl.play().catch((error) => {
+          if (isAbortError(error)) return;
+          const message = String((error as { message?: string })?.message ?? error);
+          setPlaybackError(message);
+        });
         return;
       }
     }
@@ -187,16 +203,9 @@ export const AudioPlayer = () => {
       startSec: segmentPlaybackRequest.startSec,
       endSec: segmentPlaybackRequest.endSec,
       loop: segmentPlaybackRequest.loop,
-      currentTime: segmentPlaybackRequest.autoplay ? prev.currentTime : segmentPlaybackRequest.startSec,
-      playing: segmentPlaybackRequest.autoplay ? prev.playing : false,
+      currentTime: segmentPlaybackRequest.startSec,
+      playing: false,
     }));
-
-    if (!segmentPlaybackRequest.autoplay) {
-      audioEl.pause();
-      audioEl.currentTime = segmentPlaybackRequest.startSec;
-      setTime(segmentPlaybackRequest.startSec);
-      return;
-    }
 
     pendingSeekRef.current = segmentPlaybackRequest.startSec;
     pendingAutoplayRef.current = true;

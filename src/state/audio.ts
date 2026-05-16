@@ -7,7 +7,7 @@ export type SegmentPlaybackRequest = {
   startSec: number;
   endSec: number;
   loop: boolean;
-  autoplay: boolean;
+  action: "play" | "pause" | "set-loop";
 };
 
 export type SegmentPlaybackState = {
@@ -15,6 +15,7 @@ export type SegmentPlaybackState = {
   startSec: number | null;
   endSec: number | null;
   loop: boolean;
+  loopBySegmentId: Record<number, boolean>;
   playing: boolean;
   currentTime: number;
   duration: number;
@@ -27,6 +28,7 @@ export const segmentPlaybackStateAtom = atom<SegmentPlaybackState>({
   startSec: null,
   endSec: null,
   loop: false,
+  loopBySegmentId: {},
   playing: false,
   currentTime: 0,
   duration: 0,
