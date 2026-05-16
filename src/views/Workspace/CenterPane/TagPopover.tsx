@@ -31,6 +31,10 @@ export const TagPopover = () => {
   const [newName, setNewName] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const standaloneLabel = t("tagging.standalone", {
+    defaultValue: "Standalone (no category)",
+  });
+  const noClusterLabel = t("tags.noCluster", { defaultValue: "No cluster" });
 
   useEffect(() => {
     setFilter("");
@@ -43,6 +47,29 @@ export const TagPopover = () => {
   const flatTags = useMemo<FlatTag[]>(() => {
     if (!tree) return [];
     const out: FlatTag[] = [];
+
+    tree.standaloneTags.forEach((tg) => {
+      out.push({
+        id: tg.id,
+        name: tg.name,
+        categoryName: standaloneLabel,
+        clusterName: standaloneLabel,
+        color: tg.color,
+      });
+    });
+
+    tree.standaloneCategories.forEach((cat) => {
+      cat.tags.forEach((tg) => {
+        out.push({
+          id: tg.id,
+          name: tg.name,
+          categoryName: cat.name,
+          clusterName: noClusterLabel,
+          color: tg.color,
+        });
+      });
+    });
+
     tree.clusters.forEach((cl) => {
       cl.categories.forEach((cat) => {
         cat.tags.forEach((tg) => {
@@ -57,7 +84,7 @@ export const TagPopover = () => {
       });
     });
     return out;
-  }, [tree]);
+  }, [noClusterLabel, standaloneLabel, tree]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -72,13 +99,18 @@ export const TagPopover = () => {
 
   const allCategories = useMemo(() => {
     const out: { id: number; name: string; clusterName: string }[] = [];
+
+    tree?.standaloneCategories.forEach((cat) => {
+      out.push({ id: cat.id, name: cat.name, clusterName: noClusterLabel });
+    });
+
     tree?.clusters.forEach((cl) => {
       cl.categories.forEach((cat) => {
         out.push({ id: cat.id, name: cat.name, clusterName: cl.name });
       });
     });
     return out;
-  }, [tree]);
+  }, [noClusterLabel, tree]);
 
   const close = () => setSelection(null);
 
@@ -101,12 +133,22 @@ export const TagPopover = () => {
   };
 
   const createAndApply = async () => {
-    if (!newName.trim()) {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
       setError(t("tagging.search") + "?");
       return;
     }
+
+    const existingTag = flatTags.find(
+      (tag) => tag.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (existingTag) {
+      await applyTag(existingTag.id);
+      return;
+    }
+
     try {
-      const tg = await tagCreate(newCategoryId, newName.trim());
+      const tg = await tagCreate(newCategoryId, trimmedName);
       setTree(await fetchTree());
       await applyTag(tg.id);
     } catch (e) {
@@ -185,6 +227,7 @@ export const TagPopover = () => {
             className={styles.newBtn}
             onClick={() => {
               setCreating(true);
+              setNewName(filter.trim());
               setError(null);
             }}
           >
