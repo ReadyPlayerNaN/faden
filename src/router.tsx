@@ -8,6 +8,7 @@ import { ProjectPicker } from "./views/ProjectPicker/ProjectPicker";
 import { Workspace } from "./views/Workspace/Workspace";
 import { Settings } from "./views/Settings/Settings";
 import { TagsView } from "./views/Tags/TagsView";
+import { AiOpsView } from "./views/AI/AiOpsView";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -37,6 +38,12 @@ const settingsProjectRoute = createRoute({
   component: Settings,
 });
 
+const aiOpsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workspace/$projectPath/ai-ops",
+  component: AiOpsView,
+});
+
 const tagsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tags",
@@ -48,6 +55,7 @@ const routeTree = rootRoute.addChildren([
   workspaceRoute,
   settingsRoute,
   settingsProjectRoute,
+  aiOpsRoute,
   tagsRoute,
 ]);
 

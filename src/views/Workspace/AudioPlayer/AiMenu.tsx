@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useNavigate } from "@tanstack/react-router";
 import {
   interviewListAtom,
   selectedInterviewIdAtom,
 } from "../../../state/interview";
+import { currentProjectAtom } from "../../../state/project";
 import { activeTagForFindMoreAtom } from "../../../state/tagging";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import {
@@ -20,12 +22,12 @@ import {
   aiCostEstimate,
   aiProposalList,
   aiRunList,
-  type AiRunDTO,
   type CostEstimate,
   type ProposalKind,
 } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
+import { buildDisplayOperations } from "../../AI/aiOperations";
 import styles from "./AiMenu.module.css";
 
 type PendingAction =
@@ -36,19 +38,6 @@ type PendingAction =
   | { kind: "pretag"; args: { interview_id: number } }
   | { kind: "find_more"; args: { tag_id: number; interview_id: number } };
 
-type DisplayOperation = {
-  id: string;
-  kind: ProposalKind | "transcribe";
-  status: "running" | "complete" | "failed" | "cancelled";
-  startedAt: string;
-  completedAt: string | null;
-  model: string | null;
-  summary: string | null;
-  error: string | null;
-  label?: string;
-  interviewId: number | null;
-};
-
 const errorMessage = (e: unknown): string => {
   if (e && typeof e === "object" && "message" in e) {
     const m = (e as { message?: unknown }).message;
@@ -57,25 +46,11 @@ const errorMessage = (e: unknown): string => {
   return String(e);
 };
 
-const isTranscriptionRunning = (
-  stage: import("../../../ipc/transcribe").TranscriptionProgress["stage"],
-) =>
-  stage === "starting" ||
-  stage === "normalizing" ||
-  stage === "chunking" ||
-  stage === "transcribing_chunk" ||
-  stage === "chunk_complete";
-
-const formatTimestamp = (value: string | null): string | null => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-};
-
 export const AiMenu = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const interviews = useAtomValue(interviewListAtom);
+  const project = useAtomValue(currentProjectAtom);
   const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
   const activeTagId = useAtomValue(activeTagForFindMoreAtom);
   const transcriptionRuns = useAtomValue(transcriptionRunsAtom);
@@ -269,74 +244,19 @@ export const AiMenu = () => {
     });
   };
 
-  const transcriptionOps = useMemo<DisplayOperation[]>(() => {
-    return Object.entries(transcriptionRuns)
-      .filter(([, run]) => isTranscriptionRunning(run.lastProgress.stage))
-      .map(([interviewId, run]) => {
-        let label = t("workspace.transcribing");
-        if (run.lastProgress.stage === "transcribing_chunk") {
-          label = t("workspace.transcribingChunk", {
-            index: run.lastProgress.index + 1,
-            total: run.lastProgress.total,
-          });
-        }
-        return {
-          id: `transcribe-live-${interviewId}`,
-          kind: "transcribe",
-          status: "running",
-          startedAt: new Date(run.updatedAt).toISOString(),
-          completedAt: null,
-          model: null,
-          summary: null,
-          error: null,
-          label,
-          interviewId: Number(interviewId),
-        };
-      });
-  }, [t, transcriptionRuns]);
+  const { ongoing } = useMemo(
+    () =>
+      buildDisplayOperations({
+        interviews,
+        transcriptionRuns,
+        activeOps,
+        aiRuns,
+        t,
+      }),
+    [activeOps, aiRuns, interviews, t, transcriptionRuns],
+  );
 
-  const displayedOps = useMemo<DisplayOperation[]>(() => {
-    const liveTranscribeIds = new Set(
-      transcriptionOps.map((op) => op.interviewId).filter((id) => id !== null),
-    );
-    const localOps = activeOps.map<DisplayOperation>((op) => ({
-      id: op.id,
-      kind: op.kind,
-      status: "running",
-      startedAt: op.startedAt,
-      completedAt: null,
-      model: null,
-      summary: null,
-      error: null,
-      label: op.label,
-      interviewId: op.interviewId,
-    }));
-    const persisted = aiRuns
-      .filter(
-        (run) =>
-          !(run.kind === "transcribe" &&
-            run.status === "running" &&
-            run.interviewId !== null &&
-            liveTranscribeIds.has(run.interviewId)),
-      )
-      .map((run: AiRunDTO): DisplayOperation => ({
-        id: `run-${run.id}`,
-        kind: run.kind,
-        status: run.status,
-        startedAt: run.startedAt,
-        completedAt: run.completedAt,
-        model: run.model,
-        summary: run.resultSummary,
-        error: run.error,
-        interviewId: run.interviewId,
-      }));
-    return [...localOps, ...transcriptionOps, ...persisted].slice(0, 12);
-  }, [activeOps, aiRuns, transcriptionOps]);
-
-  const hasOngoing =
-    activeOps.length > 0 ||
-    transcriptionOps.length > 0 ||
-    aiRuns.some((run) => run.status === "running");
+  const hasOngoing = ongoing.length > 0;
 
   return (
     <div className={styles.root} ref={containerRef}>
@@ -383,46 +303,33 @@ export const AiMenu = () => {
           </button>
           <div className={styles.separator} />
           <div className={styles.opsHeaderRow}>
-            <span className={styles.opsHeader}>{t("ai.opsTitle")}</span>
+            <span className={styles.opsHeader}>{t("ai.ongoingTitle", { defaultValue: "Ongoing" })}</span>
             <button
               type="button"
-              className={styles.refreshBtn}
-              onClick={() => void refreshRuns()}
+              className={styles.linkBtn}
+              onClick={() => {
+                setOpen(false);
+                if (!project) return;
+                void navigate({
+                  to: "/workspace/$projectPath/ai-ops",
+                  params: { projectPath: encodeURIComponent(project.path) },
+                });
+              }}
+              disabled={!project}
             >
-              {t("ai.refreshOps")}
+              {t("ai.viewAllOps", { defaultValue: "Open AI ops" })}
             </button>
           </div>
-          {displayedOps.length === 0 ? (
-            <p className={styles.emptyOps}>{t("ai.noOperations")}</p>
+          {ongoing.length === 0 ? (
+            <p className={styles.emptyOps}>
+              {t("ai.noOngoing", { defaultValue: "No ongoing operations" })}
+            </p>
           ) : (
-            <ul className={styles.opsList}>
-              {displayedOps.map((op) => (
-                <li key={op.id} className={styles.opsItem}>
-                  <div className={styles.opsTopRow}>
-                    <span className={styles.kind}>{t(`ai.kinds.${op.kind}`)}</span>
-                    <span
-                      className={`${styles.statusBadge} ${styles[`status_${op.status}`]}`}
-                    >
-                      {op.status === "running" && (
-                        <span className={styles.loaderInline} aria-hidden="true" />
-                      )}
-                      {t(`ai.status.${op.status}`)}
-                    </span>
-                  </div>
-                  {op.label && <div className={styles.summary}>{op.label}</div>}
-                  {op.summary && <div className={styles.summary}>{op.summary}</div>}
-                  {op.error && <div className={styles.error}>{op.error}</div>}
-                  <div className={styles.meta}>
-                    <span>
-                      {t("ai.startedAt")}: {formatTimestamp(op.startedAt)}
-                    </span>
-                    {op.completedAt && (
-                      <span>
-                        {t("ai.completedAt")}: {formatTimestamp(op.completedAt)}
-                      </span>
-                    )}
-                    {op.model && <span>{op.model}</span>}
-                  </div>
+            <ul className={styles.ongoingList}>
+              {ongoing.map((op) => (
+                <li key={op.id} className={styles.ongoingItem}>
+                  <span className={styles.loaderInline} aria-hidden="true" />
+                  <span className={styles.ongoingLabel}>{op.title}</span>
                 </li>
               ))}
             </ul>

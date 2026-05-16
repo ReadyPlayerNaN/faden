@@ -228,7 +228,12 @@
     "accepted": "Created {{created}} items ({{skipped}} skipped)",
     "rejected": "Rejected",
     "opsTitle": "AI ops",
+    "ongoingTitle": "Ongoing",
+    "historyTitle": "History",
+    "viewAllOps": "Open AI ops",
     "refreshOps": "Refresh",
+    "noOngoing": "No ongoing operations",
+    "noHistory": "No historical operations yet",
     "noOperations": "No AI operations yet",
     "startedAt": "Started",
     "completedAt": "Completed",
@@ -238,6 +243,7 @@
       "failed": "Failed",
       "cancelled": "Cancelled"
     },
+    "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {
       "transcribe": "Transcription",
       "codebook_gen": "Generate codebook",

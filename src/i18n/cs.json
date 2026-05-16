@@ -228,7 +228,12 @@
     "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
     "rejected": "Zamítnuto",
     "opsTitle": "AI operace",
+    "ongoingTitle": "Probíhající",
+    "historyTitle": "Historie",
+    "viewAllOps": "Otevřít AI operace",
     "refreshOps": "Obnovit",
+    "noOngoing": "Žádné probíhající operace",
+    "noHistory": "Zatím žádná historie operací",
     "noOperations": "Zatím žádné AI operace",
     "startedAt": "Spuštěno",
     "completedAt": "Dokončeno",
@@ -238,6 +243,7 @@
       "failed": "Selhalo",
       "cancelled": "Zrušeno"
     },
+    "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {
       "transcribe": "Přepis",
       "codebook_gen": "Vytvořit číselník",
