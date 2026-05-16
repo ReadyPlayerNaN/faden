@@ -14,7 +14,7 @@ import {
 } from "../../../ipc/tagging";
 import { buildTagMetaMap, listTagMeta } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
-import { selectedInterviewIdAtom } from "../../../state/interview";
+import { effectiveSelectedInterviewIdAtom } from "../../../state/interview";
 import { Button } from "../../../components/Button/Button";
 import styles from "./SpanDetail.module.css";
 
@@ -23,7 +23,7 @@ type Props = { span: SpanDTO };
 export const SpanDetail = ({ span }: Props) => {
   const { t } = useTranslation();
   const codebook = useAtomValue(codebookTreeAtom);
-  const interviewId = useAtomValue(selectedInterviewIdAtom);
+  const interviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [memo, setMemo] = useState(span.memo ?? "");

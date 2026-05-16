@@ -4,7 +4,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAtomValue } from "jotai";
 import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
-import { selectedInterviewIdAtom } from "../../../state/interview";
+import { effectiveSelectedInterviewIdAtom } from "../../../state/interview";
 import { codebookTreeAtom } from "../../../state/codebook";
 import {
   exportCsv,
@@ -25,7 +25,7 @@ type Props = {
 
 export const ExportMenu = ({ onClose, projectName }: Props) => {
   const { t } = useTranslation();
-  const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
+  const selectedInterviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const codebook = useAtomValue(codebookTreeAtom);
 
   const [scopeKind, setScopeKind] = useState<ScopeKind>(

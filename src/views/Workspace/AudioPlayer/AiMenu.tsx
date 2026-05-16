@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  effectiveSelectedInterviewIdAtom,
   interviewListAtom,
-  selectedInterviewIdAtom,
 } from "../../../state/interview";
 import { currentProjectAtom } from "../../../state/project";
 import { activeTagForFindMoreAtom } from "../../../state/tagging";
@@ -51,7 +51,7 @@ export const AiMenu = () => {
   const navigate = useNavigate();
   const interviews = useAtomValue(interviewListAtom);
   const project = useAtomValue(currentProjectAtom);
-  const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
+  const selectedInterviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const activeTagId = useAtomValue(activeTagForFindMoreAtom);
   const transcriptionRuns = useAtomValue(transcriptionRunsAtom);
   const setProposals = useSetAtom(pendingProposalsAtom);

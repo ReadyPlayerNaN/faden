@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
+  effectiveSelectedInterviewIdAtom,
   interviewContentVersionAtom,
-  selectedInterviewIdAtom,
 } from "../../../state/interview";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { spansForCurrentInterviewAtom } from "../../../state/tagging";
@@ -16,7 +16,7 @@ import styles from "./CenterPane.module.css";
 
 export const CenterPane = () => {
   const { t } = useTranslation();
-  const interviewId = useAtomValue(selectedInterviewIdAtom);
+  const interviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const interviewContentVersion = useAtomValue(interviewContentVersionAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
   const setCodebookTree = useSetAtom(codebookTreeAtom);

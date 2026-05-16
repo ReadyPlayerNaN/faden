@@ -8,7 +8,7 @@ import {
   selectedSpanIdAtom,
 } from "../../../state/tagging";
 import { codebookTreeAtom } from "../../../state/codebook";
-import { selectedInterviewIdAtom } from "../../../state/interview";
+import { effectiveSelectedInterviewIdAtom } from "../../../state/interview";
 import { spanCreate, spanListForInterview } from "../../../ipc/tagging";
 import { tagCreate, codebookTree as fetchTree } from "../../../ipc/codebook";
 import styles from "./TagPopover.module.css";
@@ -24,7 +24,7 @@ type FlatTag = {
 export const TagPopover = () => {
   const { t } = useTranslation();
   const [selection, setSelection] = useAtom(activeTextSelectionAtom);
-  const interviewId = useAtomValue(selectedInterviewIdAtom);
+  const interviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const [tree, setTree] = useAtom(codebookTreeAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
