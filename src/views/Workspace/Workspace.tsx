@@ -216,11 +216,23 @@ export const Workspace = () => {
           )}
         </div>
         <div className={styles.headerActions}>
-          <Button onClick={() => void onUndo()} disabled={!historyState.canUndo}>
-            {t("workspace.undo", { defaultValue: "Undo" })}
+          <Button
+            onClick={() => void onUndo()}
+            disabled={!historyState.canUndo}
+            className={styles.iconButton}
+            title={t("workspace.undo", { defaultValue: "Undo" })}
+            aria-label={t("workspace.undo", { defaultValue: "Undo" })}
+          >
+            <span aria-hidden="true">↶</span>
           </Button>
-          <Button onClick={() => void onRedo()} disabled={!historyState.canRedo}>
-            {t("workspace.redo", { defaultValue: "Redo" })}
+          <Button
+            onClick={() => void onRedo()}
+            disabled={!historyState.canRedo}
+            className={styles.iconButton}
+            title={t("workspace.redo", { defaultValue: "Redo" })}
+            aria-label={t("workspace.redo", { defaultValue: "Redo" })}
+          >
+            <span aria-hidden="true">↷</span>
           </Button>
           <Button onClick={() => setExportOpen(true)}>
             {t("export.title")}

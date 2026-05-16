@@ -7,6 +7,14 @@
 }
 .title { font-weight: 600; }
 .headerActions { display: flex; gap: 0.5rem; }
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding-inline: 0.6rem;
+  font-size: 1rem;
+}
 .projectMenuWrap {
   position: relative;
 }
