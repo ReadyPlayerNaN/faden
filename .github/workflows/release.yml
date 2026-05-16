@@ -84,7 +84,7 @@ jobs:
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
-          if git diff --quiet -- PKGBUILD .SRCINFO; then
+          if [ -z "$(git status --short -- PKGBUILD .SRCINFO)" ]; then
             echo "No AUR changes to push"
             exit 0
           fi
