@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   segmentListForInterview,
   segmentUpdateText,
@@ -16,6 +16,10 @@ import {
   type Speaker,
 } from "../../../ipc/speaker";
 import { transcriptionRunsAtom } from "../../../state/transcription";
+import {
+  segmentPlaybackRequestAtom,
+  segmentPlaybackStateAtom,
+} from "../../../state/audio";
 import {
   spansForCurrentInterviewAtom,
   selectedSpanIdAtom,
@@ -358,6 +362,8 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [segmentPlaybackState] = useAtom(segmentPlaybackStateAtom);
+  const setSegmentPlaybackRequest = useSetAtom(segmentPlaybackRequestAtom);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
   const activeSelection = useAtomValue(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
@@ -469,6 +475,16 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
     });
   };
 
+  const requestSegmentPlayback = (segment: SegmentDTO, loop: boolean) => {
+    setSegmentPlaybackRequest({
+      requestId: Date.now(),
+      segmentId: segment.id,
+      startSec: segment.startSec,
+      endSec: segment.endSec,
+      loop,
+    });
+  };
+
   const toolbar = (
     <div className={styles.toolbar}>
       <label className={styles.editToggle}>
@@ -524,19 +540,56 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                 }
               : null;
           const ranges = computeRangesForSegment(s.text, segSpans, selection);
+          const isActiveSegment = segmentPlaybackState.activeSegmentId === s.id;
+          const isPlayingSegment = isActiveSegment && segmentPlaybackState.playing;
+          const segmentDuration = Math.max(0, s.endSec - s.startSec);
+          const segmentProgress =
+            isActiveSegment && segmentPlaybackState.currentTime >= s.startSec
+              ? Math.max(
+                  0,
+                  Math.min(
+                    1,
+                    (segmentPlaybackState.currentTime - s.startSec) /
+                      (segmentDuration || 1),
+                  ),
+                )
+              : 0;
           return (
             <div
               key={s.id}
-              className={styles.segment}
+              className={`${styles.segment} ${isActiveSegment ? styles.segmentActive : ""}`}
               data-segment-id={s.id}
               data-text={s.text}
             >
+              <div className={styles.segmentControls}>
+                <button
+                  type="button"
+                  className={styles.segmentPlayButton}
+                  onClick={() => requestSegmentPlayback(s, false)}
+                  aria-label={
+                    isPlayingSegment
+                      ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
+                      : t("transcript.playTurn", { defaultValue: "Play turn" })
+                  }
+                  title={t("transcript.playTurn", { defaultValue: "Play turn" })}
+                >
+                  {isPlayingSegment ? "⏸" : "▶"}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
+                  onClick={() => requestSegmentPlayback(s, true)}
+                  aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                  title={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                >
+                  ↻
+                </button>
+              </div>
               <span className={styles.timestamp}>
                 [{formatTimestamp(s.startSec)}]
               </span>
               <span className={styles.speaker}>
-                {t("workspace.speaker")}{" "}
-                {s.speakerDisplayName ?? s.speakerLabelRaw}:
+                {t("workspace.speaker")} {s.speakerDisplayName ?? s.speakerLabelRaw}:
               </span>
               <span className={styles.text}>
                 {ranges.map((r, i) => {
@@ -587,6 +640,13 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                     </mark>
                   );
                 })}
+                {isActiveSegment && (
+                  <span
+                    className={styles.segmentProgress}
+                    aria-hidden="true"
+                    style={{ transform: `scaleX(${segmentProgress})` }}
+                  />
+                )}
               </span>
             </div>
           );

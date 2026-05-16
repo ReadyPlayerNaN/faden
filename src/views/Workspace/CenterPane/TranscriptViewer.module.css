@@ -2,15 +2,58 @@
 .empty { opacity: 0.6; font-style: italic; }
 .segment {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
   gap: 0.4rem;
-  padding: 0.25rem 0;
+  padding: 0.35rem 0.45rem;
   font-size: 0.95rem;
   line-height: 1.5;
+  border-radius: 6px;
+  align-items: start;
 }
-.timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
-.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; }
-.text { word-wrap: break-word; }
+.segmentActive {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.segmentControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.segmentPlayButton,
+.segmentLoopButton {
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--fg);
+  cursor: pointer;
+  border-radius: 999px;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.segmentPlayButton:hover,
+.segmentLoopButton:hover {
+  border-color: var(--accent);
+}
+.segmentLoopButtonActive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; padding-top: 0.2rem; }
+.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; padding-top: 0.15rem; }
+.text { word-wrap: break-word; position: relative; padding-bottom: 0.2rem; }
+.segmentProgress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  transform-origin: left center;
+  background: var(--accent);
+  border-radius: 999px;
+  pointer-events: none;
+}
 .mark {
   border-radius: 2px;
   padding: 0 1px;

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { selectedInterviewAtom } from "../../../state/interview";
+import {
+  segmentPlaybackRequestAtom,
+  segmentPlaybackStateAtom,
+} from "../../../state/audio";
 import { selectedSpanAtom } from "../../../state/tagging";
 import { interviewAudioStreamUrl } from "../../../ipc/interview";
 import { AiMenu } from "./AiMenu";
@@ -26,6 +30,10 @@ const isAbortError = (error: unknown): boolean =>
 export const AudioPlayer = () => {
   const { t } = useTranslation();
   const interview = useAtomValue(selectedInterviewAtom);
+  const segmentPlaybackRequest = useAtomValue(segmentPlaybackRequestAtom);
+  const [segmentPlaybackState, setSegmentPlaybackState] = useAtom(
+    segmentPlaybackStateAtom,
+  );
   const span = useAtomValue(selectedSpanAtom);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -41,6 +49,7 @@ export const AudioPlayer = () => {
   const [loopSpan, setLoopSpan] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const segmentPlaybackStateRef = useRef(segmentPlaybackState);
 
   const resolveStreamUrl = useCallback(
     async ({ preserveTime = false, autoplay = false } = {}): Promise<string | null> => {
@@ -55,6 +64,10 @@ export const AudioPlayer = () => {
           pendingAutoplayRef.current = autoplay;
           setSrc(nextUrl);
         } else if (autoplay && audioElRef.current?.paused === true) {
+          if (pendingSeekRef.current !== null) {
+            audioElRef.current.currentTime = pendingSeekRef.current;
+            pendingSeekRef.current = null;
+          }
           await audioElRef.current.play();
         }
         return nextUrl;
@@ -78,6 +91,15 @@ export const AudioPlayer = () => {
     setPlaying(false);
     setTime(0);
     setDuration(0);
+    setSegmentPlaybackState({
+      activeSegmentId: null,
+      startSec: null,
+      endSec: null,
+      loop: false,
+      playing: false,
+      currentTime: 0,
+      duration: 0,
+    });
     pendingSeekRef.current = null;
     pendingAutoplayRef.current = false;
     lastRetriedSrcRef.current = null;
@@ -92,7 +114,7 @@ export const AudioPlayer = () => {
     return () => {
       cancelled = true;
     };
-  }, [interview?.audioPath, interview?.id, resolveStreamUrl]);
+  }, [interview?.audioPath, interview?.id, resolveStreamUrl, setSegmentPlaybackState]);
 
   useEffect(() => {
     srcRef.current = src;
@@ -103,13 +125,58 @@ export const AudioPlayer = () => {
   }, [time]);
 
   useEffect(() => {
+    segmentPlaybackStateRef.current = segmentPlaybackState;
+  }, [segmentPlaybackState]);
+
+  useEffect(() => {
     audioElRef.current = audioEl;
     if (!audioEl) return;
     audioEl.playbackRate = speed;
   }, [audioEl, speed]);
 
+  useEffect(() => {
+    if (!segmentPlaybackRequest || !audioEl || !interview?.audioPath) return;
+
+    const current = segmentPlaybackStateRef.current;
+    if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
+      if (current.playing && current.loop === segmentPlaybackRequest.loop) {
+        audioEl.pause();
+        return;
+      }
+    }
+
+    pendingSeekRef.current = segmentPlaybackRequest.startSec;
+    pendingAutoplayRef.current = true;
+    setSegmentPlaybackState((prev) => ({
+      ...prev,
+      activeSegmentId: segmentPlaybackRequest.segmentId,
+      startSec: segmentPlaybackRequest.startSec,
+      endSec: segmentPlaybackRequest.endSec,
+      loop: segmentPlaybackRequest.loop,
+    }));
+
+    void resolveStreamUrl({ preserveTime: false, autoplay: true }).then((nextUrl) => {
+      if (!nextUrl) return;
+      if (nextUrl === srcRef.current) {
+        audioEl.currentTime = segmentPlaybackRequest.startSec;
+        void audioEl.play().catch((error) => {
+          if (isAbortError(error)) return;
+          const message = String((error as { message?: string })?.message ?? error);
+          setPlaybackError(message);
+        });
+      }
+    });
+  }, [audioEl, interview?.audioPath, resolveStreamUrl, segmentPlaybackRequest, setSegmentPlaybackState]);
+
   const togglePlay = useCallback(async () => {
     if (!audioEl || !interview?.audioPath) return;
+    if (
+      segmentPlaybackStateRef.current.activeSegmentId !== null &&
+      segmentPlaybackStateRef.current.startSec !== null &&
+      audioEl.currentTime >= (segmentPlaybackStateRef.current.endSec ?? Infinity)
+    ) {
+      audioEl.currentTime = segmentPlaybackStateRef.current.startSec;
+    }
     if (!audioEl.paused) {
       audioEl.pause();
       return;
@@ -142,9 +209,36 @@ export const AudioPlayer = () => {
 
   const onTimeUpdate = () => {
     if (!audioEl) return;
-    setTime(audioEl.currentTime);
-    if (loopSpan && span && audioEl.currentTime >= span.audioEndSec) {
+    const currentTime = audioEl.currentTime;
+    setTime(currentTime);
+    setSegmentPlaybackState((prev) => ({
+      ...prev,
+      currentTime,
+      duration: audioEl.duration || 0,
+    }));
+    if (loopSpan && span && currentTime >= span.audioEndSec) {
       audioEl.currentTime = span.audioStartSec;
+      return;
+    }
+    if (
+      segmentPlaybackStateRef.current.activeSegmentId !== null &&
+      segmentPlaybackStateRef.current.endSec !== null &&
+      currentTime >= segmentPlaybackStateRef.current.endSec
+    ) {
+      if (
+        segmentPlaybackStateRef.current.loop &&
+        segmentPlaybackStateRef.current.startSec !== null
+      ) {
+        audioEl.currentTime = segmentPlaybackStateRef.current.startSec;
+      } else {
+        audioEl.pause();
+        audioEl.currentTime = segmentPlaybackStateRef.current.endSec;
+        setSegmentPlaybackState((prev) => ({
+          ...prev,
+          currentTime: prev.endSec ?? currentTime,
+          playing: false,
+        }));
+      }
     }
   };
 
@@ -228,6 +322,10 @@ export const AudioPlayer = () => {
         onLoadedMetadata={(e) => {
           const el = e.target as HTMLAudioElement;
           setDuration(el.duration);
+          setSegmentPlaybackState((prev) => ({
+            ...prev,
+            duration: el.duration || 0,
+          }));
           if (pendingSeekRef.current !== null) {
             el.currentTime = Math.max(0, Math.min(pendingSeekRef.current, el.duration || 0));
             pendingSeekRef.current = null;
@@ -247,9 +345,39 @@ export const AudioPlayer = () => {
             setPlaybackError(message);
           });
         }}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        onPlay={() => {
+          setPlaying(true);
+          setSegmentPlaybackState((prev) => ({ ...prev, playing: true }));
+        }}
+        onPause={() => {
+          setPlaying(false);
+          setSegmentPlaybackState((prev) => ({ ...prev, playing: false }));
+        }}
         onTimeUpdate={onTimeUpdate}
+        onSeeked={() => {
+          if (!audioEl) return;
+          const currentTime = audioEl.currentTime;
+          setTime(currentTime);
+          setSegmentPlaybackState((prev) => {
+            if (prev.activeSegmentId === null) return prev;
+            if (
+              prev.startSec !== null &&
+              prev.endSec !== null &&
+              currentTime >= prev.startSec &&
+              currentTime <= prev.endSec
+            ) {
+              return { ...prev, currentTime };
+            }
+            return {
+              ...prev,
+              activeSegmentId: null,
+              startSec: null,
+              endSec: null,
+              loop: false,
+              currentTime,
+            };
+          });
+        }}
         onError={() => {
           const mediaError = audioEl?.error;
           const message = mediaError
