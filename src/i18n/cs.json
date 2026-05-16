@@ -35,7 +35,10 @@
     "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
     "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište.",
     "undo": "Zpět",
-    "redo": "Znovu"
+    "redo": "Znovu",
+    "editProject": "Upravit projekt",
+    "settings": "Nastavení",
+    "openAnotherProject": "Otevřít jiný projekt"
   },
   "codebook": {
     "addCluster": "+ Cluster",

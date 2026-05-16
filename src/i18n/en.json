@@ -36,7 +36,10 @@
     "selectionMissing": "Select text within a single segment to tag it.",
     "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first.",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "editProject": "Edit project",
+    "settings": "Settings",
+    "openAnotherProject": "Open another project"
   },
   "codebook": {
     "addCluster": "+ Cluster",

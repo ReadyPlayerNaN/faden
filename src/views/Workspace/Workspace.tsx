@@ -206,6 +206,24 @@ export const Workspace = () => {
                 className={styles.projectMenuItem}
                 onClick={() => {
                   setProjectMenuOpen(false);
+                  void navigate(
+                    project
+                      ? {
+                          to: "/settings/$projectPath",
+                          params: { projectPath: encodeURIComponent(project.path) },
+                        }
+                      : { to: "/settings" },
+                  );
+                }}
+              >
+                {t("workspace.settings", { defaultValue: "Settings" })}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.projectMenuItem}
+                onClick={() => {
+                  setProjectMenuOpen(false);
                   setProject(null);
                   void navigate({ to: "/" });
                 }}
@@ -239,20 +257,6 @@ export const Workspace = () => {
           </Button>
           <Button onClick={() => void navigate({ to: "/tags" })}>
             {t("tags.title", { defaultValue: "Tags" })}
-          </Button>
-          <Button
-            onClick={() =>
-              void navigate(
-                project
-                  ? {
-                      to: "/settings/$projectPath",
-                      params: { projectPath: encodeURIComponent(project.path) },
-                    }
-                  : { to: "/settings" },
-              )
-            }
-          >
-            {t("settings.title")}
           </Button>
         </div>
       </header>
