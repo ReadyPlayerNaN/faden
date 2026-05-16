@@ -6,7 +6,6 @@ import {
   segmentPlaybackRequestAtom,
   segmentPlaybackStateAtom,
 } from "../../../state/audio";
-import { selectedSpanAtom } from "../../../state/tagging";
 import { interviewAudioStreamUrl } from "../../../ipc/interview";
 import { Button } from "../../../components/Button/Button";
 import { AiMenu } from "./AiMenu";
@@ -36,7 +35,6 @@ export const AudioPlayer = () => {
   const [segmentPlaybackState, setSegmentPlaybackState] = useAtom(
     segmentPlaybackStateAtom,
   );
-  const span = useAtomValue(selectedSpanAtom);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
@@ -49,7 +47,6 @@ export const AudioPlayer = () => {
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState<number>(1.0);
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
-  const [loopSpan, setLoopSpan] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const segmentPlaybackStateRef = useRef(segmentPlaybackState);
@@ -157,22 +154,52 @@ export const AudioPlayer = () => {
 
     const current = segmentPlaybackStateRef.current;
     if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
-      if (current.playing && current.loop === segmentPlaybackRequest.loop) {
-        audioEl.pause();
+      if (segmentPlaybackRequest.autoplay) {
+        if (current.playing && current.loop === segmentPlaybackRequest.loop) {
+          audioEl.pause();
+          return;
+        }
+
+        const isWithinActiveSegment =
+          current.startSec !== null &&
+          current.endSec !== null &&
+          audioEl.currentTime >= current.startSec &&
+          audioEl.currentTime < current.endSec;
+
+        if (!current.playing && current.loop === segmentPlaybackRequest.loop && isWithinActiveSegment) {
+          setPlaybackError(null);
+          void audioEl.play().catch((error) => {
+            if (isAbortError(error)) return;
+            const message = String((error as { message?: string })?.message ?? error);
+            setPlaybackError(message);
+          });
+          return;
+        }
+      } else {
+        setSegmentPlaybackState((prev) => ({ ...prev, loop: segmentPlaybackRequest.loop }));
         return;
       }
     }
 
-    pendingSeekRef.current = segmentPlaybackRequest.startSec;
-    pendingAutoplayRef.current = true;
     setSegmentPlaybackState((prev) => ({
       ...prev,
       activeSegmentId: segmentPlaybackRequest.segmentId,
       startSec: segmentPlaybackRequest.startSec,
       endSec: segmentPlaybackRequest.endSec,
       loop: segmentPlaybackRequest.loop,
+      currentTime: segmentPlaybackRequest.autoplay ? prev.currentTime : segmentPlaybackRequest.startSec,
+      playing: segmentPlaybackRequest.autoplay ? prev.playing : false,
     }));
 
+    if (!segmentPlaybackRequest.autoplay) {
+      audioEl.pause();
+      audioEl.currentTime = segmentPlaybackRequest.startSec;
+      setTime(segmentPlaybackRequest.startSec);
+      return;
+    }
+
+    pendingSeekRef.current = segmentPlaybackRequest.startSec;
+    pendingAutoplayRef.current = true;
     void resolveStreamUrl({ preserveTime: false, autoplay: true }).then((nextUrl) => {
       if (!nextUrl) return;
       if (nextUrl === srcRef.current) {
@@ -234,10 +261,6 @@ export const AudioPlayer = () => {
       currentTime,
       duration: audioEl.duration || 0,
     }));
-    if (loopSpan && span && currentTime >= span.audioEndSec) {
-      audioEl.currentTime = span.audioStartSec;
-      return;
-    }
     if (
       segmentPlaybackStateRef.current.activeSegmentId !== null &&
       segmentPlaybackStateRef.current.endSec !== null &&
@@ -264,12 +287,9 @@ export const AudioPlayer = () => {
     const toggle = () => {
       void togglePlay();
     };
-    const loop = () => setLoopSpan((v) => !v);
     window.addEventListener("stt:toggle-play", toggle);
-    window.addEventListener("stt:toggle-loop", loop);
     return () => {
       window.removeEventListener("stt:toggle-play", toggle);
-      window.removeEventListener("stt:toggle-loop", loop);
     };
   }, [togglePlay]);
 
@@ -354,15 +374,6 @@ export const AudioPlayer = () => {
           </div>
         )}
       </div>
-      <label className={styles.loop}>
-        <input
-          type="checkbox"
-          checked={loopSpan}
-          onChange={(e) => setLoopSpan(e.target.checked)}
-          disabled={!span}
-        />
-        {t("workspace.loopSpan")}
-      </label>
       {playbackError && (
         <span className={styles.error} title={playbackError}>
           Audio failed: {playbackError}

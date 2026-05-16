@@ -68,8 +68,6 @@ export const Workspace = () => {
       if (e.key === " ") {
         e.preventDefault();
         window.dispatchEvent(new Event("stt:toggle-play"));
-      } else if (e.key === "l" || e.key === "L") {
-        window.dispatchEvent(new Event("stt:toggle-loop"));
       } else if (e.key === "Escape") {
         setActiveSelection(null);
         setSelectedSpan(null);

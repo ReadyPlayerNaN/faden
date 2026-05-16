@@ -31,8 +31,7 @@
     "noSegments": "Tento rozhovor zatím nemá přepis. Klikněte na „Přepsat\" v seznamu rozhovorů.",
     "speaker": "Mluvčí",
     "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
-    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište.",
-    "loopSpan": "Smyčka výběru"
+    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište."
   },
   "codebook": {
     "addCluster": "+ Cluster",
@@ -68,8 +67,8 @@
       "title": "Prompty",
       "transcriptionSystem": "Přepis — systémová instrukce",
       "transcriptionUser": "Přepis — uživatelský prompt",
-      "codebookGen": "Generování číselníku",
-      "pretag": "Předpřiřazení štítků",
+      "codebookGen": "Odvozování číselníku",
+      "pretag": "Doplnění štítků",
       "findMore": "Najít další podobné",
       "usesDefault": "(používá výchozí)"
     }
@@ -195,6 +194,7 @@
     "confirmRemoveBody": "Zvukový soubor bude smazán z projektu. Přepis bude zachován."
   },
   "interview": {
+    "menu": "Akce rozhovoru",
     "delete": "Smazat rozhovor",
     "confirmDelete": "Smazat „{{name}}“?",
     "confirmDeleteBody": "Tímto trvale smažete rozhovor, přepis, zvuk i označené úseky."
@@ -202,8 +202,8 @@
   "ai": {
     "menuLabel": "AI",
     "panel": "AI",
-    "generateCodebook": "Vytvořit číselník",
-    "preTag": "Předpřiřadit štítky",
+    "generateCodebook": "Odvodit číselník",
+    "preTag": "Doplnit štítky",
     "findMore": "Najít další",
     "useExistingCodebook": "Rozšířit stávající číselník",
     "selectInterviews": "Vyberte rozhovory",
@@ -246,8 +246,8 @@
     "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {
       "transcribe": "Přepis",
-      "codebook_gen": "Vytvořit číselník",
-      "pretag": "Předpřiřazení štítků",
+      "codebook_gen": "Odvodit číselník",
+      "pretag": "Doplnit štítky",
       "find_more": "Najít další"
     }
   },

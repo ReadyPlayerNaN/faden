@@ -31,8 +31,7 @@
     "noSegments": "This interview has no transcript yet. Click \"Transcribe\" in the interview list to start.",
     "speaker": "Speaker",
     "selectionMissing": "Select text within a single segment to tag it.",
-    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first.",
-    "loopSpan": "Loop span"
+    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first."
   },
   "codebook": {
     "addCluster": "+ Cluster",
@@ -68,8 +67,8 @@
       "title": "Prompts",
       "transcriptionSystem": "Transcription — system instruction",
       "transcriptionUser": "Transcription — user prompt",
-      "codebookGen": "Codebook generation",
-      "pretag": "Pre-tag transcript",
+      "codebookGen": "Codebook derivation",
+      "pretag": "Tag supplementation",
       "findMore": "Find more like this",
       "usesDefault": "(using default)"
     }
@@ -211,8 +210,8 @@
   "ai": {
     "menuLabel": "AI",
     "panel": "AI",
-    "generateCodebook": "Generate codebook",
-    "preTag": "Pre-tag",
+    "generateCodebook": "Derive codebook",
+    "preTag": "Supplement tags",
     "findMore": "Find more",
     "useExistingCodebook": "Extend existing codebook",
     "selectInterviews": "Pick interviews",
@@ -255,8 +254,8 @@
     "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {
       "transcribe": "Transcription",
-      "codebook_gen": "Generate codebook",
-      "pretag": "Pre-tag",
+      "codebook_gen": "Derive codebook",
+      "pretag": "Supplement tags",
       "find_more": "Find more"
     }
   },
