@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -43,7 +43,9 @@ export const InterviewList = () => {
   const skip = useAtomValue(skipCostConfirmAtom);
   const setSkip = useSetAtom(skipCostConfirmAtom);
   const setProposals = useSetAtom(pendingProposalsAtom);
+  const aiRuns = useAtomValue(aiRunHistoryAtom);
   const setAiRuns = useSetAtom(aiRunHistoryAtom);
+  const activeOps = useAtomValue(activeAiOperationsAtom);
   const setActiveOps = useSetAtom(activeAiOperationsAtom);
   const [pendingAction, setPendingAction] = useState<{
     interview: Interview;
@@ -112,6 +114,17 @@ export const InterviewList = () => {
 
   const onInterviewAiAction = async (interview: Interview, kind: ProposalKind) => {
     setSelected(interview.id);
+    const hasRunningOperation =
+      activeOps.some((op) => op.kind === kind && op.interviewId === interview.id) ||
+      aiRuns.some(
+        (run) =>
+          run.status === "running" &&
+          run.kind === kind &&
+          run.interviewId === interview.id,
+      );
+    if (hasRunningOperation) {
+      return;
+    }
     if (skip[kind]) {
       await startInterviewAiAction(interview, kind);
       return;
@@ -160,6 +173,8 @@ export const InterviewList = () => {
               onDeriveCodebook={() => void onInterviewAiAction(i, "codebook_gen")}
               onPretag={() => void onInterviewAiAction(i, "pretag")}
               progress={runs[i.id]}
+              activeOps={activeOps}
+              aiRuns={aiRuns}
             />
           ))}
         </ul>
@@ -183,9 +198,20 @@ type RowProps = {
   onDeriveCodebook: () => void;
   onPretag: () => void;
   progress?: import("../../../state/transcription").RunSnapshot;
+  activeOps: import("../../../state/ai").LocalAiOperation[];
+  aiRuns: Awaited<ReturnType<typeof aiRunList>>;
 };
 
-const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, progress }: RowProps) => {
+const InterviewRow = ({
+  iv,
+  selected,
+  onSelect,
+  onDeriveCodebook,
+  onPretag,
+  progress,
+  activeOps,
+  aiRuns,
+}: RowProps) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
   const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
@@ -201,6 +227,21 @@ const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, prog
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menuWrapRef = useRef<HTMLSpanElement | null>(null);
+
+  const isAiActionRunning = useMemo(
+    () => (kind: ProposalKind) =>
+      activeOps.some((op) => op.kind === kind && op.interviewId === iv.id) ||
+      aiRuns.some(
+        (run) =>
+          run.status === "running" &&
+          run.kind === kind &&
+          run.interviewId === iv.id,
+      ),
+    [activeOps, aiRuns, iv.id],
+  );
+
+  const isCodebookRunning = isAiActionRunning("codebook_gen");
+  const isPretagRunning = isAiActionRunning("pretag");
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -328,6 +369,7 @@ const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, prog
                 type="button"
                 className={styles.menuItem}
                 role="menuitem"
+                disabled={isCodebookRunning}
                 onClick={(e) => {
                   e.stopPropagation();
                   setMenuOpen(false);
@@ -335,12 +377,16 @@ const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, prog
                   onDeriveCodebook();
                 }}
               >
-                {t("ai.generateCodebook")}
+                <span className={styles.menuItemContent}>
+                  {isCodebookRunning && <span className={styles.loaderInline} aria-hidden="true" />}
+                  <span>{t("ai.generateCodebook")}</span>
+                </span>
               </button>
               <button
                 type="button"
                 className={styles.menuItem}
                 role="menuitem"
+                disabled={isPretagRunning}
                 onClick={(e) => {
                   e.stopPropagation();
                   setMenuOpen(false);
@@ -348,7 +394,10 @@ const InterviewRow = ({ iv, selected, onSelect, onDeriveCodebook, onPretag, prog
                   onPretag();
                 }}
               >
-                {t("ai.preTag")}
+                <span className={styles.menuItemContent}>
+                  {isPretagRunning && <span className={styles.loaderInline} aria-hidden="true" />}
+                  <span>{t("ai.preTag")}</span>
+                </span>
               </button>
               <button
                 type="button"
