@@ -24,6 +24,7 @@ PKG_DESC="${PKG_DESC:-$(awk -F ' = ' '/^description = / { gsub(/^"|"$/, "", $2);
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT/dist/aur}"
 PACKAGE_DIR="$OUTPUT_ROOT/$PACKAGE_NAME"
 SOURCE_NAME="${SOURCE_NAME:-$BASE_NAME-$VERSION-linux-x86_64.tar.gz}"
+SOURCE_DIR="${SOURCE_DIR:-${SOURCE_NAME%.tar.gz}}"
 SOURCE_URL="${SOURCE_URL:-https://github.com/$REPOSITORY/releases/download/$TAG/$SOURCE_NAME}"
 SOURCE_SHA256="${SOURCE_SHA256:-}"
 
@@ -53,7 +54,7 @@ source=("$SOURCE_NAME::$SOURCE_URL")
 sha256sums=('$SOURCE_SHA256')
 
 package() {
-  cp -a "\$srcdir/usr/." "\$pkgdir/usr/"
+  cp -a "\$srcdir/$SOURCE_DIR/usr/." "\$pkgdir/usr/"
 }
 EOF
 
