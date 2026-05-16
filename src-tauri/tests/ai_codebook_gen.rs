@@ -19,11 +19,8 @@ async fn codebook_gen_persists_proposal_on_success() {
     let mut server = Server::new_async().await;
     let response_text = json!({
         "proposals": [{
-            "cluster": {"name": "Identity"},
-            "categories": [{
-                "name": "Self-image",
-                "tags": [{"name": "ideals"}]
-            }]
+            "name": "ideals",
+            "description": "Statements about personal ideals or standards"
         }]
     })
     .to_string();
@@ -75,8 +72,8 @@ async fn codebook_gen_persists_proposal_on_success() {
 
     let p = proposal::get(&conn, pid).unwrap();
     assert_eq!(p.status, ProposalStatus::Pending);
-    let cluster_count = p.payload["proposals"].as_array().unwrap().len();
-    assert_eq!(cluster_count, 1);
+    let tag_count = p.payload["proposals"].as_array().unwrap().len();
+    assert_eq!(tag_count, 1);
     let _ = _proposal_alias::list_pending(&conn, None).unwrap();
 }
 

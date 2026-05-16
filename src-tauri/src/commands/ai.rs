@@ -172,7 +172,27 @@ pub async fn ai_proposal_accept(
     let mut skipped: Vec<String> = Vec::new();
     match p.kind {
         ProposalKind::CodebookGen => {
-            if let Some(clusters) = selection.get("clusters").and_then(|v| v.as_array()) {
+            if let Some(tags) = selection.get("tags").and_then(|v| v.as_array()) {
+                for tg in tags {
+                    if !tg.get("accept").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        continue;
+                    }
+                    let tg_name = tg.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    match tag::create(
+                        &conn,
+                        None,
+                        tg_name,
+                        tg.get("description").and_then(|v| v.as_str()),
+                        None,
+                    ) {
+                        Ok(_) => created += 1,
+                        Err(AppError::Conflict(_)) => {
+                            skipped.push(format!("tag '{tg_name}' (exists)"))
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+            } else if let Some(clusters) = selection.get("clusters").and_then(|v| v.as_array()) {
                 for cl in clusters {
                     if !cl.get("accept").and_then(|v| v.as_bool()).unwrap_or(false) {
                         continue;

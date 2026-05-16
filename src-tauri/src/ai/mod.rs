@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodebookProposal {
-    pub proposals: Vec<ClusterProposal>,
+    pub proposals: Vec<TagProposal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,39 +65,11 @@ pub const CODEBOOK_RESPONSE_SCHEMA: &str = r#"{
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["cluster", "categories"],
+        "required": ["name"],
         "properties": {
-          "cluster": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": {"type": "string"},
-              "description": {"type": ["string", "null"]}
-            }
-          },
-          "categories": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["name", "tags"],
-              "properties": {
-                "name": {"type": "string"},
-                "description": {"type": ["string", "null"]},
-                "tags": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "required": ["name"],
-                    "properties": {
-                      "name": {"type": "string"},
-                      "description": {"type": ["string", "null"]},
-                      "evidence_quotes": {"type": "array", "items": {"type": "string"}}
-                    }
-                  }
-                }
-              }
-            }
-          }
+          "name": {"type": "string"},
+          "description": {"type": ["string", "null"]},
+          "evidence_quotes": {"type": "array", "items": {"type": "string"}}
         }
       }
     }

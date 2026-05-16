@@ -89,7 +89,7 @@ pub fn finalize(conn: &Connection, run_id: i64, api_result: AppResult<String>) -
         conn,
         run_id,
         None,
-        Some(&format!("{} clusters proposed", parsed.proposals.len())),
+        Some(&format!("{} tags proposed", parsed.proposals.len())),
     )?;
     Ok(proposal_id)
 }
