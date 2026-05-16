@@ -62,11 +62,15 @@ pub fn prepare(
 }
 
 /// Sync finalize step: persist results to db. Call after awaiting api_result.
-pub fn finalize(conn: &Connection, run_id: i64, api_result: AppResult<String>) -> AppResult<i64> {
+pub fn finalize(
+    conn: &Connection,
+    run_id: i64,
+    api_result: AppResult<String>,
+) -> AppResult<Option<i64>> {
     let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {
-            ai_run::fail(conn, run_id, &e.to_string())?;
+            ai_run::fail(conn, run_id, &e.to_string(), None)?;
             return Err(e);
         }
     };
@@ -74,10 +78,21 @@ pub fn finalize(conn: &Connection, run_id: i64, api_result: AppResult<String>) -
     let parsed: CodebookProposal = match serde_json::from_str(&resp_text) {
         Ok(p) => p,
         Err(e) => {
-            ai_run::fail(conn, run_id, &format!("parse: {e}"))?;
+            ai_run::fail(conn, run_id, &format!("parse: {e}"), Some(&resp_text))?;
             return Err(AppError::Invalid(format!("codebook gen parse: {e}")));
         }
     };
+
+    if parsed.proposals.is_empty() {
+        ai_run::complete(
+            conn,
+            run_id,
+            None,
+            Some("No codebook suggestions found"),
+            Some(&resp_text),
+        )?;
+        return Ok(None);
+    }
 
     let proposal_id = proposal::create(
         conn,
@@ -90,8 +105,9 @@ pub fn finalize(conn: &Connection, run_id: i64, api_result: AppResult<String>) -
         run_id,
         None,
         Some(&format!("{} tags proposed", parsed.proposals.len())),
+        Some(&resp_text),
     )?;
-    Ok(proposal_id)
+    Ok(Some(proposal_id))
 }
 
 /// Convenience: do everything when the caller is OK with `&Connection` being
@@ -104,7 +120,7 @@ pub async fn run(
     client: &GeminiClient,
     model: &str,
     prompt_override: Option<&str>,
-) -> AppResult<i64> {
+) -> AppResult<Option<i64>> {
     let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
     let api_result = client.post_generate(&url, &body).await;
     finalize(conn, run_id, api_result)

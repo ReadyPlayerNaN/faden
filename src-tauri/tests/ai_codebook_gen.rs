@@ -4,7 +4,7 @@ use serde_json::json;
 use stt_app_lib::ai::codebook_gen::{self, CodebookGenInput};
 use stt_app_lib::db::migrations::apply_migrations;
 use stt_app_lib::db::queries::proposal::{self, ProposalStatus};
-use stt_app_lib::db::queries::{interview, proposal as _proposal_alias, segment, speaker};
+use stt_app_lib::db::queries::{ai_run, interview, proposal as _proposal_alias, segment, speaker};
 use stt_app_lib::transcription::gemini::GeminiClient;
 
 fn fresh() -> Connection {
@@ -68,12 +68,16 @@ async fn codebook_gen_persists_proposal_on_success() {
         None,
     )
     .await
-    .unwrap();
+    .unwrap()
+    .expect("expected a non-empty proposal");
 
     let p = proposal::get(&conn, pid).unwrap();
     assert_eq!(p.status, ProposalStatus::Pending);
     let tag_count = p.payload["proposals"].as_array().unwrap().len();
     assert_eq!(tag_count, 1);
+    let runs = ai_run::list_all(&conn).unwrap();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].raw_output.as_deref(), Some(response_text.as_str()));
     let _ = _proposal_alias::list_pending(&conn, None).unwrap();
 }
 
@@ -93,6 +97,52 @@ fn codebook_gen_prompt_prefers_enhancing_existing_codebook_without_duplicates() 
     assert!(prompt.contains("starting point and improve it"));
     assert!(prompt.contains("Do not recreate existing tags"));
     assert!(prompt.contains("near-duplicates or semantically equivalent tags"));
+}
+
+#[tokio::test]
+async fn codebook_gen_skips_empty_proposals() {
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "proposals": []
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(
+            json!({
+                "candidates": [{
+                    "content": {"parts": [{"text": response_text}]}
+                }]
+            })
+            .to_string(),
+        )
+        .create_async()
+        .await;
+
+    let conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = codebook_gen::run(
+        &conn,
+        CodebookGenInput {
+            interview_ids: vec![i.id],
+            include_existing_codebook: false,
+        },
+        &client,
+        "gemini-3-flash-preview",
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(pid, None);
+    assert!(_proposal_alias::list_pending(&conn, None)
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]
@@ -129,4 +179,7 @@ async fn codebook_gen_invalid_json_marks_run_failed() {
     .await
     .unwrap_err();
     assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    let runs = ai_run::list_all(&conn).unwrap();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].raw_output.as_deref(), Some("not json"));
 }

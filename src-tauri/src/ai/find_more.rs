@@ -78,18 +78,18 @@ pub fn finalize(
     run_id: i64,
     input: &FindMoreInput,
     api_result: AppResult<String>,
-) -> AppResult<i64> {
+) -> AppResult<Option<i64>> {
     let resp_text = match api_result {
         Ok(t) => t,
         Err(e) => {
-            ai_run::fail(conn, run_id, &e.to_string())?;
+            ai_run::fail(conn, run_id, &e.to_string(), None)?;
             return Err(e);
         }
     };
     let parsed: SpanSuggestions = match serde_json::from_str(&resp_text) {
         Ok(p) => p,
         Err(e) => {
-            ai_run::fail(conn, run_id, &format!("parse: {e}"))?;
+            ai_run::fail(conn, run_id, &format!("parse: {e}"), Some(&resp_text))?;
             return Err(AppError::Invalid(format!("find_more parse: {e}")));
         }
     };
@@ -113,6 +113,11 @@ pub fn finalize(
         });
     }
     let filtered = SpanSuggestions { suggestions: valid };
+    if filtered.suggestions.is_empty() {
+        ai_run::complete(conn, run_id, None, Some("No suggestions found"), Some(&resp_text))?;
+        return Ok(None);
+    }
+
     let pid = proposal::create(
         conn,
         run_id,
@@ -124,8 +129,9 @@ pub fn finalize(
         run_id,
         None,
         Some(&format!("{} suggestions", filtered.suggestions.len())),
+        Some(&resp_text),
     )?;
-    Ok(pid)
+    Ok(Some(pid))
 }
 
 pub async fn run(
@@ -134,7 +140,7 @@ pub async fn run(
     client: &GeminiClient,
     model: &str,
     prompt_override: Option<&str>,
-) -> AppResult<i64> {
+) -> AppResult<Option<i64>> {
     let (run_id, url, body) = prepare(conn, &input, client, model, prompt_override)?;
     let api_result = client.post_generate(&url, &body).await;
     finalize(conn, run_id, &input, api_result)
