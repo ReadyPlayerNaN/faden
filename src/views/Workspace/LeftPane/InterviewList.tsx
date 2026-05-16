@@ -31,7 +31,6 @@ import { transcriptionRunsAtom } from "../../../state/transcription";
 import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
-import { AddInterviewModal } from "./AddInterviewModal";
 import { EditInterviewModal } from "./EditInterviewModal";
 import styles from "./InterviewList.module.css";
 import type { Interview } from "../../../ipc/interview";
@@ -46,7 +45,6 @@ export const InterviewList = () => {
   const setProposals = useSetAtom(pendingProposalsAtom);
   const setAiRuns = useSetAtom(aiRunHistoryAtom);
   const setActiveOps = useSetAtom(activeAiOperationsAtom);
-  const [modalOpen, setModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     interview: Interview;
     kind: ProposalKind;
@@ -70,6 +68,7 @@ export const InterviewList = () => {
     setActiveOps((prev) => [
       {
         id,
+        runId: null,
         kind,
         startedAt: new Date().toISOString(),
         interviewId,
@@ -83,6 +82,10 @@ export const InterviewList = () => {
     return id;
   };
 
+  const setLocalOperationRunId = (id: string, runId: number) => {
+    setActiveOps((prev) => prev.map((op) => (op.id === id ? { ...op, runId } : op)));
+  };
+
   const finishLocalOperation = (id: string) => {
     setActiveOps((prev) => prev.filter((op) => op.id !== id));
   };
@@ -93,11 +96,11 @@ export const InterviewList = () => {
   ) => {
     const localId = startLocalOperation(kind, interview.id, interview.name);
     try {
-      if (kind === "codebook_gen") {
-        await aiCodebookGenStart([interview.id], true);
-      } else if (kind === "pretag") {
-        await aiPretagStart(interview.id);
-      }
+      const runId =
+        kind === "codebook_gen"
+          ? await aiCodebookGenStart([interview.id], true)
+          : await aiPretagStart(interview.id);
+      setLocalOperationRunId(localId, runId);
       await Promise.all([refreshProposals(), refreshRuns()]);
     } catch (e) {
       await refreshRuns().catch(() => undefined);
@@ -144,7 +147,6 @@ export const InterviewList = () => {
 
   return (
     <div className={styles.wrap}>
-      <Button onClick={() => setModalOpen(true)}>{t("workspace.addInterview")}</Button>
       {list.length === 0 ? (
         <p className={styles.empty}>{t("workspace.noInterviews")}</p>
       ) : (
@@ -162,7 +164,6 @@ export const InterviewList = () => {
           ))}
         </ul>
       )}
-      {modalOpen && <AddInterviewModal onClose={() => setModalOpen(false)} />}
       {pendingAction && estimate && (
         <CostPreviewModal
           estimate={estimate}

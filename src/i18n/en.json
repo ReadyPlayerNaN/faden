@@ -19,6 +19,7 @@
     "codebook": "Codebook",
     "noInterviews": "No interviews yet",
     "addInterview": "+ New interview",
+    "createInterview": "Create interview",
     "newInterviewPrompt": "Name for the new interview:",
     "addInterviewAudio": "+ From audio",
     "transcribe": "Transcribe",
