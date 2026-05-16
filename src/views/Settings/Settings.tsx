@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useAtom } from "jotai";
-import { invoke } from "@tauri-apps/api/core";
 import {
   settingsGet,
   settingsProviderTest,
@@ -13,7 +12,6 @@ import {
   type TaskModelSelection,
 } from "../../ipc/settings";
 import { globalSettingsAtom } from "../../state/settings";
-import { currentProjectAtom } from "../../state/project";
 import { PROVIDERS, providerById, type TaskKind } from "../../llm/catalog";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/TextField/TextField";
@@ -165,7 +163,6 @@ export const Settings = () => {
     projectPath?: string;
   };
   const [settings, setSettings] = useAtom(globalSettingsAtom);
-  const [project, setProject] = useAtom(currentProjectAtom);
   const [providers, setProviders] = useState<ProviderState | null>(null);
   const [configuredProviders, setConfiguredProviders] = useState<LlmProvider[]>([]);
   const [transcription, setTranscription] = useState<TaskModelSelection>({
@@ -309,14 +306,6 @@ export const Settings = () => {
     }
   };
 
-  const onRenameProject = async () => {
-    if (!project) return;
-    const next = window.prompt(t("settings.projectName"), project.name);
-    if (!next || next === project.name) return;
-    await invoke("project_rename", { name: next });
-    setProject({ ...project, name: next });
-  };
-
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
@@ -342,112 +331,122 @@ export const Settings = () => {
           <ErrorBanner message={saveError} onDismiss={() => setSaveError(null)} />
         ) : null}
 
-        <div className={styles.sectionHeaderRow}>
-          <h2 className={styles.sectionTitle}>{t("settings.providersTitle")}</h2>
-          <Button
-            onClick={startProviderAddFlow}
-            disabled={isLoading || isSaving || unconfiguredProviders.length === 0}
-          >
-            {t("settings.configureProvider")}
-          </Button>
-        </div>
-
-        {providers && configuredProviders.length > 0 ? (
-          <div className={styles.providerList}>
-            {configuredProviders.map((providerId) => {
-              const provider = providerById(providerId);
-              const testResult = testResults[providerId];
-              return (
-                <div key={providerId} className={styles.providerListItem}>
-                  <div>
-                    <h3 className={styles.providerTitle}>{provider.label}</h3>
-                    <p className={styles.helpText}>{provider.description}</p>
-                    {testResult && <p className={styles.helpText}>{testResult.message}</p>}
-                  </div>
-                  <div className={styles.providerListActions}>
-                    <Button onClick={() => openProviderEditor(providerId)}>
-                      {t("settings.configure")}
-                    </Button>
-                    <Button
-                      onClick={() => void runProviderTest(providerId)}
-                      disabled={testingProvider === providerId}
-                    >
-                      {testingProvider === providerId
-                        ? t("common.loading")
-                        : t("settings.testConnection")}
-                    </Button>
-                  </div>
-                  {testResult && (
-                    <div className={styles.testResult}>
-                      <ul className={styles.testSteps}>
-                        {testResult.steps.map((step, index) => (
-                          <li key={`${providerId}-${index}`} className={styles.testStep}>
-                            <span
-                              className={`${styles.testPill} ${
-                                step.status === "ok"
-                                  ? styles.testPillOk
-                                  : step.status === "warn"
-                                    ? styles.testPillWarn
-                                    : styles.testPillError
-                              }`}
-                            >
-                              {step.status}
-                            </span>
-                            <span>
-                              <strong>{step.label}:</strong> {step.detail}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        <div className={styles.settingsStack}>
+          <div className={styles.settingsBlock}>
+            <h2 className={styles.sectionTitle}>{t("settings.uiLanguage")}</h2>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                {t("settings.uiLanguage")}
+                <select
+                  className={styles.select}
+                  value={uiLanguage}
+                  onChange={(e) => setUiLanguage(e.target.value as LangChoice)}
+                  disabled={isLoading || isSaving}
+                >
+                  <option value="auto">{t("settings.languageAuto")}</option>
+                  <option value="en">{t("settings.languageEn")}</option>
+                  <option value="cs">{t("settings.languageCs")}</option>
+                </select>
+              </label>
+            </div>
           </div>
-        ) : (
-          <p className={styles.helpText}>{t("settings.noConfiguredProviders")}</p>
-        )}
 
-        <h2 className={styles.sectionTitle}>{t("settings.taskRoutingTitle")}</h2>
-        <TaskSelector
-          task="transcription"
-          label={t("settings.transcriptionTask")}
-          value={transcription}
-          onChange={(next) => {
-            setTranscription(next);
-            if (!configuredProviders.includes(next.provider)) {
-              setConfiguredProviders((prev) => [...prev, next.provider]);
-            }
-          }}
-        />
-        <TaskSelector
-          task="general"
-          label={t("settings.generalTask")}
-          value={generalAi}
-          onChange={(next) => {
-            setGeneralAi(next);
-            if (!configuredProviders.includes(next.provider)) {
-              setConfiguredProviders((prev) => [...prev, next.provider]);
-            }
-          }}
-        />
+          <div className={styles.settingsBlock}>
+            <div className={styles.sectionHeaderRow}>
+              <h2 className={styles.sectionTitle}>{t("settings.providersTitle")}</h2>
+              <Button
+                onClick={startProviderAddFlow}
+                disabled={isLoading || isSaving || unconfiguredProviders.length === 0}
+              >
+                {t("settings.configureProvider")}
+              </Button>
+            </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>
-            {t("settings.uiLanguage")}
-            <select
-              className={styles.select}
-              value={uiLanguage}
-              onChange={(e) => setUiLanguage(e.target.value as LangChoice)}
-              disabled={isLoading || isSaving}
-            >
-              <option value="auto">{t("settings.languageAuto")}</option>
-              <option value="en">{t("settings.languageEn")}</option>
-              <option value="cs">{t("settings.languageCs")}</option>
-            </select>
-          </label>
+            {providers && configuredProviders.length > 0 ? (
+              <div className={styles.providerList}>
+                {configuredProviders.map((providerId) => {
+                  const provider = providerById(providerId);
+                  const testResult = testResults[providerId];
+                  return (
+                    <div key={providerId} className={styles.providerListItem}>
+                      <div>
+                        <h3 className={styles.providerTitle}>{provider.label}</h3>
+                        <p className={styles.helpText}>{provider.description}</p>
+                        {testResult && <p className={styles.helpText}>{testResult.message}</p>}
+                      </div>
+                      <div className={styles.providerListActions}>
+                        <Button onClick={() => openProviderEditor(providerId)}>
+                          {t("settings.configure")}
+                        </Button>
+                        <Button
+                          onClick={() => void runProviderTest(providerId)}
+                          disabled={testingProvider === providerId}
+                        >
+                          {testingProvider === providerId
+                            ? t("common.loading")
+                            : t("settings.testConnection")}
+                        </Button>
+                      </div>
+                      {testResult && (
+                        <div className={styles.testResult}>
+                          <ul className={styles.testSteps}>
+                            {testResult.steps.map((step, index) => (
+                              <li key={`${providerId}-${index}`} className={styles.testStep}>
+                                <span
+                                  className={`${styles.testPill} ${
+                                    step.status === "ok"
+                                      ? styles.testPillOk
+                                      : step.status === "warn"
+                                        ? styles.testPillWarn
+                                        : styles.testPillError
+                                  }`}
+                                >
+                                  {step.status}
+                                </span>
+                                <span>
+                                  <strong>{step.label}:</strong> {step.detail}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className={styles.helpText}>{t("settings.noConfiguredProviders")}</p>
+            )}
+          </div>
+
+          <div className={styles.settingsBlock}>
+            <h2 className={styles.sectionTitle}>{t("settings.taskRoutingTitle")}</h2>
+            <TaskSelector
+              task="transcription"
+              label={t("settings.transcriptionTask")}
+              value={transcription}
+              onChange={(next) => {
+                setTranscription(next);
+                if (!configuredProviders.includes(next.provider)) {
+                  setConfiguredProviders((prev) => [...prev, next.provider]);
+                }
+              }}
+            />
+            <TaskSelector
+              task="general"
+              label={t("settings.generalTask")}
+              value={generalAi}
+              onChange={(next) => {
+                setGeneralAi(next);
+                if (!configuredProviders.includes(next.provider)) {
+                  setConfiguredProviders((prev) => [...prev, next.provider]);
+                }
+              }}
+            />
+          </div>
         </div>
+
         <div className={styles.actions}>
           <Button
             variant="primary"
@@ -459,16 +458,6 @@ export const Settings = () => {
           {savedAt && <span className={styles.saved}>{t("settings.saved")}</span>}
         </div>
       </section>
-
-      {project && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("settings.projectSection")}</h2>
-          <div className={styles.projectRow}>
-            <span className={styles.projectName}>{project.name}</span>
-            <Button onClick={() => void onRenameProject()}>{t("settings.rename")}</Button>
-          </div>
-        </section>
-      )}
 
       <PromptEditors />
 
