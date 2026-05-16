@@ -884,69 +884,71 @@ export const TranscriptViewer = ({
 										);
 									})}
 								</span>
-								<div className={styles.segmentFooter}>
-									<div className={styles.segmentControls}>
-										<button
-											type="button"
-											className={styles.segmentPlayButton}
-											onClick={() =>
-												requestSegmentPlayback(s, {
-													loop: isLoopEnabled,
-													action: isPlayingSegment ? "pause" : "play",
-												})
-											}
-											aria-label={
-												isPlayingSegment
-													? t("transcript.pauseTurn", {
+								{hasAudio && (
+									<div className={styles.segmentFooter}>
+										<div className={styles.segmentControls}>
+											<button
+												type="button"
+												className={styles.segmentPlayButton}
+												onClick={() =>
+													requestSegmentPlayback(s, {
+														loop: isLoopEnabled,
+														action: isPlayingSegment ? "pause" : "play",
+													})
+												}
+												aria-label={
+													isPlayingSegment
+														? t("transcript.pauseTurn", {
 															defaultValue: "Pause turn",
 														})
-													: t("transcript.playTurn", {
+														: t("transcript.playTurn", {
 															defaultValue: "Play turn",
 														})
-											}
-											title={
-												isPlayingSegment
-													? t("transcript.pauseTurn", {
+												}
+												title={
+													isPlayingSegment
+														? t("transcript.pauseTurn", {
 															defaultValue: "Pause turn",
 														})
-													: t("transcript.playTurn", {
+														: t("transcript.playTurn", {
 															defaultValue: "Play turn",
 														})
-											}
+												}
+											>
+												{isPlayingSegment ? "⏸" : "▶"}
+											</button>
+											<button
+												type="button"
+												className={`${styles.segmentLoopButton} ${isLoopEnabled ? styles.segmentLoopButtonActive : ""}`}
+												onClick={() =>
+													requestSegmentPlayback(s, {
+														loop: !isLoopEnabled,
+														action: "set-loop",
+													})
+												}
+												aria-label={t("transcript.loopTurn", {
+													defaultValue: "Loop turn",
+												})}
+												title={t("transcript.loopTurn", {
+													defaultValue: "Loop turn",
+												})}
+											>
+												↻
+											</button>
+										</div>
+										<span
+											className={styles.segmentProgressTrack}
+											aria-hidden="true"
 										>
-											{isPlayingSegment ? "⏸" : "▶"}
-										</button>
-										<button
-											type="button"
-											className={`${styles.segmentLoopButton} ${isLoopEnabled ? styles.segmentLoopButtonActive : ""}`}
-											onClick={() =>
-												requestSegmentPlayback(s, {
-													loop: !isLoopEnabled,
-													action: "set-loop",
-												})
-											}
-											aria-label={t("transcript.loopTurn", {
-												defaultValue: "Loop turn",
-											})}
-											title={t("transcript.loopTurn", {
-												defaultValue: "Loop turn",
-											})}
-										>
-											↻
-										</button>
+											{isActiveSegment && (
+												<span
+													className={styles.segmentProgress}
+													style={{ transform: `scaleX(${segmentProgress})` }}
+												/>
+											)}
+										</span>
 									</div>
-									<span
-										className={styles.segmentProgressTrack}
-										aria-hidden="true"
-									>
-										{isActiveSegment && (
-											<span
-												className={styles.segmentProgress}
-												style={{ transform: `scaleX(${segmentProgress})` }}
-											/>
-										)}
-									</span>
-								</div>
+								)
 							</div>
 						</div>
 					);
