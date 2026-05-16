@@ -46,13 +46,14 @@ pkgdesc="$PKG_DESC"
 arch=('x86_64')
 url="https://github.com/$REPOSITORY"
 license=('MIT')
+options=(!lto)
 depends=('ffmpeg' 'sqlite' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
 conflicts=('${BASE_NAME}-git')
 source=("$SOURCE_NAME::$SOURCE_URL")
 sha256sums=('$SOURCE_SHA256')
 
 package() {
-  cp -a "$srcdir/usr/." "$pkgdir/usr/"
+  cp -a "\$srcdir/usr/." "\$pkgdir/usr/"
 }
 EOF
 
@@ -64,6 +65,7 @@ pkgbase = $PACKAGE_NAME
 	url = https://github.com/$REPOSITORY
 	arch = x86_64
 	license = MIT
+	options = !lto
 	depends = ffmpeg
 	depends = sqlite
 	depends = webkit2gtk-4.1
