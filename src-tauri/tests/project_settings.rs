@@ -23,8 +23,10 @@ fn default_when_unset() {
 #[test]
 fn round_trip() {
     let conn = fresh();
-    let mut s = ProjectSettings::default();
-    s.language = Some("cs".into());
+    let mut s = ProjectSettings {
+        language: Some("cs".into()),
+        ..ProjectSettings::default()
+    };
     s.prompts.codebook_gen = Some("custom prompt".into());
     s.transcription.chunk_seconds = 600;
     project_meta::write_settings(&conn, &s).unwrap();
@@ -52,8 +54,10 @@ fn partial_overrides_preserve_defaults() {
 #[test]
 fn rejects_unsupported_project_language() {
     let conn = fresh();
-    let mut s = ProjectSettings::default();
-    s.language = Some("Klingon".into());
+    let s = ProjectSettings {
+        language: Some("Klingon".into()),
+        ..ProjectSettings::default()
+    };
     let err = project_meta::write_settings(&conn, &s).unwrap_err();
     assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }

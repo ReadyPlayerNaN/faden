@@ -120,7 +120,7 @@ impl TaskModelSelection {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GeminiProviderSettings {
     #[serde(default)]
     pub api_key: String,
@@ -152,7 +152,7 @@ pub struct OllamaProviderSettings {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProviderSettings {
     #[serde(default)]
     pub gemini: GeminiProviderSettings,
@@ -282,7 +282,7 @@ struct StoredOllamaProviderSettings {
     username: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct StoredProviderSettings {
     #[serde(default)]
     gemini: StoredGeminiProviderSettings,
@@ -309,14 +309,6 @@ struct StoredSettings {
     general_ai: TaskModelSelection,
     #[serde(default)]
     providers: StoredProviderSettings,
-}
-
-impl Default for GeminiProviderSettings {
-    fn default() -> Self {
-        Self {
-            api_key: String::new(),
-        }
-    }
 }
 
 impl Default for OpenAiProviderSettings {
@@ -347,17 +339,6 @@ impl Default for OllamaProviderSettings {
     }
 }
 
-impl Default for ProviderSettings {
-    fn default() -> Self {
-        Self {
-            gemini: GeminiProviderSettings::default(),
-            openai: OpenAiProviderSettings::default(),
-            anthropic: AnthropicProviderSettings::default(),
-            ollama: OllamaProviderSettings::default(),
-        }
-    }
-}
-
 impl Default for StoredOpenAiProviderSettings {
     fn default() -> Self {
         Self {
@@ -379,17 +360,6 @@ impl Default for StoredOllamaProviderSettings {
         Self {
             base_url: default_ollama_base_url(),
             username: String::new(),
-        }
-    }
-}
-
-impl Default for StoredProviderSettings {
-    fn default() -> Self {
-        Self {
-            gemini: StoredGeminiProviderSettings::default(),
-            openai: StoredOpenAiProviderSettings::default(),
-            anthropic: StoredAnthropicProviderSettings::default(),
-            ollama: StoredOllamaProviderSettings::default(),
         }
     }
 }

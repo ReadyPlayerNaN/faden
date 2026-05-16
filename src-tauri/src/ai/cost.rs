@@ -123,6 +123,7 @@ pub fn estimate(provider: &str, model: &str, prompt: &str, max_output_tokens: u3
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn estimate_transcription(
     provider: &str,
     model: &str,

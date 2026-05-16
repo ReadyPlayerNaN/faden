@@ -258,7 +258,7 @@ const SegmentEditor = ({
     }
     setError(null);
     try {
-      const created = await speakerCreate(interviewId, label, null);
+      const created = await speakerCreate(interviewId, { labelRaw: label });
       await onSpeakersChanged();
       await segmentSetSpeaker(segment.id, created.id);
       await onChanged();

@@ -24,7 +24,7 @@ fn wrap_prompt(prompt: &str, schema: Option<&str>) -> String {
     }
 }
 
-fn provider_api_key<'a>(settings: &'a GlobalSettings, provider: LlmProvider) -> Option<&'a str> {
+fn provider_api_key(settings: &GlobalSettings, provider: LlmProvider) -> Option<&str> {
     match provider {
         LlmProvider::Gemini => Some(settings.providers.gemini.api_key.as_str()),
         LlmProvider::OpenAi => Some(settings.providers.openai.api_key.as_str()),
