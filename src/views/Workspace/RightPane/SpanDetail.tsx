@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
@@ -30,6 +30,7 @@ export const SpanDetail = ({ span }: Props) => {
   const [memoSavedAt, setMemoSavedAt] = useState<number | null>(null);
   const [addingTag, setAddingTag] = useState(false);
   const [filter, setFilter] = useState("");
+  const memoSaveRequestIdRef = useRef(0);
 
   useEffect(() => {
     setMemo(span.memo ?? "");
@@ -39,10 +40,20 @@ export const SpanDetail = ({ span }: Props) => {
   useEffect(() => {
     if (memo === (span.memo ?? "")) return;
     const handle = setTimeout(() => {
-      void memoUpsert(span.id, memo).then(() => setMemoSavedAt(Date.now()));
+      const nextMemo = memo;
+      const requestId = ++memoSaveRequestIdRef.current;
+      void memoUpsert(span.id, nextMemo).then(() => {
+        if (memoSaveRequestIdRef.current !== requestId) return;
+        setSpans((prev) =>
+          prev.map((item) =>
+            item.id === span.id ? { ...item, memo: nextMemo } : item,
+          ),
+        );
+        setMemoSavedAt(Date.now());
+      });
     }, 600);
     return () => clearTimeout(handle);
-  }, [memo, span.id, span.memo]);
+  }, [memo, setSpans, span.id, span.memo]);
 
   const tagMetaById = useMemo(() => buildTagMetaMap(codebook), [codebook]);
 
