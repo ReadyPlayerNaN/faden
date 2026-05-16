@@ -90,17 +90,7 @@
   },
   "speakers": {
     "title": "Mluvčí",
-    "rename": "Přejmenovat",
-    "add": "Přidat mluvčího",
-    "merge": "Sloučit",
-    "mergeTitle": "Sloučit mluvčího",
-    "mergeHelp": "Přesune všechny promluvy tohoto mluvčího na jiného mluvčího a potom zdrojového mluvčího odstraní.",
-    "label": "Štítek",
-    "labelPlaceholder": "např. S3",
-    "displayName": "Zobrazované jméno",
-    "displayNamePlaceholder": "Volitelné",
-    "source": "Zdroj",
-    "target": "Sloučit do"
+    "rename": "Přejmenovat"
   },
   "import": {
     "title": "Přidat rozhovor",
@@ -142,15 +132,12 @@
     "addTag": "Přidat štítek",
     "addTagToCategory": "Přidat štítek do kategorie",
     "standalone": "Samostatný (bez kategorie)",
-    "standaloneSection": "Samostatné štítky",
-    "clustersSection": "Klastry",
-    "categoriesManagementSection": "Správa kategorií štítků",
-    "clusterlessCategoriesSection": "Kategorie bez klastru",
-    "noStandalone": "Žádné samostatné štítky",
+    "clusterManagementSection": "Správa klastrů",
+    "categoryManagementSection": "Správa kategorií",
+    "tagManagementSection": "Správa štítků",
     "noClusters": "Zatím žádné klastry",
     "noCategories": "Zatím žádné kategorie",
-    "noClusterlessCategories": "Žádné kategorie bez klastru",
-    "movePrompt": "Přesunout do...",
+    "noTags": "Zatím žádné štítky",
     "color": "Barva",
     "description": "Popis",
     "name": "Název",
@@ -166,8 +153,9 @@
     "errorDuplicate": "Položka s tímto názvem již existuje",
     "errorNameRequired": "Název je povinný",
     "errorClusterRequired": "Klastr je povinný",
-    "doubleClickRename": "Dvojklik pro přejmenování",
-    "editCategory": "Upravit kategorii"
+    "editCluster": "Upravit klastr",
+    "editCategory": "Upravit kategorii",
+    "editTag": "Upravit štítek"
   },
   "transcript": {
     "editMode": "Upravit přepis",
@@ -187,6 +175,11 @@
     "remove": "Odebrat zvuk",
     "confirmRemove": "Odebrat zvuk?",
     "confirmRemoveBody": "Zvukový soubor bude smazán z projektu. Přepis bude zachován."
+  },
+  "interview": {
+    "delete": "Smazat rozhovor",
+    "confirmDelete": "Smazat „{{name}}“?",
+    "confirmDeleteBody": "Tímto trvale smažete rozhovor, přepis, zvuk i označené úseky."
   },
   "ai": {
     "menuLabel": "AI",

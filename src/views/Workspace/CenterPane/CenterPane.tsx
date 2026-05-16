@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { selectedInterviewIdAtom } from "../../../state/interview";
@@ -13,7 +13,6 @@ export const CenterPane = () => {
   const { t } = useTranslation();
   const interviewId = useAtomValue(selectedInterviewIdAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
-  const [speakerVersion, setSpeakerVersion] = useState(0);
 
   useEffect(() => {
     if (interviewId === null) {
@@ -29,14 +28,8 @@ export const CenterPane = () => {
         <p className={styles.empty}>{t("workspace.selectInterview")}</p>
       ) : (
         <>
-          <SpeakerList
-            interviewId={interviewId}
-            onChanged={() => setSpeakerVersion((value) => value + 1)}
-          />
-          <TranscriptViewer
-            interviewId={interviewId}
-            speakerVersion={speakerVersion}
-          />
+          <SpeakerList interviewId={interviewId} />
+          <TranscriptViewer interviewId={interviewId} />
         </>
       )}
       <TagPopover />

@@ -109,58 +109,6 @@ fn speaker_set_display_name() {
 }
 
 #[test]
-fn speaker_merge_reassigns_segments_and_deletes_source() {
-    let mut conn = fresh_conn();
-    let i = interview::create(&conn, "I").unwrap();
-    let source = speaker::create_or_get(&conn, i.id, "A", Some("Alice")).unwrap();
-    let target = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
-    segment::insert_batch(
-        &mut conn,
-        i.id,
-        &[
-            segment::NewSegment {
-                speaker_id: source.id,
-                start_sec: 0.0,
-                end_sec: 5.0,
-                text: "first".into(),
-            },
-            segment::NewSegment {
-                speaker_id: target.id,
-                start_sec: 5.0,
-                end_sec: 10.0,
-                text: "second".into(),
-            },
-            segment::NewSegment {
-                speaker_id: source.id,
-                start_sec: 10.0,
-                end_sec: 15.0,
-                text: "third".into(),
-            },
-        ],
-    )
-    .unwrap();
-
-    speaker::merge_into(&mut conn, source.id, target.id).unwrap();
-
-    assert!(speaker::get(&conn, source.id).is_err());
-    let listed = segment::list_for_interview(&conn, i.id).unwrap();
-    assert_eq!(listed.iter().filter(|s| s.speaker_id == target.id).count(), 3);
-    assert_eq!(speaker::list_for_interview(&conn, i.id).unwrap().len(), 1);
-}
-
-#[test]
-fn speaker_merge_rejects_cross_interview_merge() {
-    let mut conn = fresh_conn();
-    let i1 = interview::create(&conn, "I1").unwrap();
-    let i2 = interview::create(&conn, "I2").unwrap();
-    let a = speaker::create_or_get(&conn, i1.id, "A", None).unwrap();
-    let b = speaker::create_or_get(&conn, i2.id, "B", None).unwrap();
-
-    let err = speaker::merge_into(&mut conn, a.id, b.id).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
-}
-
-#[test]
 fn segment_insert_batch_and_list() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();

@@ -6,6 +6,7 @@ import {
   interviewList as fetchList,
   interviewSetAudio,
   interviewClearAudio,
+  interviewDelete,
 } from "../../../ipc/interview";
 import { transcribeStart, transcribeCancel } from "../../../ipc/transcribe";
 import { interviewListAtom, selectedInterviewIdAtom } from "../../../state/interview";
@@ -61,6 +62,7 @@ type RowProps = {
 const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
+  const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
   const status = iv.transcriptStatus;
   const hasAudio = iv.audioPath !== null;
   const isInProgress = status === "in_progress" || progress?.lastProgress.stage === "starting"
@@ -71,6 +73,7 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const menuWrapRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
@@ -123,6 +126,17 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
     }
   };
 
+  const doDeleteInterview = async () => {
+    try {
+      await interviewDelete(iv.id);
+      setList((prev) => prev.filter((item) => item.id !== iv.id));
+      setSelectedInterviewId((prev) => (prev === iv.id ? null : prev));
+      setConfirmDelete(false);
+    } catch (e) {
+      window.alert(String((e as { message?: string }).message ?? e));
+    }
+  };
+
   const renderRight = () => {
     if (isInProgress) {
       let label = t("workspace.transcribing");
@@ -160,6 +174,11 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
       <div
         className={`${styles.item} ${selected ? styles.selected : ""}`}
         onClick={onSelect}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onSelect();
+          setMenuOpen(true);
+        }}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(); }}
@@ -209,6 +228,14 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
                   </button>
                 </>
               )}
+              <button
+                type="button"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setConfirmDelete(true); }}
+              >
+                {t("interview.delete", { defaultValue: "Delete interview" })}
+              </button>
             </div>
           )}
         </span>
@@ -233,6 +260,32 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
           {t("audio.confirmRemoveBody", {
             defaultValue:
               "The audio file will be deleted from the project. The transcript will be kept.",
+          })}
+        </p>
+      </Modal>
+      <Modal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={t("interview.confirmDelete", {
+          name: iv.name,
+          defaultValue: 'Delete "{{name}}"?',
+        })}
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setConfirmDelete(false)}>
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </Button>
+            <Button variant="danger" onClick={() => void doDeleteInterview()}>
+              {t("common.delete", { defaultValue: "Delete" })}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {t("interview.confirmDeleteBody", {
+            defaultValue:
+              "This will permanently delete the interview, transcript, audio, and tagged spans.",
           })}
         </p>
       </Modal>

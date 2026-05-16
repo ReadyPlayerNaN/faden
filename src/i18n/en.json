@@ -90,17 +90,7 @@
   },
   "speakers": {
     "title": "Speakers",
-    "rename": "Rename",
-    "add": "Add speaker",
-    "merge": "Merge",
-    "mergeTitle": "Merge speaker",
-    "mergeHelp": "Move all turns from this speaker to another speaker, then remove the source speaker.",
-    "label": "Label",
-    "labelPlaceholder": "e.g. S3",
-    "displayName": "Display name",
-    "displayNamePlaceholder": "Optional",
-    "source": "Source",
-    "target": "Merge into"
+    "rename": "Rename"
   },
   "import": {
     "title": "Add interview",
@@ -142,15 +132,12 @@
     "addTag": "Add tag",
     "addTagToCategory": "Add tag to category",
     "standalone": "Standalone (no category)",
-    "standaloneSection": "Standalone tags",
-    "clustersSection": "Clusters",
-    "categoriesManagementSection": "Tag Category management",
-    "clusterlessCategoriesSection": "Categories without cluster",
-    "noStandalone": "No standalone tags",
+    "clusterManagementSection": "Cluster management",
+    "categoryManagementSection": "Category management",
+    "tagManagementSection": "Tag management",
     "noClusters": "No clusters yet",
     "noCategories": "No categories yet",
-    "noClusterlessCategories": "No categories without cluster",
-    "movePrompt": "Move to...",
+    "noTags": "No tags yet",
     "color": "Color",
     "description": "Description",
     "name": "Name",
@@ -166,8 +153,9 @@
     "errorDuplicate": "An item with that name already exists",
     "errorNameRequired": "Name is required",
     "errorClusterRequired": "Cluster is required",
-    "doubleClickRename": "Double-click to rename",
-    "editCategory": "Edit category"
+    "editCluster": "Edit cluster",
+    "editCategory": "Edit category",
+    "editTag": "Edit tag"
   },
   "transcript": {
     "editMode": "Edit transcript",
@@ -187,6 +175,11 @@
     "remove": "Remove audio",
     "confirmRemove": "Remove audio?",
     "confirmRemoveBody": "The audio file will be deleted from the project. The transcript will be kept."
+  },
+  "interview": {
+    "delete": "Delete interview",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "confirmDeleteBody": "This will permanently delete the interview, transcript, audio, and tagged spans."
   },
   "ai": {
     "menuLabel": "AI",

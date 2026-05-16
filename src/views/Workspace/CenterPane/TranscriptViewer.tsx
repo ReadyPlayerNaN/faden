@@ -25,10 +25,7 @@ import { codebookTreeAtom } from "../../../state/codebook";
 import { Modal } from "../../../components/Modal/Modal";
 import styles from "./TranscriptViewer.module.css";
 
-type Props = {
-  interviewId: number;
-  speakerVersion?: number;
-};
+type Props = { interviewId: number };
 
 const formatTimestamp = (seconds: number): string => {
   const totalMs = Math.round(seconds * 1000);
@@ -334,7 +331,7 @@ const SegmentEditor = ({
   );
 };
 
-export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => {
+export const TranscriptViewer = ({ interviewId }: Props) => {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
@@ -357,11 +354,11 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
 
   useEffect(() => {
     void segmentListForInterview(interviewId).then(setSegments);
-  }, [interviewId, lastProgress?.stage, speakerVersion]);
+  }, [interviewId, lastProgress?.stage]);
 
   useEffect(() => {
     void speakerListForInterview(interviewId).then(setSpeakers);
-  }, [interviewId, lastProgress?.stage, speakerVersion]);
+  }, [interviewId, lastProgress?.stage]);
 
   const spansBySegment = useMemo(() => {
     const map = new Map<number, SegmentSpan[]>();

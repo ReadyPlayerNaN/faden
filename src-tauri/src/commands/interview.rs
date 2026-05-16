@@ -229,16 +229,6 @@ pub async fn speaker_set_display_name(
 }
 
 #[tauri::command]
-pub async fn speaker_merge(
-    app: tauri::AppHandle,
-    source_speaker_id: i64,
-    target_speaker_id: i64,
-) -> AppResult<()> {
-    let mut conn = project_conn(&app)?;
-    speaker::merge_into(&mut conn, source_speaker_id, target_speaker_id)
-}
-
-#[tauri::command]
 pub async fn interview_set_audio(
     app: tauri::AppHandle,
     interview_id: i64,
