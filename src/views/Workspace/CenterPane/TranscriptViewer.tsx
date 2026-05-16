@@ -539,7 +539,10 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     });
   };
 
-  const requestSegmentPlayback = (segment: SegmentDTO, loop: boolean) => {
+  const requestSegmentPlayback = (
+    segment: SegmentDTO,
+    { loop, autoplay }: { loop: boolean; autoplay: boolean },
+  ) => {
     setSegmentPlaybackRequest({
       requestId: Date.now(),
       interviewId,
@@ -547,6 +550,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       startSec: segment.startSec,
       endSec: segment.endSec,
       loop,
+      autoplay,
     });
   };
 
@@ -626,124 +630,134 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
               data-segment-id={s.id}
               data-text={s.text}
             >
-              <div className={styles.segmentMeta}>
-                <div className={styles.segmentMetaHeader}>
-                  <span className={styles.timestamp}>
-                    [{formatTimestamp(s.startSec)}]
-                  </span>
-                  <span className={styles.speaker}>
-                    {s.speakerDisplayName ??
-                      s.speakerLabelRaw ??
-                      t("speakers.unassigned", { defaultValue: "Unassigned" })}
-                    :
-                  </span>
+              <div className={styles.segmentBody}>
+                <div className={styles.segmentMeta}>
+                  <div className={styles.segmentMetaHeader}>
+                    <span className={styles.timestamp}>
+                      [{formatTimestamp(s.startSec)}]
+                    </span>
+                    <span className={styles.speaker}>
+                      {s.speakerDisplayName ??
+                        s.speakerLabelRaw ??
+                        t("speakers.unassigned", { defaultValue: "Unassigned" })}
+                      :
+                    </span>
+                  </div>
                 </div>
-                <div className={styles.segmentControls}>
-                  <button
-                    type="button"
-                    className={styles.segmentPlayButton}
-                    onClick={() => requestSegmentPlayback(s, false)}
-                    aria-label={
-                      isPlayingSegment
-                        ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
-                        : t("transcript.playTurn", { defaultValue: "Play turn" })
+                <span className={styles.text}>
+                  {ranges.map((r, i) => {
+                    const slice = s.text.slice(r.start, r.end);
+                    if (r.covering.length === 0 && !r.selected) {
+                      return <span key={i}>{slice}</span>;
                     }
-                    title={t("transcript.playTurn", { defaultValue: "Play turn" })}
-                  >
-                    {isPlayingSegment ? "⏸" : "▶"}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
-                    onClick={() => requestSegmentPlayback(s, true)}
-                    aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
-                    title={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
-                  >
-                    ↻
-                  </button>
+                    const covering = sortCoveringSpans(r.covering);
+                    const selectedCoveringSpan =
+                      selectedSpanId !== null
+                        ? covering.find((span) => span.spanId === selectedSpanId)
+                        : undefined;
+                    const activeSpan = selectedCoveringSpan ?? covering[0];
+                    const stripeColors = covering
+                      .flatMap((span) => span.tagIds)
+                      .map((tagId) => tagMetaById.get(tagId)?.color ?? "#5b9aff");
+                    const hasSuggested = covering.some(
+                      (span) => span.source === "ai_suggested",
+                    );
+                    const isSuggestedOnly =
+                      covering.length > 0 &&
+                      covering.every((span) => span.source === "ai_suggested");
+                    const markClassName = [
+                      styles.mark,
+                      isSuggestedOnly ? styles.markSuggested : "",
+                      selectedCoveringSpan ? styles.markSelected : "",
+                      covering.length > 1 ? styles.markOverlapping : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    const activeColor =
+                      activeSpan?.tagIds
+                        .map((tagId) => tagMetaById.get(tagId)?.color)
+                        .find((color): color is string => Boolean(color)) ?? "#5b9aff";
+                    return (
+                      <mark
+                        key={i}
+                        className={markClassName}
+                        style={{
+                          backgroundImage: buildStripeBackground(
+                            stripeColors,
+                            r.selected,
+                          ),
+                          borderBottomColor: activeColor,
+                          color: activeColor,
+                        }}
+                        data-span-id={activeSpan?.spanId}
+                        data-overlap-count={covering.length > 1 ? covering.length : undefined}
+                        onClick={
+                          activeSpan
+                            ? (e) => {
+                                e.stopPropagation();
+                                if (covering.length === 1) {
+                                  setSelectedSpan(activeSpan.spanId);
+                                  return;
+                                }
+                                const currentIndex = covering.findIndex(
+                                  (span) => span.spanId === selectedSpanId,
+                                );
+                                const nextSpan =
+                                  currentIndex >= 0
+                                    ? covering[(currentIndex + 1) % covering.length]
+                                    : covering[0];
+                                setSelectedSpan(nextSpan.spanId);
+                              }
+                            : undefined
+                        }
+                        title={buildRangeTitle(covering, tagLabelById)}
+                      >
+                        {slice}
+                        {hasSuggested && <sup className={styles.aiBadge}>AI</sup>}
+                      </mark>
+                    );
+                  })}
+                </span>
+                <div className={styles.segmentFooter}>
+                  <div className={styles.segmentControls}>
+                    <button
+                      type="button"
+                      className={styles.segmentPlayButton}
+                      onClick={() => requestSegmentPlayback(s, { loop: false, autoplay: true })}
+                      aria-label={
+                        isPlayingSegment
+                          ? t("transcript.pauseTurn", { defaultValue: "Pause turn" })
+                          : t("transcript.playTurn", { defaultValue: "Play turn" })
+                      }
+                      title={t("transcript.playTurn", { defaultValue: "Play turn" })}
+                    >
+                      {isPlayingSegment ? "⏸" : "▶"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.segmentLoopButton} ${isActiveSegment && segmentPlaybackState.loop ? styles.segmentLoopButtonActive : ""}`}
+                      onClick={() =>
+                        requestSegmentPlayback(s, {
+                          loop: !(isActiveSegment && segmentPlaybackState.loop),
+                          autoplay: false,
+                        })
+                      }
+                      aria-label={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                      title={t("transcript.loopTurn", { defaultValue: "Loop turn" })}
+                    >
+                      ↻
+                    </button>
+                  </div>
+                  <span className={styles.segmentProgressTrack} aria-hidden="true">
+                    {isActiveSegment && (
+                      <span
+                        className={styles.segmentProgress}
+                        style={{ transform: `scaleX(${segmentProgress})` }}
+                      />
+                    )}
+                  </span>
                 </div>
               </div>
-              <span className={styles.text}>
-                {ranges.map((r, i) => {
-                  const slice = s.text.slice(r.start, r.end);
-                  if (r.covering.length === 0 && !r.selected) {
-                    return <span key={i}>{slice}</span>;
-                  }
-                  const covering = sortCoveringSpans(r.covering);
-                  const selectedCoveringSpan =
-                    selectedSpanId !== null
-                      ? covering.find((span) => span.spanId === selectedSpanId)
-                      : undefined;
-                  const activeSpan = selectedCoveringSpan ?? covering[0];
-                  const stripeColors = covering
-                    .flatMap((span) => span.tagIds)
-                    .map((tagId) => tagMetaById.get(tagId)?.color ?? "#5b9aff");
-                  const hasSuggested = covering.some(
-                    (span) => span.source === "ai_suggested",
-                  );
-                  const isSuggestedOnly =
-                    covering.length > 0 &&
-                    covering.every((span) => span.source === "ai_suggested");
-                  const markClassName = [
-                    styles.mark,
-                    isSuggestedOnly ? styles.markSuggested : "",
-                    selectedCoveringSpan ? styles.markSelected : "",
-                    covering.length > 1 ? styles.markOverlapping : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-                  const activeColor =
-                    activeSpan?.tagIds
-                      .map((tagId) => tagMetaById.get(tagId)?.color)
-                      .find((color): color is string => Boolean(color)) ?? "#5b9aff";
-                  return (
-                    <mark
-                      key={i}
-                      className={markClassName}
-                      style={{
-                        backgroundImage: buildStripeBackground(
-                          stripeColors,
-                          r.selected,
-                        ),
-                        borderBottomColor: activeColor,
-                        color: activeColor,
-                      }}
-                      data-span-id={activeSpan?.spanId}
-                      data-overlap-count={covering.length > 1 ? covering.length : undefined}
-                      onClick={
-                        activeSpan
-                          ? (e) => {
-                              e.stopPropagation();
-                              if (covering.length === 1) {
-                                setSelectedSpan(activeSpan.spanId);
-                                return;
-                              }
-                              const currentIndex = covering.findIndex(
-                                (span) => span.spanId === selectedSpanId,
-                              );
-                              const nextSpan =
-                                currentIndex >= 0
-                                  ? covering[(currentIndex + 1) % covering.length]
-                                  : covering[0];
-                              setSelectedSpan(nextSpan.spanId);
-                            }
-                          : undefined
-                      }
-                      title={buildRangeTitle(covering, tagLabelById)}
-                    >
-                      {slice}
-                      {hasSuggested && <sup className={styles.aiBadge}>AI</sup>}
-                    </mark>
-                  );
-                })}
-                {isActiveSegment && (
-                  <span
-                    className={styles.segmentProgress}
-                    aria-hidden="true"
-                    style={{ transform: `scaleX(${segmentProgress})` }}
-                  />
-                )}
-              </span>
             </div>
           );
         })}

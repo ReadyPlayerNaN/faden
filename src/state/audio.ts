@@ -7,6 +7,7 @@ export type SegmentPlaybackRequest = {
   startSec: number;
   endSec: number;
   loop: boolean;
+  autoplay: boolean;
 };
 
 export type SegmentPlaybackState = {
