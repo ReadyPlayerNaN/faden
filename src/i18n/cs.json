@@ -90,7 +90,20 @@
   },
   "speakers": {
     "title": "Mluvčí",
-    "rename": "Přejmenovat"
+    "rename": "Přejmenovat",
+    "actions": "Akce...",
+    "add": "Přidat mluvčího",
+    "merge": "Sloučit mluvčí",
+    "remove": "Odebrat mluvčího",
+    "unassigned": "Bez mluvčího",
+    "label": "Štítek",
+    "labelPlaceholder": "např. S3",
+    "displayName": "Zobrazované jméno",
+    "displayNamePlaceholder": "Volitelné",
+    "source": "Zdrojový mluvčí",
+    "target": "Cílový mluvčí",
+    "mergeHelp": "Všechny segmenty zdrojového mluvčího budou přiřazeny cílovému mluvčímu.",
+    "removeHelp": "Odebrání mluvčího zachová segmenty přepisu, ale zruší přiřazení tohoto mluvčího."
   },
   "import": {
     "title": "Přidat rozhovor",

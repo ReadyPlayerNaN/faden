@@ -41,7 +41,7 @@ fn refi_qda_contains_codes_and_coded_segments() {
         &mut conn,
         iv.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: "hello world".into(),

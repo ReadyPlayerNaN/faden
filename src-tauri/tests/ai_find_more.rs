@@ -22,7 +22,7 @@ async fn find_more_persists_suggestions_with_target_tag() {
         &mut conn,
         i.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: "hello world".into(),

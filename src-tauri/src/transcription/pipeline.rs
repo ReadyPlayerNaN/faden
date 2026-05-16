@@ -293,7 +293,7 @@ pub async fn run_pipeline(
             for s in &segments_for_chunk {
                 let sp = speaker_q::create_or_get(&conn, interview_id, &s.speaker, None)?;
                 out.push(segment_q::NewSegment {
-                    speaker_id: sp.id,
+                    speaker_id: Some(sp.id),
                     start_sec: s.start + plan.offset_seconds,
                     end_sec: s.end + plan.offset_seconds,
                     text: s.text.clone(),

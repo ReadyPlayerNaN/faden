@@ -38,7 +38,7 @@ fn md_writes_segments_and_tags_and_memos() {
         &mut conn,
         iv.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 65.0,
             end_sec: 70.0,
             text: "hello there".into(),

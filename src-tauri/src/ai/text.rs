@@ -62,7 +62,10 @@ pub fn format_transcript(conn: &Connection, interview_id: i64) -> AppResult<Stri
         .collect();
     let mut out = String::new();
     for s in &segs {
-        let label = by_speaker.get(&s.speaker_id).copied().unwrap_or("?");
+        let label = s
+            .speaker_id
+            .and_then(|id| by_speaker.get(&id).copied())
+            .unwrap_or("?");
         writeln!(
             out,
             "[segment_id={}] [{:.1}-{:.1}] Speaker {}: {}",

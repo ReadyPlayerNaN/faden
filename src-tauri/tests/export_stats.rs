@@ -26,7 +26,7 @@ fn setup_tagged(conn: &mut Connection) -> (i64, i64) {
         conn,
         iv.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: "hello".into(),

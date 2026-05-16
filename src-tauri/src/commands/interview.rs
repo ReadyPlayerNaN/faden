@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 pub struct SegmentDTO {
     pub id: i64,
     pub interview_id: i64,
-    pub speaker_id: i64,
-    pub speaker_label_raw: String,
+    pub speaker_id: Option<i64>,
+    pub speaker_label_raw: Option<String>,
     pub speaker_display_name: Option<String>,
     pub start_sec: f64,
     pub end_sec: f64,
@@ -32,12 +32,14 @@ pub async fn segment_list_for_interview(
         speakers.into_iter().map(|s| (s.id, s)).collect();
     let mut out = Vec::with_capacity(segments.len());
     for s in segments {
-        let sp = by_speaker.get(&s.speaker_id);
+        let sp = s
+            .speaker_id
+            .and_then(|speaker_id| by_speaker.get(&speaker_id));
         out.push(SegmentDTO {
             id: s.id,
             interview_id: s.interview_id,
             speaker_id: s.speaker_id,
-            speaker_label_raw: sp.map(|x| x.label_raw.clone()).unwrap_or_default(),
+            speaker_label_raw: sp.map(|x| x.label_raw.clone()),
             speaker_display_name: sp.and_then(|x| x.display_name.clone()),
             start_sec: s.start_sec,
             end_sec: s.end_sec,
@@ -226,6 +228,22 @@ pub async fn speaker_set_display_name(
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     speaker::set_display_name(&conn, speaker_id, display_name.as_deref())
+}
+
+#[tauri::command]
+pub async fn speaker_merge(
+    app: tauri::AppHandle,
+    source_speaker_id: i64,
+    target_speaker_id: i64,
+) -> AppResult<()> {
+    let mut conn = project_conn(&app)?;
+    speaker::merge_into(&mut conn, source_speaker_id, target_speaker_id)
+}
+
+#[tauri::command]
+pub async fn speaker_delete(app: tauri::AppHandle, speaker_id: i64) -> AppResult<()> {
+    let mut conn = project_conn(&app)?;
+    speaker::delete_and_unassign(&mut conn, speaker_id)
 }
 
 #[tauri::command]

@@ -47,15 +47,17 @@ pub async fn segment_update_text(
 pub async fn segment_set_speaker(
     app: tauri::AppHandle,
     segment_id: i64,
-    speaker_id: i64,
+    speaker_id: Option<i64>,
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     let seg = segment::get(&conn, segment_id)?;
-    let sp = speaker::get(&conn, speaker_id)?;
-    if sp.interview_id != seg.interview_id {
-        return Err(AppError::Invalid(
-            "speaker does not belong to the same interview as segment".into(),
-        ));
+    if let Some(speaker_id) = speaker_id {
+        let sp = speaker::get(&conn, speaker_id)?;
+        if sp.interview_id != seg.interview_id {
+            return Err(AppError::Invalid(
+                "speaker does not belong to the same interview as segment".into(),
+            ));
+        }
     }
     segment::set_speaker(&conn, segment_id, speaker_id)
 }

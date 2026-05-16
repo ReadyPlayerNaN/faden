@@ -71,7 +71,7 @@ pub async fn ingest_impl(
             .segments
             .iter()
             .map(|s| segment::NewSegment {
-                speaker_id: *speaker_map.get(&s.speaker_label).unwrap(),
+                speaker_id: Some(*speaker_map.get(&s.speaker_label).unwrap()),
                 start_sec: s.start_sec,
                 end_sec: s.end_sec,
                 text: s.text.clone(),

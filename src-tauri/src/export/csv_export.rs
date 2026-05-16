@@ -47,7 +47,7 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
     for iv in &data.interviews {
         for span in &iv.spans {
             let seg = iv.segments.iter().find(|s| s.id == span.span.segment_id);
-            let speaker = seg.and_then(|s| iv.speakers.get(&s.speaker_id));
+            let speaker = seg.and_then(|s| s.speaker_id.and_then(|id| iv.speakers.get(&id)));
             for tag_id in &span.tags {
                 let (cl, cat, tg) = tag_lookup.get(tag_id).copied().unwrap_or(("", "", ""));
                 let seg_start = seg

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Segment {
     pub id: i64,
     pub interview_id: i64,
-    pub speaker_id: i64,
+    pub speaker_id: Option<i64>,
     pub start_sec: f64,
     pub end_sec: f64,
     pub text: String,
@@ -15,7 +15,7 @@ pub struct Segment {
 
 #[derive(Debug, Clone)]
 pub struct NewSegment {
-    pub speaker_id: i64,
+    pub speaker_id: Option<i64>,
     pub start_sec: f64,
     pub end_sec: f64,
     pub text: String,
@@ -91,7 +91,7 @@ pub fn update_text(conn: &Connection, id: i64, text: &str) -> AppResult<()> {
     Ok(())
 }
 
-pub fn set_speaker(conn: &Connection, id: i64, speaker_id: i64) -> AppResult<()> {
+pub fn set_speaker(conn: &Connection, id: i64, speaker_id: Option<i64>) -> AppResult<()> {
     let affected = conn.execute(
         "UPDATE segment SET speaker_id = ?1 WHERE id = ?2",
         params![speaker_id, id],

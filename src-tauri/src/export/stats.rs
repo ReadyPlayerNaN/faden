@@ -84,7 +84,7 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
 
     // By speaker (per interview)
     for iv in &data.interviews {
-        let mut by_speaker_tag: HashMap<(i64, i64), i64> = HashMap::new();
+        let mut by_speaker_tag: HashMap<(Option<i64>, i64), i64> = HashMap::new();
         for span in &iv.spans {
             let seg = iv.segments.iter().find(|s| s.id == span.span.segment_id);
             if let Some(s) = seg {
@@ -93,13 +93,11 @@ pub fn write_stats_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> Ap
                 }
             }
         }
-        let mut keys: Vec<&(i64, i64)> = by_speaker_tag.keys().collect();
+        let mut keys: Vec<&(Option<i64>, i64)> = by_speaker_tag.keys().collect();
         keys.sort();
         for (sp_id, tag_id) in keys {
-            let sp_label = iv
-                .speakers
-                .get(sp_id)
-                .map(|x| x.label_raw.as_str())
+            let sp_label = sp_id
+                .and_then(|id| iv.speakers.get(&id).map(|x| x.label_raw.as_str()))
                 .unwrap_or("?");
             if let Some((cl, cat, tg)) = tag_path.get(tag_id) {
                 let count = by_speaker_tag[&(*sp_id, *tag_id)].to_string();

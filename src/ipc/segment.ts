@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 export type SegmentDTO = {
   id: number;
   interviewId: number;
-  speakerId: number;
-  speakerLabelRaw: string;
+  speakerId: number | null;
+  speakerLabelRaw: string | null;
   speakerDisplayName: string | null;
   startSec: number;
   endSec: number;
@@ -15,8 +15,8 @@ export type SegmentDTO = {
 type Raw = {
   id: number;
   interview_id: number;
-  speaker_id: number;
-  speaker_label_raw: string;
+  speaker_id: number | null;
+  speaker_label_raw: string | null;
   speaker_display_name: string | null;
   start_sec: number;
   end_sec: number;
@@ -42,7 +42,7 @@ export const segmentListForInterview = async (interviewId: number): Promise<Segm
 export const segmentUpdateText = (segmentId: number, text: string): Promise<void> =>
   invoke("segment_update_text", { segmentId, text });
 
-export const segmentSetSpeaker = (segmentId: number, speakerId: number): Promise<void> =>
+export const segmentSetSpeaker = (segmentId: number, speakerId: number | null): Promise<void> =>
   invoke("segment_set_speaker", { segmentId, speakerId });
 
 export const segmentDelete = (segmentId: number): Promise<void> =>

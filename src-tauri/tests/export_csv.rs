@@ -55,7 +55,7 @@ fn csv_one_row_per_span_tag_pair() {
         &mut conn,
         iv.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: "hello".into(),

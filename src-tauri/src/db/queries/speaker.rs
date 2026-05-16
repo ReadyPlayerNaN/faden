@@ -82,3 +82,47 @@ pub fn set_display_name(conn: &Connection, id: i64, display_name: Option<&str>) 
     }
     Ok(())
 }
+
+pub fn merge_into(conn: &mut Connection, source_id: i64, target_id: i64) -> AppResult<()> {
+    if source_id == target_id {
+        return Err(AppError::Invalid(
+            "cannot merge a speaker into itself".into(),
+        ));
+    }
+
+    let source = get(conn, source_id)?;
+    let target = get(conn, target_id)?;
+    if source.interview_id != target.interview_id {
+        return Err(AppError::Invalid(
+            "speakers do not belong to the same interview".into(),
+        ));
+    }
+
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE segment SET speaker_id = ?1 WHERE speaker_id = ?2",
+        params![target_id, source_id],
+    )?;
+    let deleted = tx.execute("DELETE FROM speaker WHERE id = ?1", params![source_id])?;
+    if deleted == 0 {
+        return Err(AppError::NotFound(format!("speaker {source_id}")));
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn delete_and_unassign(conn: &mut Connection, speaker_id: i64) -> AppResult<()> {
+    get(conn, speaker_id)?;
+
+    let tx = conn.transaction()?;
+    tx.execute(
+        "UPDATE segment SET speaker_id = NULL WHERE speaker_id = ?1",
+        params![speaker_id],
+    )?;
+    let deleted = tx.execute("DELETE FROM speaker WHERE id = ?1", params![speaker_id])?;
+    if deleted == 0 {
+        return Err(AppError::NotFound(format!("speaker {speaker_id}")));
+    }
+    tx.commit()?;
+    Ok(())
+}

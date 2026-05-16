@@ -30,7 +30,7 @@ fn setup(conn: &mut Connection) -> Setup {
         conn,
         i.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 10.0,
             text: "hello world".into(),

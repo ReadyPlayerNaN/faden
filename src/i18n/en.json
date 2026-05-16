@@ -90,7 +90,20 @@
   },
   "speakers": {
     "title": "Speakers",
-    "rename": "Rename"
+    "rename": "Rename",
+    "actions": "Actions...",
+    "add": "Add speaker",
+    "merge": "Merge speakers",
+    "remove": "Remove speaker",
+    "unassigned": "Unassigned",
+    "label": "Label",
+    "labelPlaceholder": "e.g. S3",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "Optional",
+    "source": "Source speaker",
+    "target": "Target speaker",
+    "mergeHelp": "All segments from the source speaker will be reassigned to the target speaker.",
+    "removeHelp": "Removing a speaker keeps the transcript segments, but clears that speaker assignment."
   },
   "import": {
     "title": "Add interview",

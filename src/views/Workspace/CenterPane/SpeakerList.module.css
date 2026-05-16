@@ -8,18 +8,81 @@
   border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
 }
+
 .label {
   opacity: 0.7;
 }
+
+.actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.trigger {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  min-width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.25rem 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItem {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  text-align: left;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.menuItem:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+
+.menuItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input,
+.field input,
+.field select {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
 .item {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
+
 .raw {
   font-family: ui-monospace, monospace;
   font-weight: 600;
 }
+
 .name {
   background: transparent;
   border: 1px dashed var(--border);
@@ -29,15 +92,30 @@
   font: inherit;
   cursor: pointer;
 }
+
 .name:hover {
   background: var(--bg-muted);
 }
-.input {
-  background: var(--bg-muted);
-  border: 1px solid var(--accent);
-  color: var(--fg);
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
-  font: inherit;
+
+.error {
+  color: #d04848;
   font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.help {
+  margin: 0;
+  opacity: 0.8;
 }

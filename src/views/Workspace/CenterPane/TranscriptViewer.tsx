@@ -29,7 +29,10 @@ import { codebookTreeAtom } from "../../../state/codebook";
 import { Modal } from "../../../components/Modal/Modal";
 import styles from "./TranscriptViewer.module.css";
 
-type Props = { interviewId: number };
+type Props = {
+  interviewId: number;
+  speakerVersion?: number;
+};
 
 const formatTimestamp = (seconds: number): string => {
   const totalMs = Math.round(seconds * 1000);
@@ -49,6 +52,45 @@ type SegmentSpan = {
   endOffset: number;
   tagIds: number[];
   source: "manual" | "ai_suggested" | "ai_accepted";
+};
+
+const sortCoveringSpans = (spans: SegmentSpan[]) =>
+  [...spans].sort((a, b) => {
+    if (a.startOffset !== b.startOffset) return a.startOffset - b.startOffset;
+    if (a.endOffset !== b.endOffset) return b.endOffset - a.endOffset;
+    return a.spanId - b.spanId;
+  });
+
+const buildStripeBackground = (colors: string[], selected: boolean) => {
+  const layers: string[] = [];
+  if (selected) {
+    layers.push(
+      "linear-gradient(to bottom, color-mix(in srgb, var(--accent) 22%, transparent) 0%, color-mix(in srgb, var(--accent) 22%, transparent) 100%)",
+    );
+  }
+  if (colors.length > 0) {
+    const stripeStops = colors.flatMap((color, index) => {
+      const start = ((index / colors.length) * 100).toFixed(2);
+      const end = (((index + 1) / colors.length) * 100).toFixed(2);
+      const tint = `color-mix(in srgb, ${color} 28%, transparent)`;
+      return [`${tint} ${start}%`, `${tint} ${end}%`];
+    });
+    layers.push(`linear-gradient(to bottom, ${stripeStops.join(", ")})`);
+  }
+  return layers.join(", ");
+};
+
+const buildRangeTitle = (
+  covering: SegmentSpan[],
+  tagLabelById: Map<number, string>,
+) => {
+  if (covering.length === 0) return undefined;
+  const lines = covering.map((span, index) => {
+    const labels = span.tagIds.map((tagId) => tagLabelById.get(tagId) ?? `#${tagId}`);
+    return `Span ${index + 1}: ${labels.join(", ") || `#${span.spanId}`}`;
+  });
+  if (covering.length > 1) lines.push("Click to cycle overlapping spans");
+  return lines.join("\n");
 };
 
 type SegmentSelection = {
@@ -164,6 +206,17 @@ const SegmentEditor = ({
     const value = e.target.value;
     if (value === "__add__") {
       setAddingSpeaker(true);
+      return;
+    }
+    if (value === "__none__") {
+      if (segment.speakerId === null) return;
+      setError(null);
+      try {
+        await segmentSetSpeaker(segment.id, null);
+        await onChanged();
+      } catch (e) {
+        setError(String(e));
+      }
       return;
     }
     const id = Number(value);
@@ -288,9 +341,12 @@ const SegmentEditor = ({
           />
         ) : (
           <select
-            value={String(segment.speakerId)}
+            value={segment.speakerId === null ? "__none__" : String(segment.speakerId)}
             onChange={(e) => void onSpeakerSelectChange(e)}
           >
+            <option value="__none__">
+              {t("speakers.unassigned", { defaultValue: "Unassigned" })}
+            </option>
             {speakers.map((sp) => (
               <option key={sp.id} value={String(sp.id)}>
                 {sp.displayName ?? sp.labelRaw}
@@ -357,7 +413,7 @@ const SegmentEditor = ({
   );
 };
 
-export const TranscriptViewer = ({ interviewId }: Props) => {
+export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
@@ -366,6 +422,7 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
   const setSegmentPlaybackRequest = useSetAtom(segmentPlaybackRequestAtom);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
   const activeSelection = useAtomValue(activeTextSelectionAtom);
+  const selectedSpanId = useAtomValue(selectedSpanIdAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
@@ -383,11 +440,11 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
 
   useEffect(() => {
     void segmentListForInterview(interviewId).then(setSegments);
-  }, [interviewId, lastProgress?.stage]);
+  }, [interviewId, lastProgress?.stage, speakerVersion]);
 
   useEffect(() => {
     void speakerListForInterview(interviewId).then(setSpeakers);
-  }, [interviewId, lastProgress?.stage]);
+  }, [interviewId, lastProgress?.stage, speakerVersion]);
 
   const spansBySegment = useMemo(() => {
     const map = new Map<number, SegmentSpan[]>();
@@ -405,17 +462,25 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
     return map;
   }, [spans]);
 
-  const tagColorById = useMemo(() => {
-    const m = new Map<number, string>();
+  const tagMetaById = useMemo(() => {
+    const m = new Map<number, { color: string; label: string }>();
     codebook?.clusters.forEach((cl) => {
       cl.categories.forEach((cat) => {
         cat.tags.forEach((tg) => {
-          m.set(tg.id, tg.color ?? cat.color ?? cl.color ?? "#5b9aff");
+          m.set(tg.id, {
+            color: tg.color ?? cat.color ?? cl.color ?? "#5b9aff",
+            label: tg.name,
+          });
         });
       });
     });
     return m;
   }, [codebook]);
+
+  const tagLabelById = useMemo(
+    () => new Map(Array.from(tagMetaById.entries()).map(([tagId, meta]) => [tagId, meta.label])),
+    [tagMetaById],
+  );
 
   const handleMouseUp = () => {
     if (editMode) return;
@@ -589,7 +654,11 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                 [{formatTimestamp(s.startSec)}]
               </span>
               <span className={styles.speaker}>
-                {t("workspace.speaker")} {s.speakerDisplayName ?? s.speakerLabelRaw}:
+                {t("workspace.speaker")}{" "}
+                {s.speakerDisplayName ??
+                  s.speakerLabelRaw ??
+                  t("speakers.unassigned", { defaultValue: "Unassigned" })}
+                :
               </span>
               <span className={styles.text}>
                 {ranges.map((r, i) => {
@@ -597,17 +666,26 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                   if (r.covering.length === 0 && !r.selected) {
                     return <span key={i}>{slice}</span>;
                   }
-                  const first = r.covering[0];
-                  const firstTagId = first?.tagIds[0];
-                  const color =
-                    firstTagId !== undefined
-                      ? tagColorById.get(firstTagId)
+                  const covering = sortCoveringSpans(r.covering);
+                  const selectedCoveringSpan =
+                    selectedSpanId !== null
+                      ? covering.find((span) => span.spanId === selectedSpanId)
                       : undefined;
-                  const isSuggested = first?.source === "ai_suggested";
+                  const activeSpan = selectedCoveringSpan ?? covering[0];
+                  const stripeColors = covering
+                    .flatMap((span) => span.tagIds)
+                    .map((tagId) => tagMetaById.get(tagId)?.color ?? "#5b9aff");
+                  const hasSuggested = covering.some(
+                    (span) => span.source === "ai_suggested",
+                  );
+                  const isSuggestedOnly =
+                    covering.length > 0 &&
+                    covering.every((span) => span.source === "ai_suggested");
                   const markClassName = [
                     styles.mark,
-                    isSuggested ? styles.markSuggested : "",
-                    r.selected ? styles.markSelected : "",
+                    isSuggestedOnly ? styles.markSuggested : "",
+                    selectedCoveringSpan ? styles.markSelected : "",
+                    covering.length > 1 ? styles.markOverlapping : "",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -616,27 +694,36 @@ export const TranscriptViewer = ({ interviewId }: Props) => {
                       key={i}
                       className={markClassName}
                       style={{
-                        background: r.selected
-                          ? "color-mix(in srgb, var(--accent) 28%, transparent)"
-                          : (color ?? "#5b9aff") + "33",
+                        backgroundImage: buildStripeBackground(
+                          stripeColors,
+                          r.selected,
+                        ),
                       }}
-                      data-span-id={first?.spanId}
+                      data-span-id={activeSpan?.spanId}
+                      data-overlap-count={covering.length > 1 ? covering.length : undefined}
                       onClick={
-                        first
+                        activeSpan
                           ? (e) => {
                               e.stopPropagation();
-                              setSelectedSpan(first.spanId);
+                              if (covering.length === 1) {
+                                setSelectedSpan(activeSpan.spanId);
+                                return;
+                              }
+                              const currentIndex = covering.findIndex(
+                                (span) => span.spanId === selectedSpanId,
+                              );
+                              const nextSpan =
+                                currentIndex >= 0
+                                  ? covering[(currentIndex + 1) % covering.length]
+                                  : covering[0];
+                              setSelectedSpan(nextSpan.spanId);
                             }
                           : undefined
                       }
-                      title={
-                        first && r.covering.length > 1
-                          ? `${r.covering.length} overlapping spans`
-                          : undefined
-                      }
+                      title={buildRangeTitle(covering, tagLabelById)}
                     >
                       {slice}
-                      {isSuggested && <sup className={styles.aiBadge}>AI</sup>}
+                      {hasSuggested && <sup className={styles.aiBadge}>AI</sup>}
                     </mark>
                   );
                 })}

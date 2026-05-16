@@ -21,7 +21,7 @@ fn make_tagged_interview(conn: &mut Connection, name: &str, text: &str, tag_id: 
         conn,
         i.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: text.into(),

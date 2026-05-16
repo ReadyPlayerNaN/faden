@@ -37,3 +37,12 @@ export const speakerCreate = async (
   fromRaw(
     await invoke<Raw>("speaker_create", { interviewId, labelRaw, displayName }),
   );
+
+export const speakerMerge = (
+  sourceSpeakerId: number,
+  targetSpeakerId: number,
+): Promise<void> =>
+  invoke("speaker_merge", { sourceSpeakerId, targetSpeakerId });
+
+export const speakerDelete = (speakerId: number): Promise<void> =>
+  invoke("speaker_delete", { speakerId });

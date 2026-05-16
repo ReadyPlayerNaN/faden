@@ -109,6 +109,96 @@ fn speaker_set_display_name() {
 }
 
 #[test]
+fn speaker_merge_reassigns_segments_and_deletes_source() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let source = speaker::create_or_get(&conn, i.id, "A", Some("Alice")).unwrap();
+    let target = speaker::create_or_get(&conn, i.id, "B", Some("Bob")).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[
+            segment::NewSegment {
+                speaker_id: Some(source.id),
+                start_sec: 0.0,
+                end_sec: 5.0,
+                text: "first".into(),
+            },
+            segment::NewSegment {
+                speaker_id: Some(target.id),
+                start_sec: 5.0,
+                end_sec: 10.0,
+                text: "second".into(),
+            },
+            segment::NewSegment {
+                speaker_id: Some(source.id),
+                start_sec: 10.0,
+                end_sec: 15.0,
+                text: "third".into(),
+            },
+        ],
+    )
+    .unwrap();
+
+    speaker::merge_into(&mut conn, source.id, target.id).unwrap();
+
+    assert!(speaker::get(&conn, source.id).is_err());
+    let listed = segment::list_for_interview(&conn, i.id).unwrap();
+    assert_eq!(
+        listed
+            .iter()
+            .filter(|s| s.speaker_id == Some(target.id))
+            .count(),
+        3
+    );
+    assert_eq!(speaker::list_for_interview(&conn, i.id).unwrap().len(), 1);
+}
+
+#[test]
+fn speaker_merge_rejects_cross_interview_merge() {
+    let mut conn = fresh_conn();
+    let i1 = interview::create(&conn, "I1").unwrap();
+    let i2 = interview::create(&conn, "I2").unwrap();
+    let a = speaker::create_or_get(&conn, i1.id, "A", None).unwrap();
+    let b = speaker::create_or_get(&conn, i2.id, "B", None).unwrap();
+
+    let err = speaker::merge_into(&mut conn, a.id, b.id).unwrap_err();
+    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+}
+
+#[test]
+fn speaker_delete_unassigns_segments() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[
+            segment::NewSegment {
+                speaker_id: Some(sp.id),
+                start_sec: 0.0,
+                end_sec: 5.0,
+                text: "first".into(),
+            },
+            segment::NewSegment {
+                speaker_id: Some(sp.id),
+                start_sec: 5.0,
+                end_sec: 10.0,
+                text: "second".into(),
+            },
+        ],
+    )
+    .unwrap();
+
+    speaker::delete_and_unassign(&mut conn, sp.id).unwrap();
+
+    let listed = segment::list_for_interview(&conn, i.id).unwrap();
+    assert!(listed.iter().all(|segment| segment.speaker_id.is_none()));
+    assert!(speaker::list_for_interview(&conn, i.id).unwrap().is_empty());
+}
+
+#[test]
 fn segment_insert_batch_and_list() {
     let mut conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
@@ -118,13 +208,13 @@ fn segment_insert_batch_and_list() {
         i.id,
         &[
             segment::NewSegment {
-                speaker_id: sp.id,
+                speaker_id: Some(sp.id),
                 start_sec: 0.0,
                 end_sec: 5.0,
                 text: "hi".into(),
             },
             segment::NewSegment {
-                speaker_id: sp.id,
+                speaker_id: Some(sp.id),
                 start_sec: 5.0,
                 end_sec: 10.0,
                 text: "there".into(),
@@ -148,13 +238,13 @@ fn segment_list_ordered_by_order_index() {
         i.id,
         &[
             segment::NewSegment {
-                speaker_id: sp.id,
+                speaker_id: Some(sp.id),
                 start_sec: 10.0,
                 end_sec: 20.0,
                 text: "later".into(),
             },
             segment::NewSegment {
-                speaker_id: sp.id,
+                speaker_id: Some(sp.id),
                 start_sec: 0.0,
                 end_sec: 10.0,
                 text: "earlier".into(),
@@ -163,7 +253,6 @@ fn segment_list_ordered_by_order_index() {
     )
     .unwrap();
     let listed = segment::list_for_interview(&conn, i.id).unwrap();
-    // order_index is insertion order, NOT time order.
     assert_eq!(listed[0].text, "later");
     assert_eq!(listed[1].text, "earlier");
 }
@@ -177,7 +266,7 @@ fn segment_delete_all_for_interview() {
         &mut conn,
         i.id,
         &[segment::NewSegment {
-            speaker_id: sp.id,
+            speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
             text: "x".into(),

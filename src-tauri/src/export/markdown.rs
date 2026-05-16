@@ -43,7 +43,7 @@ pub fn write_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
             spans_by_seg.entry(s.span.segment_id).or_default().push(s);
         }
         for seg in &iv.segments {
-            let speaker = iv.speakers.get(&seg.speaker_id);
+            let speaker = seg.speaker_id.and_then(|id| iv.speakers.get(&id));
             let speaker_label = speaker.map(|s| s.label_raw.as_str()).unwrap_or("?");
             let timestamp = format_seconds(seg.start_sec);
             writeln!(
