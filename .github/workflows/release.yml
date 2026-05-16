@@ -130,8 +130,8 @@ jobs:
             "${{ steps.assets.outputs.deb_path }}" \
             "${{ steps.assets.outputs.rpm_path }}" \
             "${{ steps.assets.outputs.portable_path }}" \
-            dist/aur/faden/PKGBUILD \
-            dist/aur/faden/.SRCINFO \
+            dist/aur/faden/PKGBUILD#PKGBUILD \
+            dist/aur/faden/.SRCINFO#.SRCINFO \
             "${{ steps.assets.outputs.aur_bundle_path }}" \
             --clobber
 
