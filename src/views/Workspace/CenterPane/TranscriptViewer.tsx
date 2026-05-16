@@ -25,6 +25,7 @@ import {
   selectedSpanIdAtom,
   activeTextSelectionAtom,
 } from "../../../state/tagging";
+import { buildTagMetaMap } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { Modal } from "../../../components/Modal/Modal";
 import styles from "./TranscriptViewer.module.css";
@@ -464,14 +465,10 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
 
   const tagMetaById = useMemo(() => {
     const m = new Map<number, { color: string; label: string }>();
-    codebook?.clusters.forEach((cl) => {
-      cl.categories.forEach((cat) => {
-        cat.tags.forEach((tg) => {
-          m.set(tg.id, {
-            color: tg.color ?? cat.color ?? cl.color ?? "#5b9aff",
-            label: tg.name,
-          });
-        });
+    buildTagMetaMap(codebook).forEach((meta, tagId) => {
+      m.set(tagId, {
+        color: meta.effectiveColor ?? "#5b9aff",
+        label: meta.tag.name,
       });
     });
     return m;
@@ -688,6 +685,10 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                   ]
                     .filter(Boolean)
                     .join(" ");
+                  const activeColor =
+                    activeSpan?.tagIds
+                      .map((tagId) => tagMetaById.get(tagId)?.color)
+                      .find((color): color is string => Boolean(color)) ?? "#5b9aff";
                   return (
                     <mark
                       key={i}
@@ -697,6 +698,8 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                           stripeColors,
                           r.selected,
                         ),
+                        borderBottomColor: activeColor,
+                        color: activeColor,
                       }}
                       data-span-id={activeSpan?.spanId}
                       data-overlap-count={covering.length > 1 ? covering.length : undefined}

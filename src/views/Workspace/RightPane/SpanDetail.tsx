@@ -12,6 +12,7 @@ import {
   spanListForInterview,
   spanUpdateTags,
 } from "../../../ipc/tagging";
+import { buildTagMetaMap, listTagMeta } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { selectedInterviewIdAtom } from "../../../state/interview";
 import { Button } from "../../../components/Button/Button";
@@ -43,17 +44,7 @@ export const SpanDetail = ({ span }: Props) => {
     return () => clearTimeout(handle);
   }, [memo, span.id, span.memo]);
 
-  const lookupTag = (id: number) => {
-    if (!codebook) return null;
-    for (const cl of codebook.clusters) {
-      for (const cat of cl.categories) {
-        for (const tg of cat.tags) {
-          if (tg.id === id) return { tg, cat, cl };
-        }
-      }
-    }
-    return null;
-  };
+  const tagMetaById = useMemo(() => buildTagMetaMap(codebook), [codebook]);
 
   const refreshSpans = async () => {
     if (interviewId !== null) {
@@ -87,29 +78,18 @@ export const SpanDetail = ({ span }: Props) => {
   };
 
   const allTagsFlat = useMemo(() => {
-    if (!codebook) return [];
-    const out: {
-      id: number;
-      name: string;
-      categoryName: string;
-      clusterName: string;
-      color: string | null;
-    }[] = [];
-    codebook.clusters.forEach((cl) =>
-      cl.categories.forEach((cat) =>
-        cat.tags.forEach((tg) => {
-          out.push({
-            id: tg.id,
-            name: tg.name,
-            categoryName: cat.name,
-            clusterName: cl.name,
-            color: tg.color,
-          });
-        }),
-      ),
-    );
-    return out;
-  }, [codebook]);
+    return listTagMeta(codebook).map(({ tag, category, cluster, effectiveColor }) => ({
+      id: tag.id,
+      name: tag.name,
+      categoryName: category?.name ?? t("tagging.standalone", { defaultValue: "Standalone (no category)" }),
+      clusterName:
+        cluster?.name ??
+        (category
+          ? t("tags.noCluster", { defaultValue: "No cluster" })
+          : t("tagging.standalone", { defaultValue: "Standalone (no category)" })),
+      color: effectiveColor,
+    }));
+  }, [codebook, t]);
 
   const filteredAddable = allTagsFlat
     .filter((tg) => !span.tags.some((s) => s.tagId === tg.id))
@@ -131,16 +111,15 @@ export const SpanDetail = ({ span }: Props) => {
         <h4 className={styles.sectionTitle}>{t("tagging.tags")}</h4>
         <div className={styles.tagList}>
           {span.tags.map((tg) => {
-            const meta = lookupTag(tg.tagId);
-            const color =
-              meta?.tg.color ?? meta?.cat.color ?? meta?.cl.color ?? "#5b9aff";
+            const meta = tagMetaById.get(tg.tagId);
+            const color = meta?.effectiveColor ?? "#5b9aff";
             return (
               <span
                 key={tg.tagId}
                 className={styles.chip}
                 style={{ background: color + "22", borderColor: color }}
               >
-                {meta?.tg.name ?? `#${tg.tagId}`}
+                {meta?.tag.name ?? `#${tg.tagId}`}
                 <button
                   className={styles.chipRemove}
                   onClick={() => void onRemoveTag(tg.tagId)}

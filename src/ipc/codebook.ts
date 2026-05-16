@@ -63,6 +63,51 @@ export type CodebookTree = {
   standaloneTags: TagNode[];
 };
 
+export type TagMeta = {
+  tag: TagNode;
+  category: CategoryNode | null;
+  cluster: ClusterNode | null;
+  effectiveColor: string | null;
+};
+
+export const listTagMeta = (
+  tree: CodebookTree | null | undefined,
+): TagMeta[] => {
+  if (!tree) return [];
+
+  return [
+    ...tree.standaloneTags.map((tag) => ({
+      tag,
+      category: null,
+      cluster: null,
+      effectiveColor: tag.color,
+    })),
+    ...tree.standaloneCategories.flatMap((category) =>
+      category.tags.map((tag) => ({
+        tag,
+        category,
+        cluster: null,
+        effectiveColor: tag.color ?? category.color,
+      })),
+    ),
+    ...tree.clusters.flatMap((cluster) =>
+      cluster.categories.flatMap((category) =>
+        category.tags.map((tag) => ({
+          tag,
+          category,
+          cluster,
+          effectiveColor: tag.color ?? category.color ?? cluster.color,
+        })),
+      ),
+    ),
+  ];
+};
+
+export const buildTagMetaMap = (
+  tree: CodebookTree | null | undefined,
+): Map<number, TagMeta> =>
+  new Map(listTagMeta(tree).map((meta) => [meta.tag.id, meta]));
+
 type RawCluster = {
   id: number;
   name: string;

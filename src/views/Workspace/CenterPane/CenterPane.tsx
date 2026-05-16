@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { selectedInterviewIdAtom } from "../../../state/interview";
+import { codebookTreeAtom } from "../../../state/codebook";
 import { spansForCurrentInterviewAtom } from "../../../state/tagging";
+import { codebookTree as fetchCodebookTree } from "../../../ipc/codebook";
 import { spanListForInterview } from "../../../ipc/tagging";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { TagPopover } from "./TagPopover";
@@ -13,7 +15,12 @@ export const CenterPane = () => {
   const { t } = useTranslation();
   const interviewId = useAtomValue(selectedInterviewIdAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
+  const setCodebookTree = useSetAtom(codebookTreeAtom);
   const [speakerVersion, setSpeakerVersion] = useState(0);
+
+  useEffect(() => {
+    void fetchCodebookTree().then(setCodebookTree);
+  }, [setCodebookTree]);
 
   useEffect(() => {
     if (interviewId === null) {
