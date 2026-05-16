@@ -48,11 +48,28 @@ export const PeopleView = () => {
 	const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 	const [busy, setBusy] = useState(false);
 
+	const handleError = (e: unknown) => {
+		const msg = String((e as { message?: string })?.message ?? e);
+		if (msg.includes("Conflict") || msg.includes("already exists")) {
+			setError(
+				t("people.errorDuplicate", {
+					defaultValue: "A person with that name already exists",
+				}),
+			);
+		} else if (msg.includes("not found") || msg.includes("NotFound")) {
+			setError(t("errors.notFound", { defaultValue: "Not found" }));
+		} else if (msg.includes("Invalid") || msg.includes("invalid")) {
+			setError(t("errors.invalid", { defaultValue: "Invalid input" }));
+		} else {
+			setError(msg);
+		}
+	};
+
 	const reload = async () => {
 		try {
 			setPeople(await personList());
 		} catch (e) {
-			setError(String(e));
+			handleError(e);
 		}
 	};
 
@@ -102,7 +119,7 @@ export const PeopleView = () => {
 			closeAdd();
 			await reload();
 		} catch (e) {
-			setError(String(e));
+			handleError(e);
 		} finally {
 			setBusy(false);
 		}
@@ -119,7 +136,7 @@ export const PeopleView = () => {
 			closeEdit();
 			await reload();
 		} catch (e) {
-			setError(String(e));
+			handleError(e);
 		} finally {
 			setBusy(false);
 		}
@@ -134,7 +151,7 @@ export const PeopleView = () => {
 			setDeleteTarget(null);
 			await reload();
 		} catch (e) {
-			setError(String(e));
+			handleError(e);
 		} finally {
 			setBusy(false);
 		}

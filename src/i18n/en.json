@@ -130,8 +130,13 @@
     "unassigned": "Unassigned",
     "label": "Label",
     "labelPlaceholder": "e.g. S3",
+    "labelOptionalWhenLinked": "Optional when linking a person",
     "displayName": "Display name",
     "displayNamePlaceholder": "Optional",
+    "inheritPersonName": "Leave empty to inherit the person's name",
+    "noPerson": "No linked person",
+    "details": "Speaker details",
+    "currentInheritance": "Currently inheriting from: {{name}}",
     "source": "Source speaker",
     "target": "Target speaker",
     "mergeHelp": "Select multiple speakers to merge, then give the merged speaker a new name.",
@@ -218,7 +223,8 @@
     "email": "Email",
     "phone": "Phone",
     "linkedSpeakers": "Linked speakers: {{count}}",
-    "confirmDelete": "Delete \"{{name}}\"? Linked speakers will stay in interviews but become unlinked."
+    "confirmDelete": "Delete \"{{name}}\"? Linked speakers will stay in interviews but become unlinked.",
+    "errorDuplicate": "A person with that name already exists"
   },
   "transcript": {
     "editMode": "Edit transcript",
