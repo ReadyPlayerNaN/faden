@@ -23,8 +23,8 @@ DISPLAY_NAME="${DISPLAY_NAME:-Faden}"
 PKG_DESC="${PKG_DESC:-$(awk -F ' = ' '/^description = / { gsub(/^"|"$/, "", $2); print $2; exit }' "$ROOT/src-tauri/Cargo.toml")}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT/dist/aur}"
 PACKAGE_DIR="$OUTPUT_ROOT/$PACKAGE_NAME"
-SOURCE_URL="https://github.com/$REPOSITORY/archive/refs/tags/$TAG.tar.gz"
-SOURCE_NAME="$BASE_NAME-$VERSION.tar.gz"
+SOURCE_NAME="${SOURCE_NAME:-$BASE_NAME-$VERSION-linux-x86_64.tar.gz}"
+SOURCE_URL="${SOURCE_URL:-https://github.com/$REPOSITORY/releases/download/$TAG/$SOURCE_NAME}"
 SOURCE_SHA256="${SOURCE_SHA256:-}"
 
 if [[ -z "$SOURCE_SHA256" ]]; then
@@ -46,42 +46,13 @@ pkgdesc="$PKG_DESC"
 arch=('x86_64')
 url="https://github.com/$REPOSITORY"
 license=('MIT')
-options=(!lto)
 depends=('ffmpeg' 'sqlite' 'webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator' 'libsoup3' 'hicolor-icon-theme')
-makedepends=('cargo' 'nodejs' 'npm' 'patchelf' 'pkgconf')
-conflicts=('${BASE_NAME}-bin' '${BASE_NAME}-git')
+conflicts=('${BASE_NAME}-git')
 source=("$SOURCE_NAME::$SOURCE_URL")
 sha256sums=('$SOURCE_SHA256')
 
-prepare() {
-  cd "\$(find "\$srcdir" -maxdepth 1 -type d -name "\$_pkgname-*" | head -n1)"
-  export npm_config_cache="\$srcdir/npm-cache"
-  npm ci
-}
-
-build() {
-  cd "\$(find "\$srcdir" -maxdepth 1 -type d -name "\$_pkgname-*" | head -n1)"
-  npm run build
-  cargo build --manifest-path src-tauri/Cargo.toml --bins --features tauri/custom-protocol --release
-}
-
 package() {
-  cd "\$(find "\$srcdir" -maxdepth 1 -type d -name "\$_pkgname-*" | head -n1)"
-
-  install -Dm755 "src-tauri/target/release/\$_pkgname" "\$pkgdir/usr/bin/\$_pkgname"
-  install -Dm644 "src-tauri/icons/128x128.png" "\$pkgdir/usr/share/pixmaps/\$_pkgname.png"
-  install -Dm644 LICENSE "\$pkgdir/usr/share/licenses/$PACKAGE_NAME/LICENSE"
-  install -Dm644 /dev/stdin "\$pkgdir/usr/share/applications/\$_pkgname.desktop" <<DESKTOP
-[Desktop Entry]
-Type=Application
-Name=$DISPLAY_NAME
-Comment=$PKG_DESC
-Exec=\$_pkgname
-Icon=\$_pkgname
-Terminal=false
-Categories=Office;AudioVideo;
-StartupWMClass=faden
-DESKTOP
+  cp -a "$srcdir/usr/." "$pkgdir/usr/"
 }
 EOF
 
@@ -93,12 +64,6 @@ pkgbase = $PACKAGE_NAME
 	url = https://github.com/$REPOSITORY
 	arch = x86_64
 	license = MIT
-	options = !lto
-	makedepends = cargo
-	makedepends = nodejs
-	makedepends = npm
-	makedepends = patchelf
-	makedepends = pkgconf
 	depends = ffmpeg
 	depends = sqlite
 	depends = webkit2gtk-4.1
@@ -106,7 +71,6 @@ pkgbase = $PACKAGE_NAME
 	depends = libayatana-appindicator
 	depends = libsoup3
 	depends = hicolor-icon-theme
-	conflicts = ${BASE_NAME}-bin
 	conflicts = ${BASE_NAME}-git
 	source = $SOURCE_NAME::$SOURCE_URL
 	sha256sums = $SOURCE_SHA256
