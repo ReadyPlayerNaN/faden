@@ -74,6 +74,24 @@ pub fn create(conn: &Connection, new: &NewSpan) -> AppResult<TaggedSpan> {
     })
 }
 
+pub fn create_with_id(conn: &Connection, span: &TaggedSpan) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO tagged_span (id, interview_id, segment_id, start_offset, end_offset, text_snapshot, audio_start_sec, audio_end_sec, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            span.id,
+            span.interview_id,
+            span.segment_id,
+            span.start_offset,
+            span.end_offset,
+            span.text_snapshot,
+            span.audio_start_sec,
+            span.audio_end_sec,
+            span.created_at,
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn update_offsets(
     conn: &Connection,
     id: i64,
@@ -106,6 +124,27 @@ pub fn update_offsets_and_snapshot(
     )?;
     if affected == 0 {
         return Err(AppError::NotFound(format!("tagged_span {id}")));
+    }
+    Ok(())
+}
+
+pub fn restore(conn: &Connection, span: &TaggedSpan) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE tagged_span SET interview_id = ?1, segment_id = ?2, start_offset = ?3, end_offset = ?4, text_snapshot = ?5, audio_start_sec = ?6, audio_end_sec = ?7, created_at = ?8 WHERE id = ?9",
+        params![
+            span.interview_id,
+            span.segment_id,
+            span.start_offset,
+            span.end_offset,
+            span.text_snapshot,
+            span.audio_start_sec,
+            span.audio_end_sec,
+            span.created_at,
+            span.id,
+        ],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("tagged_span {}", span.id)));
     }
     Ok(())
 }

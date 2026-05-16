@@ -5,7 +5,12 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { projectOpen, projectRename } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
 import { interviewList as fetchInterviews } from "../../ipc/interview";
-import { interviewListAtom } from "../../state/interview";
+import { historyRedo, historyStatus, historyUndo } from "../../ipc/history";
+import { historyStatusAtom } from "../../state/history";
+import {
+  interviewContentVersionAtom,
+  interviewListAtom,
+} from "../../state/interview";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
 import { transcriptionRunsAtom } from "../../state/transcription";
 import {
@@ -27,8 +32,10 @@ export const Workspace = () => {
   const navigate = useNavigate();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
   const [project, setProject] = useAtom(currentProjectAtom);
+  const [historyState, setHistoryState] = useAtom(historyStatusAtom);
   const setRuns = useSetAtom(transcriptionRunsAtom);
   const setInterviews = useSetAtom(interviewListAtom);
+  const bumpInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [exportOpen, setExportOpen] = useState(false);
@@ -72,6 +79,39 @@ export const Workspace = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshHistoryState = async () => {
+    if (!project) {
+      setHistoryState({ canUndo: false, canRedo: false });
+      return;
+    }
+    setHistoryState(await historyStatus());
+  };
+
+  const refreshAfterHistoryMutation = () => {
+    bumpInterviewContentVersion((value) => value + 1);
+    setActiveSelection(null);
+    void fetchInterviews().then(setInterviews);
+  };
+
+  const onUndo = async () => {
+    await historyUndo();
+    refreshAfterHistoryMutation();
+  };
+
+  const onRedo = async () => {
+    await historyRedo();
+    refreshAfterHistoryMutation();
+  };
+
+  useEffect(() => {
+    void refreshHistoryState();
+    const onHistoryChanged = () => {
+      void refreshHistoryState();
+    };
+    window.addEventListener("stt:history-changed", onHistoryChanged);
+    return () => window.removeEventListener("stt:history-changed", onHistoryChanged);
+  }, [project]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -81,6 +121,18 @@ export const Workspace = () => {
           target.tagName === "TEXTAREA" ||
           target.isContentEditable)
       ) {
+        return;
+      }
+      const isAccel = e.metaKey || e.ctrlKey;
+      if (isAccel && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (historyState.canRedo) {
+            void onRedo();
+          }
+        } else if (historyState.canUndo) {
+          void onUndo();
+        }
         return;
       }
       if (e.key === " ") {
@@ -93,8 +145,7 @@ export const Workspace = () => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
 
   useEffect(() => {
     if (!projectMenuOpen) return;
@@ -165,6 +216,12 @@ export const Workspace = () => {
           )}
         </div>
         <div className={styles.headerActions}>
+          <Button onClick={() => void onUndo()} disabled={!historyState.canUndo}>
+            {t("workspace.undo", { defaultValue: "Undo" })}
+          </Button>
+          <Button onClick={() => void onRedo()} disabled={!historyState.canRedo}>
+            {t("workspace.redo", { defaultValue: "Redo" })}
+          </Button>
           <Button onClick={() => setExportOpen(true)}>
             {t("export.title")}
           </Button>

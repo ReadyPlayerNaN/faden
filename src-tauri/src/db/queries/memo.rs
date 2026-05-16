@@ -1,4 +1,5 @@
 use crate::error::AppResult;
+use crate::history::MemoSnapshot;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
@@ -47,5 +48,19 @@ pub fn get_for_span(conn: &Connection, span_id: i64) -> AppResult<Option<Memo>> 
 
 pub fn delete_for_span(conn: &Connection, span_id: i64) -> AppResult<()> {
     conn.execute("DELETE FROM memo WHERE span_id = ?1", params![span_id])?;
+    Ok(())
+}
+
+pub fn restore_for_span(conn: &Connection, memo: Option<&MemoSnapshot>) -> AppResult<()> {
+    let span_id = memo.map(|item| item.span_id);
+    if let Some(span_id) = span_id {
+        delete_for_span(conn, span_id)?;
+    }
+    if let Some(item) = memo {
+        conn.execute(
+            "INSERT INTO memo (id, span_id, body, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![item.id, item.span_id, item.body, item.created_at, item.updated_at],
+        )?;
+    }
     Ok(())
 }

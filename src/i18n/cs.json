@@ -33,7 +33,9 @@
     "noSegmentsNoAudio": "Tento rozhovor zatím nemá zvuk. Přidejte zvuk, aby bylo možné vytvořit přepis.",
     "speaker": "Mluvčí",
     "selectionMissing": "Označte text uvnitř jednoho segmentu, abyste mu mohli přiřadit štítek.",
-    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište."
+    "emptyTranscriptForTagging": "Přepis není k dispozici. Nejprve nahrávku přepište.",
+    "undo": "Zpět",
+    "redo": "Znovu"
   },
   "codebook": {
     "addCluster": "+ Cluster",

@@ -1,6 +1,7 @@
 use crate::commands::util::project_conn;
 use crate::db::queries::{segment, speaker, tagged_span};
 use crate::error::{AppError, AppResult};
+use crate::history::{self, HistoryPayload};
 
 /// Convert a byte/char offset given as i64 (from JS) to a usize char-index
 /// clamped into [0, text_chars_len].
@@ -20,14 +21,16 @@ pub async fn segment_update_text(
     segment_id: i64,
     text: String,
 ) -> AppResult<()> {
-    let conn = project_conn(&app)?;
-    let _ = segment::get(&conn, segment_id)?;
-    segment::update_text(&conn, segment_id, &text)?;
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let previous = segment::get(&tx, segment_id)?;
+    let old_spans = tagged_span::list_for_segment(&tx, segment_id)?;
+    segment::update_text(&tx, segment_id, &text)?;
 
     // Clamp any spans whose end_offset exceeds new text length; refresh snapshots.
     let new_chars: Vec<char> = text.chars().collect();
     let new_len = new_chars.len() as i32;
-    let spans = tagged_span::list_for_segment(&conn, segment_id)?;
+    let spans = tagged_span::list_for_segment(&tx, segment_id)?;
     for span in spans {
         let start = span.start_offset.clamp(0, new_len);
         let end = span.end_offset.clamp(start, new_len);
@@ -37,9 +40,18 @@ pub async fn segment_update_text(
             .take((end - start) as usize)
             .collect();
         if start != span.start_offset || end != span.end_offset || snapshot != span.text_snapshot {
-            tagged_span::update_offsets_and_snapshot(&conn, span.id, start, end, &snapshot)?;
+            tagged_span::update_offsets_and_snapshot(&tx, span.id, start, end, &snapshot)?;
         }
     }
+    history::record_undo(
+        &tx,
+        &HistoryPayload::SegmentUpdateText {
+            segment_id,
+            text: previous.text,
+            spans: old_spans,
+        },
+    )?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -49,17 +61,27 @@ pub async fn segment_set_speaker(
     segment_id: i64,
     speaker_id: Option<i64>,
 ) -> AppResult<()> {
-    let conn = project_conn(&app)?;
-    let seg = segment::get(&conn, segment_id)?;
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let seg = segment::get(&tx, segment_id)?;
     if let Some(speaker_id) = speaker_id {
-        let sp = speaker::get(&conn, speaker_id)?;
+        let sp = speaker::get(&tx, speaker_id)?;
         if sp.interview_id != seg.interview_id {
             return Err(AppError::Invalid(
                 "speaker does not belong to the same interview as segment".into(),
             ));
         }
     }
-    segment::set_speaker(&conn, segment_id, speaker_id)
+    segment::set_speaker(&tx, segment_id, speaker_id)?;
+    history::record_undo(
+        &tx,
+        &HistoryPayload::SegmentSetSpeaker {
+            segment_id,
+            speaker_id: seg.speaker_id,
+        },
+    )?;
+    tx.commit()?;
+    Ok(())
 }
 
 #[tauri::command]

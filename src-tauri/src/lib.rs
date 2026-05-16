@@ -5,6 +5,7 @@ pub mod db;
 pub mod domain;
 pub mod error;
 pub mod export;
+pub mod history;
 pub mod import;
 pub mod media_server;
 pub mod settings;
@@ -33,6 +34,9 @@ pub fn run() {
             commands::project::project_create,
             commands::project::project_open,
             commands::project::project_rename,
+            commands::history::history_undo,
+            commands::history::history_redo,
+            commands::history::history_status,
             commands::settings::settings_get,
             commands::settings::settings_set,
             commands::settings::settings_add_recent,

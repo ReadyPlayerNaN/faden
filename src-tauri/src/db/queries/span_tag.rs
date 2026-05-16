@@ -1,4 +1,5 @@
 use crate::error::{AppError, AppResult};
+use crate::history::SpanTagSnapshot;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +47,23 @@ pub fn detach(conn: &Connection, span_id: i64, tag_id: i64) -> AppResult<()> {
         "DELETE FROM span_tag WHERE span_id = ?1 AND tag_id = ?2",
         params![span_id, tag_id],
     )?;
+    Ok(())
+}
+
+pub fn delete_for_span(conn: &Connection, span_id: i64) -> AppResult<()> {
+    conn.execute("DELETE FROM span_tag WHERE span_id = ?1", params![span_id])?;
+    Ok(())
+}
+
+pub fn replace_for_span(
+    conn: &Connection,
+    span_id: i64,
+    tags: &[SpanTagSnapshot],
+) -> AppResult<()> {
+    delete_for_span(conn, span_id)?;
+    for tag in tags {
+        attach(conn, span_id, tag.tag_id, tag.source)?;
+    }
     Ok(())
 }
 

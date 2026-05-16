@@ -34,7 +34,9 @@
     "noSegmentsNoAudio": "This interview has no audio yet. Add audio to transcribe it.",
     "speaker": "Speaker",
     "selectionMissing": "Select text within a single segment to tag it.",
-    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first."
+    "emptyTranscriptForTagging": "Transcript not available. Transcribe the audio first.",
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "codebook": {
     "addCluster": "+ Cluster",

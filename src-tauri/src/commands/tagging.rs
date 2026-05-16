@@ -1,6 +1,7 @@
 use crate::commands::util::project_conn;
 use crate::db::queries::{memo, segment, span_tag, span_tag::SpanTagSource, tagged_span};
 use crate::error::{AppError, AppResult};
+use crate::history::{self, HistoryPayload, SpanTagSnapshot};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
@@ -175,8 +176,12 @@ pub fn span_list_for_interview_impl(
 
 #[tauri::command]
 pub async fn span_create(app: tauri::AppHandle, args: CreateSpanArgs) -> AppResult<SpanDTO> {
-    let conn = project_conn(&app)?;
-    span_create_impl(&conn, &args)
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let dto = span_create_impl(&tx, &args)?;
+    history::record_undo(&tx, &HistoryPayload::SpanCreate { span_id: dto.id })?;
+    tx.commit()?;
+    Ok(dto)
 }
 
 #[tauri::command]
@@ -185,8 +190,16 @@ pub async fn span_update_tags(
     span_id: i64,
     tag_ids: Vec<i64>,
 ) -> AppResult<SpanDTO> {
-    let conn = project_conn(&app)?;
-    span_update_tags_impl(&conn, span_id, &tag_ids)
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let tags = span_tag::list_for_span(&tx, span_id)?
+        .into_iter()
+        .map(|(tag_id, source)| SpanTagSnapshot { tag_id, source })
+        .collect();
+    let dto = span_update_tags_impl(&tx, span_id, &tag_ids)?;
+    history::record_undo(&tx, &HistoryPayload::SpanUpdateTags { span_id, tags })?;
+    tx.commit()?;
+    Ok(dto)
 }
 
 #[tauri::command]
@@ -196,14 +209,24 @@ pub async fn span_update_offsets(
     start_offset: i32,
     end_offset: i32,
 ) -> AppResult<SpanDTO> {
-    let conn = project_conn(&app)?;
-    span_update_offsets_impl(&conn, span_id, start_offset, end_offset)
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let previous = tagged_span::get(&tx, span_id)?;
+    let dto = span_update_offsets_impl(&tx, span_id, start_offset, end_offset)?;
+    history::record_undo(&tx, &HistoryPayload::SpanUpdateOffsets { span: previous })?;
+    tx.commit()?;
+    Ok(dto)
 }
 
 #[tauri::command]
 pub async fn span_delete(app: tauri::AppHandle, span_id: i64) -> AppResult<()> {
-    let conn = project_conn(&app)?;
-    tagged_span::delete(&conn, span_id)
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let snapshot = history::capture_span_with_relations(&tx, span_id)?;
+    tagged_span::delete(&tx, span_id)?;
+    history::record_undo(&tx, &HistoryPayload::SpanDelete { snapshot })?;
+    tx.commit()?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -223,7 +246,23 @@ pub async fn span_list_for_interview(
 
 #[tauri::command]
 pub async fn memo_upsert(app: tauri::AppHandle, span_id: i64, body: String) -> AppResult<()> {
-    let conn = project_conn(&app)?;
-    memo::upsert(&conn, span_id, &body)?;
+    let mut conn = project_conn(&app)?;
+    let tx = conn.transaction()?;
+    let previous = memo::get_for_span(&tx, span_id)?.map(|item| history::MemoSnapshot {
+        id: item.id,
+        span_id: item.span_id,
+        body: item.body,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+    });
+    memo::upsert(&tx, span_id, &body)?;
+    history::record_undo(
+        &tx,
+        &HistoryPayload::MemoUpsert {
+            span_id,
+            memo: previous,
+        },
+    )?;
+    tx.commit()?;
     Ok(())
 }

@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const emitHistoryChanged = () => {
+  window.dispatchEvent(new Event("stt:history-changed"));
+};
+
 export type TagOnSpan = {
   tagId: number;
   source: "manual" | "ai_suggested" | "ai_accepted";
@@ -57,8 +61,8 @@ export const spanCreate = async (args: {
   startOffset: number;
   endOffset: number;
   tagIds: number[];
-}): Promise<SpanDTO> =>
-  fromRaw(
+}): Promise<SpanDTO> => {
+  const result = fromRaw(
     await invoke<RawSpan>("span_create", {
       args: {
         interview_id: args.interviewId,
@@ -69,28 +73,41 @@ export const spanCreate = async (args: {
       },
     }),
   );
+  emitHistoryChanged();
+  return result;
+};
 
 export const spanUpdateTags = async (
   spanId: number,
   tagIds: number[],
-): Promise<SpanDTO> =>
-  fromRaw(await invoke<RawSpan>("span_update_tags", { spanId, tagIds }));
+): Promise<SpanDTO> => {
+  const result = fromRaw(
+    await invoke<RawSpan>("span_update_tags", { spanId, tagIds }),
+  );
+  emitHistoryChanged();
+  return result;
+};
 
 export const spanUpdateOffsets = async (
   spanId: number,
   startOffset: number,
   endOffset: number,
-): Promise<SpanDTO> =>
-  fromRaw(
+): Promise<SpanDTO> => {
+  const result = fromRaw(
     await invoke<RawSpan>("span_update_offsets", {
       spanId,
       startOffset,
       endOffset,
     }),
   );
+  emitHistoryChanged();
+  return result;
+};
 
-export const spanDelete = (spanId: number): Promise<void> =>
-  invoke("span_delete", { spanId });
+export const spanDelete = async (spanId: number): Promise<void> => {
+  await invoke("span_delete", { spanId });
+  emitHistoryChanged();
+};
 
 export const spanGet = async (spanId: number): Promise<SpanDTO> =>
   fromRaw(await invoke<RawSpan>("span_get", { spanId }));
@@ -102,5 +119,7 @@ export const spanListForInterview = async (
     fromRaw,
   );
 
-export const memoUpsert = (spanId: number, body: string): Promise<void> =>
-  invoke("memo_upsert", { spanId, body });
+export const memoUpsert = async (spanId: number, body: string): Promise<void> => {
+  await invoke("memo_upsert", { spanId, body });
+  emitHistoryChanged();
+};

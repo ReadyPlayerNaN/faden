@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const emitHistoryChanged = () => {
+  window.dispatchEvent(new Event("stt:history-changed"));
+};
+
 export type SegmentDTO = {
   id: number;
   interviewId: number;
@@ -39,11 +43,18 @@ const fromRaw = (r: Raw): SegmentDTO => ({
 export const segmentListForInterview = async (interviewId: number): Promise<SegmentDTO[]> =>
   (await invoke<Raw[]>("segment_list_for_interview", { interviewId })).map(fromRaw);
 
-export const segmentUpdateText = (segmentId: number, text: string): Promise<void> =>
-  invoke("segment_update_text", { segmentId, text });
+export const segmentUpdateText = async (segmentId: number, text: string): Promise<void> => {
+  await invoke("segment_update_text", { segmentId, text });
+  emitHistoryChanged();
+};
 
-export const segmentSetSpeaker = (segmentId: number, speakerId: number | null): Promise<void> =>
-  invoke("segment_set_speaker", { segmentId, speakerId });
+export const segmentSetSpeaker = async (
+  segmentId: number,
+  speakerId: number | null,
+): Promise<void> => {
+  await invoke("segment_set_speaker", { segmentId, speakerId });
+  emitHistoryChanged();
+};
 
 export const segmentDelete = (segmentId: number): Promise<void> =>
   invoke("segment_delete", { segmentId });
