@@ -188,6 +188,7 @@
   },
   "audio": {
     "menu": "Audio actions",
+    "add": "Add audio…",
     "attach": "Attach audio…",
     "replace": "Replace audio…",
     "remove": "Remove audio",
@@ -195,7 +196,15 @@
     "confirmRemoveBody": "The audio file will be deleted from the project. The transcript will be kept."
   },
   "interview": {
+    "menu": "Interview actions",
+    "edit": "Edit interview",
     "delete": "Delete interview",
+    "reuploadTranscript": "Reupload transcript",
+    "transcriptUpdate": {
+      "none": "Keep current transcript",
+      "text": "Replace with text",
+      "json": "Replace with JSON"
+    },
     "confirmDelete": "Delete \"{{name}}\"?",
     "confirmDeleteBody": "This will permanently delete the interview, transcript, audio, and tagged spans."
   },

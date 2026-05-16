@@ -16,6 +16,7 @@ import {
   type Speaker,
 } from "../../../ipc/speaker";
 import { transcriptionRunsAtom } from "../../../state/transcription";
+import { interviewContentVersionAtom } from "../../../state/interview";
 import {
   segmentPlaybackRequestAtom,
   segmentPlaybackStateAtom,
@@ -427,6 +428,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
+  const interviewContentVersion = useAtomValue(interviewContentVersionAtom);
   const codebook = useAtomValue(codebookTreeAtom);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastProgress = runs[interviewId]?.lastProgress;
@@ -441,11 +443,11 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
 
   useEffect(() => {
     void segmentListForInterview(interviewId).then(setSegments);
-  }, [interviewId, lastProgress?.stage, speakerVersion]);
+  }, [interviewId, lastProgress?.stage, speakerVersion, interviewContentVersion]);
 
   useEffect(() => {
     void speakerListForInterview(interviewId).then(setSpeakers);
-  }, [interviewId, lastProgress?.stage, speakerVersion]);
+  }, [interviewId, lastProgress?.stage, speakerVersion, interviewContentVersion]);
 
   const spansBySegment = useMemo(() => {
     const map = new Map<number, SegmentSpan[]>();

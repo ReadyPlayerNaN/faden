@@ -84,5 +84,17 @@ export const interviewSetAudio = async (
 export const interviewClearAudio = async (id: number): Promise<Interview> =>
   fromRaw(await invoke<RawInterview>("interview_clear_audio", { interviewId: id }));
 
+export const interviewReplaceTranscriptText = async (
+  id: number,
+  rawText: string,
+): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_replace_transcript_text", { interviewId: id, rawText }));
+
+export const interviewReplaceTranscriptJson = async (
+  id: number,
+  rawJson: string,
+): Promise<Interview> =>
+  fromRaw(await invoke<RawInterview>("interview_replace_transcript_json", { interviewId: id, rawJson }));
+
 export const interviewAudioStreamUrl = (id: number): Promise<string> =>
   invoke("interview_audio_stream_url", { interviewId: id });

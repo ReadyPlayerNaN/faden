@@ -83,6 +83,14 @@ pub fn list_for_interview(conn: &Connection, interview_id: i64) -> AppResult<Vec
     Ok(out)
 }
 
+pub fn delete_all_for_interview(conn: &Connection, interview_id: i64) -> AppResult<usize> {
+    let affected = conn.execute(
+        "DELETE FROM speaker WHERE interview_id = ?1",
+        params![interview_id],
+    )?;
+    Ok(affected)
+}
+
 pub fn get(conn: &Connection, id: i64) -> AppResult<Speaker> {
     conn.query_row(
         "SELECT id, interview_id, label_raw, display_name FROM speaker WHERE id = ?1",

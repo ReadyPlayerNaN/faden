@@ -72,6 +72,8 @@ pub fn run() {
             commands::interview::interview_import_json,
             commands::interview::interview_import_audio_text,
             commands::interview::interview_import_audio_json,
+            commands::interview::interview_replace_transcript_text,
+            commands::interview::interview_replace_transcript_json,
             commands::interview::segment_list_for_interview,
             commands::interview::speaker_list_for_interview,
             commands::interview::speaker_create,

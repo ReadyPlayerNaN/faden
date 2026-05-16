@@ -3,6 +3,7 @@ import type { Interview } from "../ipc/interview";
 
 export const interviewListAtom = atom<Interview[]>([]);
 export const selectedInterviewIdAtom = atom<number | null>(null);
+export const interviewContentVersionAtom = atom(0);
 
 export const selectedInterviewAtom = atom((get) => {
   const id = get(selectedInterviewIdAtom);

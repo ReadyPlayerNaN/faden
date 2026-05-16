@@ -156,10 +156,7 @@ fn speaker_merge_reassigns_segments_and_deletes_sources() {
         2
     );
     assert_eq!(
-        listed
-            .iter()
-            .filter(|s| s.speaker_id == Some(c.id))
-            .count(),
+        listed.iter().filter(|s| s.speaker_id == Some(c.id)).count(),
         1
     );
 }

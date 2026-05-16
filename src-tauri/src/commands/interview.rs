@@ -162,6 +162,79 @@ pub async fn interview_import_json(
     crate::import::ingest::ingest_impl(project_dir, name, None, Some(parsed)).await
 }
 
+fn replace_transcript(
+    conn: &mut rusqlite::Connection,
+    interview_id: i64,
+    parsed: crate::import::plain_text::ParsedTranscript,
+) -> AppResult<Interview> {
+    interview::get(conn, interview_id)?;
+    segment::delete_all_for_interview(conn, interview_id)?;
+    speaker::delete_all_for_interview(conn, interview_id)?;
+
+    let mut speaker_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    for sp in &parsed.speakers {
+        let s = speaker::create_or_get(
+            conn,
+            interview_id,
+            &sp.label_raw,
+            sp.display_name.as_deref(),
+        )?;
+        speaker_map.insert(sp.label_raw.clone(), s.id);
+    }
+    for seg in &parsed.segments {
+        if !speaker_map.contains_key(&seg.speaker_label) {
+            let s = speaker::create_or_get(conn, interview_id, &seg.speaker_label, None)?;
+            speaker_map.insert(seg.speaker_label.clone(), s.id);
+        }
+    }
+
+    let new_segments: Vec<segment::NewSegment> = parsed
+        .segments
+        .iter()
+        .map(|seg| segment::NewSegment {
+            speaker_id: Some(*speaker_map.get(&seg.speaker_label).unwrap()),
+            start_sec: seg.start_sec,
+            end_sec: seg.end_sec,
+            text: seg.text.clone(),
+        })
+        .collect();
+    segment::insert_batch(conn, interview_id, &new_segments)?;
+
+    interview::set_status(conn, interview_id, TranscriptStatus::Complete)?;
+    interview::set_notes(
+        conn,
+        interview_id,
+        if parsed.synthetic_timestamps {
+            Some("[synthetic timestamps]")
+        } else {
+            None
+        },
+    )?;
+    interview::get(conn, interview_id)
+}
+
+#[tauri::command]
+pub async fn interview_replace_transcript_text(
+    app: tauri::AppHandle,
+    interview_id: i64,
+    raw_text: String,
+) -> AppResult<Interview> {
+    let parsed = crate::import::plain_text::parse(&raw_text)?;
+    let mut conn = project_conn(&app)?;
+    replace_transcript(&mut conn, interview_id, parsed)
+}
+
+#[tauri::command]
+pub async fn interview_replace_transcript_json(
+    app: tauri::AppHandle,
+    interview_id: i64,
+    raw_json: String,
+) -> AppResult<Interview> {
+    let parsed = crate::import::json_schema::parse_json(&raw_json)?;
+    let mut conn = project_conn(&app)?;
+    replace_transcript(&mut conn, interview_id, parsed)
+}
+
 #[tauri::command]
 pub async fn interview_import_audio_text(
     app: tauri::AppHandle,
@@ -238,7 +311,8 @@ pub async fn speaker_merge(
     new_name: String,
 ) -> AppResult<SpeakerDTO> {
     let mut conn = project_conn(&app)?;
-    let speaker = speaker::merge_many_into_new(&mut conn, interview_id, &source_speaker_ids, &new_name)?;
+    let speaker =
+        speaker::merge_many_into_new(&mut conn, interview_id, &source_speaker_ids, &new_name)?;
     Ok(speaker.into())
 }
 

@@ -3,17 +3,20 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
+  interviewDelete,
   interviewList as fetchList,
   interviewSetAudio,
-  interviewClearAudio,
-  interviewDelete,
 } from "../../../ipc/interview";
 import { transcribeStart, transcribeCancel } from "../../../ipc/transcribe";
-import { interviewListAtom, selectedInterviewIdAtom } from "../../../state/interview";
+import {
+  interviewListAtom,
+  selectedInterviewIdAtom,
+} from "../../../state/interview";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import { Button } from "../../../components/Button/Button";
 import { Modal } from "../../../components/Modal/Modal";
 import { AddInterviewModal } from "./AddInterviewModal";
+import { EditInterviewModal } from "./EditInterviewModal";
 import styles from "./InterviewList.module.css";
 import type { Interview } from "../../../ipc/interview";
 
@@ -72,7 +75,7 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
     || progress?.lastProgress.stage === "chunk_complete";
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menuWrapRef = useRef<HTMLSpanElement | null>(null);
 
@@ -101,7 +104,7 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
     try { await transcribeCancel(iv.id); } catch (e) { window.alert(String((e as { message?: string }).message ?? e)); }
   };
 
-  const pickAndSetAudio = async () => {
+  const addAudio = async () => {
     setMenuOpen(false);
     try {
       const p = await openDialog({
@@ -111,16 +114,6 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
       if (!p || Array.isArray(p)) return;
       await interviewSetAudio(iv.id, p);
       setList(await fetchList());
-    } catch (e) {
-      window.alert(String((e as { message?: string }).message ?? e));
-    }
-  };
-
-  const doRemoveAudio = async () => {
-    try {
-      await interviewClearAudio(iv.id);
-      setList(await fetchList());
-      setConfirmRemove(false);
     } catch (e) {
       window.alert(String((e as { message?: string }).message ?? e));
     }
@@ -189,7 +182,7 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
           <button
             type="button"
             className={styles.menuBtn}
-            aria-label={t("audio.menu", { defaultValue: "Audio actions" }) as string}
+            aria-label={t("interview.menu", { defaultValue: "Interview actions" }) as string}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
@@ -203,66 +196,32 @@ const InterviewRow = ({ iv, selected, onSelect, progress }: RowProps) => {
                   type="button"
                   className={styles.menuItem}
                   role="menuitem"
-                  onClick={(e) => { e.stopPropagation(); void pickAndSetAudio(); }}
+                  onClick={(e) => { e.stopPropagation(); void addAudio(); }}
                 >
-                  {t("audio.attach", { defaultValue: "Attach audio…" })}
+                  {t("audio.add", { defaultValue: "Add audio…" })}
                 </button>
               )}
-              {hasAudio && (
-                <>
-                  <button
-                    type="button"
-                    className={styles.menuItem}
-                    role="menuitem"
-                    onClick={(e) => { e.stopPropagation(); void pickAndSetAudio(); }}
-                  >
-                    {t("audio.replace", { defaultValue: "Replace audio…" })}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.menuItem}
-                    role="menuitem"
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setConfirmRemove(true); }}
-                  >
-                    {t("audio.remove", { defaultValue: "Remove audio" })}
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setEditOpen(true); }}
+              >
+                {t("common.edit")}
+              </button>
               <button
                 type="button"
                 className={styles.menuItem}
                 role="menuitem"
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setConfirmDelete(true); }}
               >
-                {t("interview.delete", { defaultValue: "Delete interview" })}
+                {t("common.delete")}
               </button>
             </div>
           )}
         </span>
       </div>
-      <Modal
-        open={confirmRemove}
-        onClose={() => setConfirmRemove(false)}
-        title={t("audio.confirmRemove", { defaultValue: "Remove audio?" })}
-        size="sm"
-        footer={
-          <>
-            <Button onClick={() => setConfirmRemove(false)}>
-              {t("common.cancel", { defaultValue: "Cancel" })}
-            </Button>
-            <Button variant="danger" onClick={() => void doRemoveAudio()}>
-              {t("audio.remove", { defaultValue: "Remove audio" })}
-            </Button>
-          </>
-        }
-      >
-        <p>
-          {t("audio.confirmRemoveBody", {
-            defaultValue:
-              "The audio file will be deleted from the project. The transcript will be kept.",
-          })}
-        </p>
-      </Modal>
+      {editOpen && <EditInterviewModal interview={iv} onClose={() => setEditOpen(false)} />}
       <Modal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}

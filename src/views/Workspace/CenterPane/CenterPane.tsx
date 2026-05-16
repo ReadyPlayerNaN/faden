@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
-import { selectedInterviewIdAtom } from "../../../state/interview";
+import {
+  interviewContentVersionAtom,
+  selectedInterviewIdAtom,
+} from "../../../state/interview";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { spansForCurrentInterviewAtom } from "../../../state/tagging";
 import { codebookTree as fetchCodebookTree } from "../../../ipc/codebook";
@@ -14,6 +17,7 @@ import styles from "./CenterPane.module.css";
 export const CenterPane = () => {
   const { t } = useTranslation();
   const interviewId = useAtomValue(selectedInterviewIdAtom);
+  const interviewContentVersion = useAtomValue(interviewContentVersionAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
   const setCodebookTree = useSetAtom(codebookTreeAtom);
   const [speakerVersion, setSpeakerVersion] = useState(0);
@@ -28,7 +32,7 @@ export const CenterPane = () => {
       return;
     }
     void spanListForInterview(interviewId).then(setSpans);
-  }, [interviewId, setSpans]);
+  }, [interviewId, interviewContentVersion, setSpans]);
 
   return (
     <section className={styles.pane}>
