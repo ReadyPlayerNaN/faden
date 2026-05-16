@@ -1,5 +1,5 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::{applied_versions, apply_migrations};
+use faden_app_lib::db::migrations::{applied_versions, apply_migrations};
 
 fn open_mem() -> Connection {
     Connection::open_in_memory().unwrap()
@@ -108,7 +108,7 @@ fn applies_m005_category_cluster_can_be_null() {
 
 #[test]
 fn applies_in_transaction() {
-    use stt_app_lib::db::migrations::apply_migrations_with;
+    use faden_app_lib::db::migrations::apply_migrations_with;
     let mut conn = open_mem();
     let migrations: &[(i64, &str)] =
         &[(1i64, "CREATE TABLE good (id INTEGER); SELECT bad_syntax;")];

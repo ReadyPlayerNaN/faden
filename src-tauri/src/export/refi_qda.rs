@@ -19,7 +19,7 @@ fn xml_err(e: quick_xml::Error) -> AppError {
 pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResult<()> {
     let project_ns = Uuid::new_v5(
         &Uuid::NAMESPACE_DNS,
-        format!("stt-qda:{}", data.project_name).as_bytes(),
+        format!("faden:{}", data.project_name).as_bytes(),
     );
 
     let mut w = Writer::new_with_indent(writer, b' ', 2);
@@ -28,7 +28,7 @@ pub fn write_refi_qda<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
 
     let mut proj = BytesStart::new("Project");
     proj.push_attribute(("name", data.project_name.as_str()));
-    proj.push_attribute(("origin", "STT-QDA"));
+    proj.push_attribute(("origin", "Faden"));
     w.write_event(Event::Start(proj)).map_err(xml_err)?;
 
     // Users

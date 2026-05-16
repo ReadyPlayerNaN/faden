@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use stt_app_lib::ai::prompts;
+use faden_app_lib::ai::prompts;
 
 #[test]
 fn replaces_simple_placeholder() {

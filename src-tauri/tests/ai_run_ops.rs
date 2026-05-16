@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::ai_run::{self, AiRunKind};
-use stt_app_lib::db::queries::ai_run_ops::{self, AiRunNodeStatus, AiRunStageKey, AiRunTaskKind};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::ai_run::{self, AiRunKind};
+use faden_app_lib::db::queries::ai_run_ops::{self, AiRunNodeStatus, AiRunStageKey, AiRunTaskKind};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

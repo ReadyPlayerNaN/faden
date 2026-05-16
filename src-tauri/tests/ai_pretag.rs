@@ -1,12 +1,12 @@
 use mockito::Server;
 use rusqlite::Connection;
 use serde_json::json;
-use stt_app_lib::ai::pretag::{self, PretagInput};
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{
+use faden_app_lib::ai::pretag::{self, PretagInput};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::{
     ai_run, category, cluster, interview, proposal, segment, speaker, tag,
 };
-use stt_app_lib::transcription::gemini::GeminiClient;
+use faden_app_lib::transcription::gemini::GeminiClient;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -212,7 +212,7 @@ async fn pretag_invalid_json_fails_run() {
     )
     .await
     .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
     let runs = ai_run::list_all(&conn).unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].raw_output.as_deref(), Some("not json"));

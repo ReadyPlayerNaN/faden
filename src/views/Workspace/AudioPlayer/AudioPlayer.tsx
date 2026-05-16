@@ -312,9 +312,9 @@ export const AudioPlayer = () => {
     const toggle = () => {
       void togglePlay();
     };
-    window.addEventListener("stt:toggle-play", toggle);
+    window.addEventListener("faden:toggle-play", toggle);
     return () => {
-      window.removeEventListener("stt:toggle-play", toggle);
+      window.removeEventListener("faden:toggle-play", toggle);
     };
   }, [togglePlay]);
 

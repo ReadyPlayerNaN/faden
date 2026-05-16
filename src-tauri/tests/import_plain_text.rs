@@ -1,4 +1,4 @@
-use stt_app_lib::import::plain_text::*;
+use faden_app_lib::import::plain_text::*;
 
 #[test]
 fn single_speaker() {

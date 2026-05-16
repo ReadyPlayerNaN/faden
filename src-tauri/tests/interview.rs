@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::interview::{self, TranscriptStatus};
-use stt_app_lib::db::queries::{segment, speaker};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::interview::{self, TranscriptStatus};
+use faden_app_lib::db::queries::{segment, speaker};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -207,7 +207,7 @@ fn speaker_merge_rejects_cross_interview_merge() {
     let b = speaker::create_or_get(&conn, i2.id, "B", None).unwrap();
 
     let err = speaker::merge_many_into_new(&mut conn, i1.id, &[a.id, b.id], "Merged").unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[test]

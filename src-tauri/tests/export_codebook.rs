@@ -1,8 +1,8 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{category, cluster, project_meta, tag};
-use stt_app_lib::export::codebook::{write_codebook_csv, write_codebook_json};
-use stt_app_lib::export::{compose, ExportScope};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::{category, cluster, project_meta, tag};
+use faden_app_lib::export::codebook::{write_codebook_csv, write_codebook_json};
+use faden_app_lib::export::{compose, ExportScope};
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

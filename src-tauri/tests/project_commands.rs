@@ -1,6 +1,6 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::project_meta;
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::project_meta;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -22,18 +22,18 @@ fn insert_is_unique() {
     let conn = fresh_conn();
     project_meta::insert(&conn, "First").unwrap();
     let err = project_meta::insert(&conn, "Second").unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Sqlite(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Sqlite(_)));
 }
 
 #[test]
 fn read_missing_returns_not_found() {
     let conn = fresh_conn();
     let err = project_meta::read(&conn).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 use std::path::PathBuf;
-use stt_app_lib::commands::project::{project_create_impl, project_open_impl, ProjectInfo};
+use faden_app_lib::commands::project::{project_create_impl, project_open_impl, ProjectInfo};
 use tempfile::tempdir;
 
 #[tokio::test]
@@ -92,7 +92,7 @@ async fn project_create_rejects_existing_project() {
     let err = project_create_impl(dir.path().to_path_buf(), "A".into())
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[tokio::test]
@@ -101,5 +101,5 @@ async fn project_open_missing_returns_error() {
     let err = project_open_impl(path.to_string_lossy().to_string())
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }

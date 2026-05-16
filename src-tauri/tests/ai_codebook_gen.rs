@@ -1,11 +1,11 @@
 use mockito::Server;
 use rusqlite::Connection;
 use serde_json::json;
-use stt_app_lib::ai::codebook_gen::{self, CodebookGenInput};
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::proposal::{self, ProposalStatus};
-use stt_app_lib::db::queries::{ai_run, interview, proposal as _proposal_alias, segment, speaker};
-use stt_app_lib::transcription::gemini::GeminiClient;
+use faden_app_lib::ai::codebook_gen::{self, CodebookGenInput};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::proposal::{self, ProposalStatus};
+use faden_app_lib::db::queries::{ai_run, interview, proposal as _proposal_alias, segment, speaker};
+use faden_app_lib::transcription::gemini::GeminiClient;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -178,7 +178,7 @@ async fn codebook_gen_invalid_json_marks_run_failed() {
     )
     .await
     .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
     let runs = ai_run::list_all(&conn).unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].raw_output.as_deref(), Some("not json"));

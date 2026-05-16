@@ -1,4 +1,4 @@
-use stt_app_lib::transcription::chunker::*;
+use faden_app_lib::transcription::chunker::*;
 
 #[test]
 fn plans_two_full_chunks_for_840s() {
@@ -37,7 +37,7 @@ fn subchunks_splits_in_half() {
 #[test]
 fn subchunks_rejects_below_minimum() {
     let err = plan_subchunks(50.0, 45.0).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[test]

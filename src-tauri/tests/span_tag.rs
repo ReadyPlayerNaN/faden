@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::span_tag::SpanTagSource;
-use stt_app_lib::db::queries::{
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::span_tag::SpanTagSource;
+use faden_app_lib::db::queries::{
     category, cluster, interview, segment, span_tag, speaker, tag, tagged_span,
 };
 

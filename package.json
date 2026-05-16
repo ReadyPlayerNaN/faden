@@ -1,7 +1,8 @@
 {
-  "name": "stt-app",
+  "name": "faden",
   "private": true,
   "version": "0.1.0",
+  "homepage": "https://faden.space",
   "license": "MIT",
   "type": "module",
   "scripts": {

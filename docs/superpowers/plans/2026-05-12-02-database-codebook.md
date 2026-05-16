@@ -8,7 +8,7 @@
 
 **Tech Stack:** Same as Plan 01.
 
-**Spec reference:** `docs/superpowers/specs/2026-05-12-stt-qda-design.md` §4.
+**Spec reference:** `docs/superpowers/specs/2026-05-12-faden-design.md` §4.
 
 **Prerequisite:** Plan 01 merged to master.
 
@@ -279,8 +279,8 @@ Create `src-tauri/tests/codebook.rs`:
 
 ```rust
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::cluster;
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::cluster;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -302,7 +302,7 @@ fn cluster_create_rejects_duplicate_name() {
     let conn = fresh_conn();
     cluster::create(&conn, "Identity", None, None).unwrap();
     let err = cluster::create(&conn, "Identity", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -331,7 +331,7 @@ fn cluster_rename_rejects_duplicate() {
     let a = cluster::create(&conn, "A", None, None).unwrap();
     cluster::create(&conn, "B", None, None).unwrap();
     let err = cluster::rename(&conn, a.id, "B").unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]

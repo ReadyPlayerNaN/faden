@@ -1,5 +1,5 @@
-use stt_app_lib::transcription::prompts::*;
-use stt_app_lib::transcription::schema::ParsedSegment;
+use faden_app_lib::transcription::prompts::*;
+use faden_app_lib::transcription::schema::ParsedSegment;
 
 #[test]
 fn empty_context_returns_base_prompt() {

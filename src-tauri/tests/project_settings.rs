@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::project_meta;
-use stt_app_lib::settings::project::ProjectSettings;
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::project_meta;
+use faden_app_lib::settings::project::ProjectSettings;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

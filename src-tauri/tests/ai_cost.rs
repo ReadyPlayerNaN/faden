@@ -1,4 +1,4 @@
-use stt_app_lib::ai::cost;
+use faden_app_lib::ai::cost;
 
 #[test]
 fn estimates_text_tokens_with_tokenizer() {

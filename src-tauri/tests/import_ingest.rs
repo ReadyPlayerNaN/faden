@@ -1,16 +1,16 @@
 use std::io::Write;
-use stt_app_lib::db;
-use stt_app_lib::db::queries::interview::TranscriptStatus;
-use stt_app_lib::db::queries::{segment, speaker};
-use stt_app_lib::import::ingest::ingest_impl;
-use stt_app_lib::import::json_schema::parse_json;
-use stt_app_lib::import::plain_text::parse;
+use faden_app_lib::db;
+use faden_app_lib::db::queries::interview::TranscriptStatus;
+use faden_app_lib::db::queries::{segment, speaker};
+use faden_app_lib::import::ingest::ingest_impl;
+use faden_app_lib::import::json_schema::parse_json;
+use faden_app_lib::import::plain_text::parse;
 use tempfile::{tempdir, NamedTempFile};
 
 fn bootstrap(project_dir: &std::path::Path) {
     let sqlite = project_dir.join("project.sqlite");
     let mut conn = rusqlite::Connection::open(&sqlite).unwrap();
-    stt_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
+    faden_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
 }
 
 #[tokio::test]
@@ -104,7 +104,7 @@ async fn empty_input_fails() {
     let err = ingest_impl(project_dir, "X".into(), None, None)
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[tokio::test]
@@ -121,5 +121,5 @@ async fn missing_audio_fails() {
     )
     .await
     .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }

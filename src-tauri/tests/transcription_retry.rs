@@ -1,4 +1,4 @@
-use stt_app_lib::transcription::retry::*;
+use faden_app_lib::transcription::retry::*;
 
 #[test]
 fn retries_network_errors() {

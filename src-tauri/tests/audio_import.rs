@@ -1,5 +1,5 @@
 use std::io::Write;
-use stt_app_lib::commands::interview::interview_create_with_audio_impl;
+use faden_app_lib::commands::interview::interview_create_with_audio_impl;
 use tempfile::{tempdir, NamedTempFile};
 
 #[tokio::test]
@@ -10,7 +10,7 @@ async fn copies_audio_into_media() {
     // bootstrap empty project.sqlite via migrations
     let conn = rusqlite::Connection::open(project_dir.join("project.sqlite")).unwrap();
     let mut conn = conn;
-    stt_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
+    faden_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
     drop(conn);
 
     let mut tmp = NamedTempFile::new().unwrap();
@@ -34,7 +34,7 @@ async fn rejects_missing_source_file() {
     let err = interview_create_with_audio_impl(project_dir, "X".into(), "/no/such/file.mp3".into())
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 #[tokio::test]
@@ -44,7 +44,7 @@ async fn stores_relative_path() {
     std::fs::create_dir_all(project_dir.join("media")).unwrap();
     let conn = rusqlite::Connection::open(project_dir.join("project.sqlite")).unwrap();
     let mut conn = conn;
-    stt_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
+    faden_app_lib::db::migrations::apply_migrations(&mut conn).unwrap();
     drop(conn);
 
     let mut tmp = NamedTempFile::new().unwrap();

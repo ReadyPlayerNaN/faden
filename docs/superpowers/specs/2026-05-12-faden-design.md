@@ -1,4 +1,4 @@
-# STT + QDA Desktop Application — Design
+# Faden Desktop Application — Design
 
 **Status:** Draft for review
 **Date:** 2026-05-12

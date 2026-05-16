@@ -1,13 +1,13 @@
 use rusqlite::Connection;
-use stt_app_lib::commands::tagging::{
+use faden_app_lib::commands::tagging::{
     build_span_dto, span_create_impl, span_list_for_interview_impl, span_update_tags_impl,
     CreateSpanArgs,
 };
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::{
     category, cluster, interview, memo, segment, speaker, tag, tagged_span,
 };
-use stt_app_lib::error::AppError;
+use faden_app_lib::error::AppError;
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -131,7 +131,7 @@ fn delete_cascades_span_tag_and_memo() {
     tagged_span::delete(&conn, dto.id).unwrap();
     assert!(memo::get_for_span(&conn, dto.id).unwrap().is_none());
     assert!(
-        stt_app_lib::db::queries::span_tag::list_for_span(&conn, dto.id)
+        faden_app_lib::db::queries::span_tag::list_for_span(&conn, dto.id)
             .unwrap()
             .is_empty()
     );

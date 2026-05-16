@@ -1,4 +1,4 @@
-# STT QDA
+# Faden
 
 Desktop application for qualitative interview research. Audio transcription
 via Gemini, manual and AI-assisted tagging with a three-level codebook
@@ -7,6 +7,8 @@ five export formats (CSV, Markdown, REFI-QDA, stats, codebook).
 
 **Status:** Alpha. Built for personal research use. May be open-sourced once
 it stabilises.
+
+**Website:** https://faden.space
 
 ## Features
 
@@ -39,8 +41,8 @@ it stabilises.
 ### Setup
 
 ```sh
-git clone <repo-url> stt
-cd stt
+git clone <repo-url> faden
+cd faden
 npm install
 scripts/fetch-binaries.sh   # downloads ffmpeg/ffprobe for your host triple
 npm run tauri dev           # development build with hot reload

@@ -8,7 +8,7 @@
 
 **Tech Stack:** All of Plan 01/02 plus: `reqwest` (with `json`, `multipart`, `rustls-tls` features), `tokio` extended features, `bytes`, `futures`, `uuid`.
 
-**Spec reference:** `docs/superpowers/specs/2026-05-12-stt-qda-design.md` §5.
+**Spec reference:** `docs/superpowers/specs/2026-05-12-faden-design.md` §5.
 
 **Prerequisites:** Plans 01 and 02 merged. The Python reference at `gemini_main.py` (in repo root) is the source of truth for the porting work.
 

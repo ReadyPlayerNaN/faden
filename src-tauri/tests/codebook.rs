@@ -1,6 +1,6 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::{category, cluster, stats, tag};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::{category, cluster, stats, tag};
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -23,7 +23,7 @@ fn cluster_create_rejects_duplicate_name() {
     let conn = fresh_conn();
     cluster::create(&conn, "Identity", None, None).unwrap();
     let err = cluster::create(&conn, "Identity", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn cluster_rename_rejects_duplicate() {
     let a = cluster::create(&conn, "A", None, None).unwrap();
     cluster::create(&conn, "B", None, None).unwrap();
     let err = cluster::rename(&conn, a.id, "B").unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn cluster_reorder_swaps_indexes() {
 fn category_create_requires_existing_cluster() {
     let conn = fresh_conn();
     let err = category::create(&conn, Some(999), "X", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn category_name_unique_across_project() {
     let c2 = cluster::create(&conn, "C2", None, None).unwrap();
     category::create(&conn, Some(c1.id), "Same", None, None).unwrap();
     let err = category::create(&conn, Some(c2.id), "Same", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn category_delete_empty_works() {
 fn tag_create_requires_existing_category() {
     let conn = fresh_conn();
     let err = tag::create(&conn, Some(999), "X", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn tag_name_unique_across_project() {
     let c2 = category::create(&conn, Some(cl.id), "C2", None, None).unwrap();
     tag::create(&conn, Some(c1.id), "Same", None, None).unwrap();
     let err = tag::create(&conn, Some(c2.id), "Same", None, None).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn tag_delete_rejected_when_in_use() {
     .unwrap();
 
     let err = tag::delete(&conn, t.id).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Conflict(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Conflict(_)));
 }
 
 #[test]
@@ -337,7 +337,7 @@ fn stats_after_tagging_one_span() {
 #[test]
 fn codebook_tree_empty() {
     let conn = fresh_conn();
-    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    let tree = faden_app_lib::commands::codebook::build_tree(&conn).unwrap();
     assert!(tree.clusters.is_empty());
     assert!(tree.standalone_categories.is_empty());
 }
@@ -349,7 +349,7 @@ fn codebook_tree_full_hierarchy() {
     let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T2", None, None).unwrap();
-    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    let tree = faden_app_lib::commands::codebook::build_tree(&conn).unwrap();
     assert_eq!(tree.clusters.len(), 1);
     assert_eq!(tree.clusters[0].categories.len(), 1);
     assert_eq!(tree.clusters[0].categories[0].tags.len(), 2);
@@ -360,7 +360,7 @@ fn codebook_tree_includes_standalone_categories() {
     let conn = fresh_conn();
     let cat = category::create(&conn, None, "Cat", None, None).unwrap();
     tag::create(&conn, Some(cat.id), "T1", None, None).unwrap();
-    let tree = stt_app_lib::commands::codebook::build_tree(&conn).unwrap();
+    let tree = faden_app_lib::commands::codebook::build_tree(&conn).unwrap();
     assert_eq!(tree.standalone_categories.len(), 1);
     assert_eq!(tree.standalone_categories[0].tags.len(), 1);
 }

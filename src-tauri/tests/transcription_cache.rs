@@ -1,5 +1,5 @@
-use stt_app_lib::transcription::cache::*;
-use stt_app_lib::transcription::schema::ParsedSegment;
+use faden_app_lib::transcription::cache::*;
+use faden_app_lib::transcription::schema::ParsedSegment;
 use tempfile::tempdir;
 
 fn s(speaker: &str, start: f64, end: f64, text: &str) -> ParsedSegment {

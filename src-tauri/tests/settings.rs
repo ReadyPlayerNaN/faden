@@ -1,4 +1,4 @@
-use stt_app_lib::settings::{GlobalSettings, RecentProject, SettingsStore};
+use faden_app_lib::settings::{GlobalSettings, RecentProject, SettingsStore};
 use tempfile::tempdir;
 
 #[test]

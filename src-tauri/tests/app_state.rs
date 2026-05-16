@@ -1,4 +1,4 @@
-use stt_app_lib::app_state::AppState;
+use faden_app_lib::app_state::AppState;
 use tokio_util::sync::CancellationToken;
 
 #[test]
@@ -15,7 +15,7 @@ fn register_and_cancel_run() {
 fn cancel_unknown_returns_not_found() {
     let state = AppState::default();
     let err = state.cancel_run_for_interview(99).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 #[test]
@@ -25,5 +25,5 @@ fn deregister_clears() {
     state.register_run_for_interview(1, token);
     state.deregister_run_for_interview(1);
     let err = state.cancel_run_for_interview(1).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }

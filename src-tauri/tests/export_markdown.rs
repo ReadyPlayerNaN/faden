@@ -1,11 +1,11 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::span_tag::SpanTagSource;
-use stt_app_lib::db::queries::{
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::span_tag::SpanTagSource;
+use faden_app_lib::db::queries::{
     category, cluster, interview, memo, project_meta, segment, span_tag, speaker, tag, tagged_span,
 };
-use stt_app_lib::export::markdown::write_markdown;
-use stt_app_lib::export::{compose, ExportScope};
+use faden_app_lib::export::markdown::write_markdown;
+use faden_app_lib::export::{compose, ExportScope};
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();

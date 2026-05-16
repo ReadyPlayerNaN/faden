@@ -1,9 +1,9 @@
 use rusqlite::Connection;
 use serde_json::json;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::ai_run::AiRunKind;
-use stt_app_lib::db::queries::proposal::{ProposalKind, ProposalStatus};
-use stt_app_lib::db::queries::{ai_run, proposal};
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::ai_run::AiRunKind;
+use faden_app_lib::db::queries::proposal::{ProposalKind, ProposalStatus};
+use faden_app_lib::db::queries::{ai_run, proposal};
 
 fn fresh() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -135,5 +135,5 @@ fn mark_rejected_transitions() {
 fn unknown_proposal_returns_not_found() {
     let conn = fresh();
     let err = proposal::get(&conn, 999).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }

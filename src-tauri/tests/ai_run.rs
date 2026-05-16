@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use stt_app_lib::db::migrations::apply_migrations;
-use stt_app_lib::db::queries::ai_run::{self, AiRunKind, AiRunStatus};
-use stt_app_lib::db::queries::interview;
+use faden_app_lib::db::migrations::apply_migrations;
+use faden_app_lib::db::queries::ai_run::{self, AiRunKind, AiRunStatus};
+use faden_app_lib::db::queries::interview;
 
 fn fresh_conn() -> Connection {
     let mut c = Connection::open_in_memory().unwrap();
@@ -60,7 +60,7 @@ fn cancel_only_when_running() {
     assert_eq!(r.status, AiRunStatus::Cancelled);
     // Calling cancel again should fail because not running anymore
     let err = ai_run::cancel(&conn, id).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::NotFound(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::NotFound(_)));
 }
 
 #[test]

@@ -1,5 +1,5 @@
-use stt_app_lib::import::alignment::{validate_alignment, AlignmentResult};
-use stt_app_lib::import::plain_text::{ParsedSegment, ParsedSpeaker, ParsedTranscript};
+use faden_app_lib::import::alignment::{validate_alignment, AlignmentResult};
+use faden_app_lib::import::plain_text::{ParsedSegment, ParsedSpeaker, ParsedTranscript};
 
 fn make(segments: Vec<(f64, f64)>) -> ParsedTranscript {
     ParsedTranscript {

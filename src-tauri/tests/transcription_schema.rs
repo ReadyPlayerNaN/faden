@@ -1,4 +1,4 @@
-use stt_app_lib::transcription::schema::*;
+use faden_app_lib::transcription::schema::*;
 
 #[test]
 fn parses_two_segment_response() {
@@ -17,7 +17,7 @@ fn rejects_missing_speaker() {
         {"speaker":"","start":0.0,"end":5.0,"text":"hi"}
     ]}"#;
     let err = parse_response(json, 60.0).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn rejects_end_before_start() {
         {"speaker":"A","start":5.0,"end":1.0,"text":"hi"}
     ]}"#;
     let err = parse_response(json, 60.0).unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[test]

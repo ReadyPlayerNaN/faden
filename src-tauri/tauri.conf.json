@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "stt-app",
+  "productName": "faden",
   "version": "0.1.0",
-  "identifier": "app.stt.qda",
+  "identifier": "space.faden.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "stt-app",
+        "title": "faden",
         "width": 800,
         "height": 600,
         "decorations": false

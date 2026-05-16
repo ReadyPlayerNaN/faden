@@ -1,7 +1,7 @@
 use mockito::Server;
 use serde_json::json;
 use std::io::Write;
-use stt_app_lib::transcription::gemini::*;
+use faden_app_lib::transcription::gemini::*;
 use tempfile::NamedTempFile;
 
 #[tokio::test]
@@ -46,7 +46,7 @@ async fn upload_maps_429_to_invalid() {
         .upload_file(tmp.path(), "audio/mpeg")
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
 
 #[tokio::test]
@@ -141,5 +141,5 @@ async fn generate_content_maps_5xx() {
         )
         .await
         .unwrap_err();
-    assert!(matches!(err, stt_app_lib::error::AppError::Invalid(_)));
+    assert!(matches!(err, faden_app_lib::error::AppError::Invalid(_)));
 }
