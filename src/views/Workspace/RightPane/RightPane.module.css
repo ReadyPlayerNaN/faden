@@ -7,6 +7,10 @@
   overflow: hidden;
 }
 
+.suggestionsOnly {
+  border-left: 0;
+}
+
 .detail {
   flex: 1;
   min-height: 0;

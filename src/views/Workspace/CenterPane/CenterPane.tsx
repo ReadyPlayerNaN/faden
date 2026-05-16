@@ -35,7 +35,7 @@ export const CenterPane = () => {
   }, [interviewId, interviewContentVersion, setSpans]);
 
   return (
-    <section className={styles.pane}>
+    <section className={styles.pane} id="workspace-center-pane" tabIndex={-1}>
       {interviewId === null ? (
         <p className={styles.empty}>{t("workspace.selectInterview")}</p>
       ) : (

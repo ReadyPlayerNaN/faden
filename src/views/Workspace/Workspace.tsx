@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "@tanstack/react-router";
 import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
@@ -10,6 +10,7 @@ import { historyStatusAtom } from "../../state/history";
 import {
   interviewContentVersionAtom,
   interviewListAtom,
+  selectedInterviewIdAtom,
 } from "../../state/interview";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
 import { transcriptionRunsAtom } from "../../state/transcription";
@@ -33,10 +34,13 @@ export const Workspace = () => {
   const [historyState, setHistoryState] = useAtom(historyStatusAtom);
   const setRuns = useSetAtom(transcriptionRunsAtom);
   const setInterviews = useSetAtom(interviewListAtom);
+  const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
+  const selectedSpanId = useAtomValue(selectedSpanIdAtom);
   const bumpInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const [exportOpen, setExportOpen] = useState(false);
+  const [mobilePane, setMobilePane] = useState<"left" | "edits" | "right" | "suggestions">("edits");
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -108,6 +112,23 @@ export const Workspace = () => {
   }, [project]);
 
   useEffect(() => {
+    if (selectedInterviewId !== null) {
+      setMobilePane("edits");
+    }
+  }, [selectedInterviewId]);
+
+  useEffect(() => {
+    if (selectedSpanId === null) return;
+    setMobilePane("right");
+  }, [selectedSpanId]);
+
+  useEffect(() => {
+    const openRightPane = () => setMobilePane("right");
+    window.addEventListener("workspace:open-right-pane", openRightPane);
+    return () => window.removeEventListener("workspace:open-right-pane", openRightPane);
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -142,6 +163,13 @@ export const Workspace = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
 
+  const focusEditsPane = () => {
+    setMobilePane("edits");
+    window.requestAnimationFrame(() => {
+      document.getElementById("workspace-center-pane")?.focus();
+    });
+  };
+
   return (
     <div className={styles.shell}>
       <ProjectHeader
@@ -170,10 +198,32 @@ export const Workspace = () => {
         }
         actions={<Button onClick={() => setExportOpen(true)}>{t("export.title")}</Button>}
       />
-      <div className={styles.panes}>
-        <LeftPane />
-        <CenterPane />
-        <RightPane />
+      <div className={styles.layout} data-mobile-pane={mobilePane}>
+        <div className={styles.panesToolbar}>
+          <Button
+            onClick={() => setMobilePane("left")}
+            className={`${styles.paneSwitchButton} ${mobilePane === "left" ? styles.paneSwitchButtonActive : ""}`.trim()}
+          >
+            {t("workspace.interviews")}
+          </Button>
+          <Button
+            onClick={focusEditsPane}
+            className={`${styles.paneSwitchButton} ${mobilePane === "edits" ? styles.paneSwitchButtonActive : ""}`.trim()}
+          >
+            {t("workspace.edits", { defaultValue: "Edits" })}
+          </Button>
+          <Button
+            onClick={() => setMobilePane("suggestions")}
+            className={`${styles.paneSwitchButton} ${mobilePane === "suggestions" ? styles.paneSwitchButtonActive : ""}`.trim()}
+          >
+            {t("workspace.suggestions", { defaultValue: "Suggestions" })}
+          </Button>
+        </div>
+        <div className={styles.panes}>
+          <LeftPane />
+          <CenterPane />
+          <RightPane suggestionsOnly={mobilePane === "suggestions"} />
+        </div>
       </div>
       <AudioPlayer />
       {exportOpen && project && (

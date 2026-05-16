@@ -6,8 +6,15 @@
   overflow: auto;
   height: 100%;
   gap: 1rem;
+  min-height: 0;
+  min-width: 0;
 }
-.section { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
 .menuWrap {
   position: relative;

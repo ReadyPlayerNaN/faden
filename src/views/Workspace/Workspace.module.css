@@ -1,4 +1,11 @@
-.shell { display: flex; flex-direction: column; height: 100%; }
+.shell {
+  --workspace-left-pane-width: 260px;
+  --workspace-right-pane-width: 320px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.5rem 1rem 0.5rem 0.5rem;
@@ -62,4 +69,102 @@
 .projectMenuItem:active {
   background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
 }
-.panes { display: grid; grid-template-columns: 260px 1fr 320px; flex: 1; min-height: 0; }
+
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.panesToolbar {
+  display: none;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
+}
+
+.paneSwitchButton {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.paneSwitchButtonActive {
+  background: var(--bg);
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: var(--workspace-left-pane-width) minmax(0, 1fr) var(--workspace-right-pane-width);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 1280px) {
+  .shell {
+    --workspace-right-pane-width: 280px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .panesToolbar {
+    display: flex;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr) var(--workspace-right-pane-width);
+  }
+
+  .panes > :first-child {
+    display: none;
+  }
+
+  .layout[data-mobile-pane="left"] .panes,
+  .layout[data-mobile-pane="suggestions"] .panes,
+  .layout[data-mobile-pane="right"] .panes {
+    display: block;
+  }
+
+  .layout[data-mobile-pane="left"] .panes > :first-child,
+  .layout[data-mobile-pane="suggestions"] .panes > :nth-child(3),
+  .layout[data-mobile-pane="right"] .panes > :nth-child(3) {
+    display: flex;
+    height: 100%;
+  }
+
+  .layout[data-mobile-pane="left"] .panes > :not(:first-child),
+  .layout[data-mobile-pane="suggestions"] .panes > :not(:nth-child(3)),
+  .layout[data-mobile-pane="right"] .panes > :not(:nth-child(3)) {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    --workspace-right-pane-width: 240px;
+  }
+
+  .panes {
+    display: block;
+  }
+
+  .panes > * {
+    display: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .layout[data-mobile-pane="left"] .panes > :first-child,
+  .layout[data-mobile-pane="edits"] .panes > :nth-child(2),
+  .layout[data-mobile-pane="suggestions"] .panes > :nth-child(3),
+  .layout[data-mobile-pane="right"] .panes > :nth-child(3) {
+    display: flex;
+  }
+
+  .layout[data-mobile-pane="edits"] .panes > :nth-child(2) {
+    display: block;
+  }
+}

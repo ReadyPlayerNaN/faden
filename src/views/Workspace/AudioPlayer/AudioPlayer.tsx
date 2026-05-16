@@ -372,7 +372,7 @@ export const AudioPlayer = () => {
           value={time}
           onChange={(e) => seekTo(Number(e.target.value))}
         />
-        <span className={styles.time}>{formatTime(duration)}</span>
+        <span className={`${styles.time} ${styles.totalTime}`}>{formatTime(duration)}</span>
         <div className={styles.menuRoot} ref={speedMenuRef}>
           <Button
             type="button"

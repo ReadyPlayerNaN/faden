@@ -807,6 +807,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                                 e.stopPropagation();
                                 if (covering.length === 1) {
                                   setSelectedSpan(activeSpan.spanId);
+                                  window.dispatchEvent(new CustomEvent("workspace:open-right-pane"));
                                   return;
                                 }
                                 const currentIndex = covering.findIndex(
@@ -817,6 +818,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                                     ? covering[(currentIndex + 1) % covering.length]
                                     : covering[0];
                                 setSelectedSpan(nextSpan.spanId);
+                                window.dispatchEvent(new CustomEvent("workspace:open-right-pane"));
                               }
                             : undefined
                         }
