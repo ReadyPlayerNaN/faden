@@ -30,6 +30,53 @@ export type ProposalDTO = {
   decidedAt: string | null;
 };
 
+export type AiRunNodeStatus =
+  | "pending"
+  | "running"
+  | "complete"
+  | "failed"
+  | "cancelled"
+  | "retrying"
+  | "skipped";
+
+export type AiRunStageKey =
+  | "analyze_source"
+  | "prepare_chunks"
+  | "encode_chunks"
+  | "transcribe_chunks"
+  | "compose_transcript"
+  | "finalize";
+
+export type AiRunTaskKind = "encode_chunk" | "transcribe_chunk";
+
+export type AiRunStageDTO = {
+  id: number;
+  aiRunId: number;
+  key: AiRunStageKey;
+  order: number;
+  status: AiRunNodeStatus;
+  totalCount: number | null;
+  completedCount: number | null;
+  failedCount: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  error: string | null;
+};
+
+export type AiRunTaskDTO = {
+  id: number;
+  aiRunStageId: number;
+  aiRunId: number;
+  kind: AiRunTaskKind;
+  chunkIndex: number;
+  status: AiRunNodeStatus;
+  attempt: number;
+  maxAttempts: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  error: string | null;
+};
+
 export type AiRunDTO = {
   id: number;
   kind: AiRunKind;
@@ -44,6 +91,11 @@ export type AiRunDTO = {
   tokenUsageJson: string | null;
   resultSummary: string | null;
   rawOutput: string | null;
+  stages: AiRunStageDTO[];
+};
+
+export type AiRunDetailDTO = AiRunDTO & {
+  tasks: AiRunTaskDTO[];
 };
 
 const costFromRaw = (r: RawCostEstimate): CostEstimate => ({
@@ -94,6 +146,12 @@ export const aiRunList = (): Promise<AiRunDTO[]> =>
 
 export const aiRunGet = (runId: number): Promise<AiRunDTO> =>
   invoke<AiRunDTO>("ai_run_get", { runId });
+
+export const aiRunDetail = (runId: number): Promise<AiRunDetailDTO> =>
+  invoke<AiRunDetailDTO>("ai_run_detail", { runId });
+
+export const aiRunRetry = (runId: number): Promise<void> =>
+  invoke("ai_run_retry", { runId });
 
 export const aiCostEstimate = async (
   kind: CostEstimateKind,

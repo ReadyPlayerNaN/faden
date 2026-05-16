@@ -227,10 +227,11 @@ const InterviewRow = ({
   const status = iv.transcriptStatus;
   const hasAudio = iv.audioPath !== null;
   const isInProgress = status === "in_progress" || progress?.lastProgress.stage === "starting"
-    || progress?.lastProgress.stage === "normalizing"
-    || progress?.lastProgress.stage === "chunking"
+    || progress?.lastProgress.stage === "analyzing_source"
+    || progress?.lastProgress.stage === "preparing_chunks"
+    || progress?.lastProgress.stage === "encoding_chunk"
     || progress?.lastProgress.stage === "transcribing_chunk"
-    || progress?.lastProgress.stage === "chunk_complete";
+    || progress?.lastProgress.stage === "composing_transcript";
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -304,8 +305,26 @@ const InterviewRow = ({
     if (isInProgress) {
       let label = t("workspace.transcribing");
       const p = progress?.lastProgress;
-      if (p?.stage === "transcribing_chunk") {
-        label = t("workspace.transcribingChunk", { index: p.index + 1, total: p.total });
+      if (p?.stage === "encoding_chunk") {
+        label = t("ai.operationStageProgress", {
+          stage: t("ai.operationStages.encode_chunks"),
+          completed: p.index + 1,
+          total: p.total,
+        });
+      } else if (p?.stage === "transcribing_chunk") {
+        label = t("ai.operationStageProgress", {
+          stage: t("ai.operationStages.transcribe_chunks"),
+          completed: p.index + 1,
+          total: p.total,
+        });
+      } else if (p?.stage === "preparing_chunks") {
+        label = t("ai.operationStageProgress", {
+          stage: t("ai.operationStages.prepare_chunks"),
+          completed: p.total_chunks,
+          total: p.total_chunks,
+        });
+      } else if (p?.stage === "composing_transcript") {
+        label = t("ai.operationStages.compose_transcript");
       }
       return (
         <span className={styles.rowRight}>

@@ -46,7 +46,20 @@ export const Workspace = () => {
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void onTranscriptionProgress((p) => {
-      setRuns((prev) => ({ ...prev, [p.interview_id]: { lastProgress: p, updatedAt: Date.now() } }));
+      setRuns((prev) => {
+        const existing = prev[p.interview_id];
+        const runId = p.run_id ?? existing?.runId ?? null;
+        const startedAt = p.stage === "starting" ? Date.now() : existing?.startedAt ?? Date.now();
+        return {
+          ...prev,
+          [p.interview_id]: {
+            runId,
+            startedAt,
+            lastProgress: p,
+            updatedAt: Date.now(),
+          },
+        };
+      });
       if (p.stage === "complete" || p.stage === "failed" || p.stage === "cancelled") {
         void fetchInterviews().then(setInterviews);
       }

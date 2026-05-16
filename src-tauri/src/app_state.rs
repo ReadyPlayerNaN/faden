@@ -34,6 +34,10 @@ impl AppState {
             .ok_or_else(|| AppError::Invalid("no project open".into()))
     }
 
+    pub fn has_run_for_interview(&self, interview_id: i64) -> bool {
+        self.active_runs.lock().unwrap().contains_key(&interview_id)
+    }
+
     pub fn register_run_for_interview(&self, interview_id: i64, token: CancellationToken) {
         self.active_runs.lock().unwrap().insert(interview_id, token);
     }

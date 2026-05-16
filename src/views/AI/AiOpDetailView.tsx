@@ -5,15 +5,18 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import {
   aiProposalList,
-  aiRunGet,
-  type AiRunDTO,
+  aiRunDetail,
+  aiRunRetry,
+  type AiRunDetailDTO,
+  type AiRunStageDTO,
+  type AiRunTaskDTO,
   type ProposalDTO,
 } from "../../ipc/ai";
 import { interviewList as fetchInterviews, type Interview } from "../../ipc/interview";
 import { projectOpen } from "../../ipc/project";
 import { interviewListAtom } from "../../state/interview";
 import { currentProjectAtom } from "../../state/project";
-import { formatTimestamp } from "./aiOperations";
+import { formatTimestamp, stageProgressText } from "./aiOperations";
 import styles from "./AiOpDetailView.module.css";
 
 type CodebookTag = {
@@ -161,12 +164,43 @@ const ProposalSection = ({ proposal }: { proposal: ProposalDTO }) => {
           </ul>
         </div>
       )}
-
-      <div className={styles.subsection}>
-        <h4 className={styles.subsectionTitle}>{t("ai.payload", { defaultValue: "Stored payload" })}</h4>
-        <pre className={styles.pre}>{prettyJson(proposal.payload)}</pre>
-      </div>
     </section>
+  );
+};
+
+const StageSection = ({ stage, tasks }: { stage: AiRunStageDTO; tasks: AiRunTaskDTO[] }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.subsection}>
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.subsectionTitle}>{stageProgressText(stage, t)}</h3>
+        <span className={`${styles.statusBadge} ${styles[`status_${stage.status}`] ?? styles.status_pending}`}>
+          {t(`ai.stageStatus.${stage.status}`)}
+        </span>
+      </div>
+      {stage.error && <p className={styles.error}>{stage.error}</p>}
+      {tasks.length > 0 && (
+        <ul className={styles.taskList}>
+          {tasks.map((task) => (
+            <li key={task.id} className={styles.taskItem}>
+              <div>
+                <strong>
+                  {t(`ai.taskKinds.${task.kind}`)} #{task.chunkIndex + 1}
+                </strong>
+                <div className={styles.suggestionMeta}>
+                  {t(`ai.stageStatus.${task.status}`)} · {t("ai.attemptSummary", {
+                    attempt: task.attempt,
+                    max: task.maxAttempts,
+                    defaultValue: "attempt {{attempt}}/{{max}}",
+                  })}
+                </div>
+              </div>
+              {task.error && <span className={styles.error}>{task.error}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 };
 
@@ -178,10 +212,11 @@ export const AiOpDetailView = () => {
     runId: string;
   };
   const [project, setProject] = useAtom(currentProjectAtom);
-  const [run, setRun] = useState<AiRunDTO | null>(null);
+  const [run, setRun] = useState<AiRunDetailDTO | null>(null);
   const [proposals, setProposals] = useState<ProposalDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const setInterviews = useSetAtom(interviewListAtom);
   const [interviewsLocal, setInterviewsLocal] = useState<Interview[]>([]);
 
@@ -198,7 +233,7 @@ export const AiOpDetailView = () => {
     setLoading(true);
     setError(null);
     void Promise.all([
-      aiRunGet(numericRunId),
+      aiRunDetail(numericRunId),
       aiProposalList(undefined, numericRunId),
       fetchInterviews(),
     ])
@@ -233,15 +268,47 @@ export const AiOpDetailView = () => {
     ? formatMessageParts(structuredInput.systemInstruction?.parts)
     : "";
   const inputMessages = structuredInput?.contents ?? [];
+  const tasksByStageId = useMemo(() => {
+    const map = new Map<number, AiRunTaskDTO[]>();
+    for (const task of run?.tasks ?? []) {
+      const list = map.get(task.aiRunStageId) ?? [];
+      list.push(task);
+      map.set(task.aiRunStageId, list);
+    }
+    return map;
+  }, [run?.tasks]);
+  const retryAvailable =
+    run?.kind === "transcribe" && (run.status === "failed" || run.status === "cancelled");
+
+  const handleRetry = async () => {
+    if (!run) return;
+    setRetrying(true);
+    try {
+      await aiRunRetry(run.id);
+      await navigate({
+        to: "/workspace/$projectPath/ai-ops",
+        params: { projectPath },
+      });
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>{t("ai.opDetailTitle", { defaultValue: "AI operation detail" })}</h1>
+          <h1 className={styles.title}>{t("ai.opDetailTitle", { defaultValue: "Operation detail" })}</h1>
           <p className={styles.subtitle}>{project?.name ?? t("common.loading")}</p>
         </div>
         <div className={styles.headerActions}>
+          {retryAvailable && (
+            <Button onClick={() => void handleRetry()} disabled={retrying}>
+              {retrying ? t("common.loading") : t("common.retry")}
+            </Button>
+          )}
           <Button
             onClick={() =>
               void navigate({
@@ -302,6 +369,18 @@ export const AiOpDetailView = () => {
                 <pre className={`${styles.pre} ${styles.errorPre}`}>{run.error}</pre>
               </div>
             )}
+            {run.stages.length > 0 && (
+              <div className={styles.subsection}>
+                <h3 className={styles.subsectionTitle}>{t("ai.operationBreakdown")}</h3>
+                {run.stages.map((stage) => (
+                  <StageSection
+                    key={stage.id}
+                    stage={stage}
+                    tasks={tasksByStageId.get(stage.id) ?? []}
+                  />
+                ))}
+              </div>
+            )}
             <div className={styles.subsection}>
               <h3 className={styles.subsectionTitle}>
                 {t("ai.structuredInput", { defaultValue: "Structured model input" })}
@@ -356,12 +435,6 @@ export const AiOpDetailView = () => {
                       </pre>
                     </div>
                   )}
-                  <div className={styles.subsection}>
-                    <h4 className={styles.subsectionTitle}>
-                      {t("ai.storedRequestJson", { defaultValue: "Stored request JSON" })}
-                    </h4>
-                    <pre className={styles.pre}>{run.inputJson}</pre>
-                  </div>
                 </>
               ) : (
                 <p className={styles.emptyInline}>

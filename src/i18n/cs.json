@@ -87,7 +87,8 @@
     "save": "Uložit",
     "delete": "Smazat",
     "open": "Otevřít",
-    "edit": "Upravit"
+    "edit": "Upravit",
+    "retry": "Zkusit znovu"
   },
   "speakers": {
     "title": "Mluvčí",
@@ -239,21 +240,45 @@
     "running": "Zpracovává se…",
     "accepted": "Vytvořeno {{created}} ({{skipped}} přeskočeno)",
     "rejected": "Zamítnuto",
-    "opsTitle": "AI operace",
+    "opsTitle": "Centrum operací",
     "ongoingTitle": "Probíhající",
     "historyTitle": "Historie",
-    "viewAllOps": "Otevřít AI operace",
+    "viewAllOps": "Otevřít centrum operací",
     "refreshOps": "Obnovit",
     "noOngoing": "Žádné probíhající operace",
     "noHistory": "Zatím žádná historie operací",
-    "noOperations": "Zatím žádné AI operace",
+    "noOperations": "Zatím žádné operace",
     "startedAt": "Spuštěno",
     "completedAt": "Dokončeno",
+    "operationBreakdown": "Rozpis operace",
+    "operationStageProgress": "{{stage}} {{completed}}/{{total}}",
+    "attemptSummary": "pokus {{attempt}}/{{max}}",
     "status": {
       "running": "Běží",
       "complete": "Hotovo",
       "failed": "Selhalo",
       "cancelled": "Zrušeno"
+    },
+    "stageStatus": {
+      "pending": "Čeká",
+      "running": "Běží",
+      "complete": "Hotovo",
+      "failed": "Selhalo",
+      "cancelled": "Zrušeno",
+      "retrying": "Opakuje se",
+      "skipped": "Přeskočeno"
+    },
+    "operationStages": {
+      "analyze_source": "Analýza zdroje",
+      "prepare_chunks": "Příprava částí",
+      "encode_chunks": "Kódování částí",
+      "transcribe_chunks": "Přepis částí",
+      "compose_transcript": "Složení přepisu",
+      "finalize": "Dokončení"
+    },
+    "taskKinds": {
+      "encode_chunk": "Kódovat část",
+      "transcribe_chunk": "Přepsat část"
     },
     "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {

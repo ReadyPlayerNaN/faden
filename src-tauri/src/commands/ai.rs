@@ -1,8 +1,10 @@
 use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions};
 use crate::app_state::AppState;
+use crate::commands::transcribe::start_transcription_run;
 use crate::commands::util::project_conn;
 use crate::db::queries::ai_run;
+use crate::db::queries::ai_run_ops;
 use crate::db::queries::interview;
 use crate::db::queries::proposal::{self, ProposalKind, ProposalStatus};
 use crate::db::queries::span_tag::SpanTagSource;
@@ -100,6 +102,38 @@ pub struct ProposalDTO {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AiRunStageDTO {
+    pub id: i64,
+    pub ai_run_id: i64,
+    pub key: String,
+    pub order: i64,
+    pub status: String,
+    pub total_count: Option<i64>,
+    pub completed_count: Option<i64>,
+    pub failed_count: Option<i64>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiRunTaskDTO {
+    pub id: i64,
+    pub ai_run_stage_id: i64,
+    pub ai_run_id: i64,
+    pub kind: String,
+    pub chunk_index: i64,
+    pub status: String,
+    pub attempt: i64,
+    pub max_attempts: i64,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AiRunDTO {
     pub id: i64,
     pub kind: String,
@@ -114,9 +148,55 @@ pub struct AiRunDTO {
     pub token_usage_json: Option<String>,
     pub result_summary: Option<String>,
     pub raw_output: Option<String>,
+    pub stages: Vec<AiRunStageDTO>,
 }
 
-fn ai_run_to_dto(run: ai_run::AiRun) -> AiRunDTO {
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiRunDetailDTO {
+    #[serde(flatten)]
+    pub run: AiRunDTO,
+    pub tasks: Vec<AiRunTaskDTO>,
+}
+
+fn ai_run_stage_to_dto(stage: ai_run_ops::AiRunStage) -> AiRunStageDTO {
+    AiRunStageDTO {
+        id: stage.id,
+        ai_run_id: stage.ai_run_id,
+        key: stage.stage_key.as_str().to_string(),
+        order: stage.order_index,
+        status: stage.status.as_str().to_string(),
+        total_count: stage.total_count,
+        completed_count: stage.completed_count,
+        failed_count: stage.failed_count,
+        started_at: stage.started_at,
+        completed_at: stage.completed_at,
+        error: stage.error,
+    }
+}
+
+fn ai_run_task_to_dto(task: ai_run_ops::AiRunTask) -> AiRunTaskDTO {
+    AiRunTaskDTO {
+        id: task.id,
+        ai_run_stage_id: task.ai_run_stage_id,
+        ai_run_id: task.ai_run_id,
+        kind: task.kind.as_str().to_string(),
+        chunk_index: task.chunk_index,
+        status: task.status.as_str().to_string(),
+        attempt: task.attempt,
+        max_attempts: task.max_attempts,
+        started_at: task.started_at,
+        completed_at: task.completed_at,
+        error: task.error,
+    }
+}
+
+fn ai_run_to_dto(conn: &rusqlite::Connection, run: ai_run::AiRun) -> AiRunDTO {
+    let stages = ai_run_ops::list_stages(conn, run.id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(ai_run_stage_to_dto)
+        .collect();
     AiRunDTO {
         id: run.id,
         kind: run.kind.as_str().to_string(),
@@ -131,6 +211,7 @@ fn ai_run_to_dto(run: ai_run::AiRun) -> AiRunDTO {
         token_usage_json: run.token_usage_json,
         result_summary: run.result_summary,
         raw_output: run.raw_output,
+        stages,
     }
 }
 
@@ -139,14 +220,52 @@ pub async fn ai_run_list(app: tauri::AppHandle) -> AppResult<Vec<AiRunDTO>> {
     let conn = project_conn(&app)?;
     Ok(ai_run::list_all(&conn)?
         .into_iter()
-        .map(ai_run_to_dto)
+        .map(|run| ai_run_to_dto(&conn, run))
         .collect())
 }
 
 #[tauri::command]
 pub async fn ai_run_get(app: tauri::AppHandle, run_id: i64) -> AppResult<AiRunDTO> {
     let conn = project_conn(&app)?;
-    Ok(ai_run_to_dto(ai_run::get(&conn, run_id)?))
+    Ok(ai_run_to_dto(&conn, ai_run::get(&conn, run_id)?))
+}
+
+#[tauri::command]
+pub async fn ai_run_detail(app: tauri::AppHandle, run_id: i64) -> AppResult<AiRunDetailDTO> {
+    let conn = project_conn(&app)?;
+    let run = ai_run::get(&conn, run_id)?;
+    let tasks = ai_run_ops::list_tasks(&conn, run_id)?
+        .into_iter()
+        .map(ai_run_task_to_dto)
+        .collect();
+    Ok(AiRunDetailDTO {
+        run: ai_run_to_dto(&conn, run),
+        tasks,
+    })
+}
+
+#[tauri::command]
+pub async fn ai_run_retry(app: tauri::AppHandle, run_id: i64) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    let run = ai_run::get(&conn, run_id)?;
+    if run.kind != ai_run::AiRunKind::Transcribe {
+        return Err(AppError::Invalid(
+            "retry is only implemented for transcription runs".into(),
+        ));
+    }
+    if !matches!(
+        run.status,
+        ai_run::AiRunStatus::Failed | ai_run::AiRunStatus::Cancelled
+    ) {
+        return Err(AppError::Invalid(
+            "only failed or cancelled runs can be retried".into(),
+        ));
+    }
+    let interview_id = run
+        .interview_id
+        .ok_or_else(|| AppError::Invalid("transcription run is missing interview id".into()))?;
+    drop(conn);
+    start_transcription_run(app, interview_id)
 }
 
 #[tauri::command]

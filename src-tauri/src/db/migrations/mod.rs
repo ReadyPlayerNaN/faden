@@ -10,6 +10,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (6, include_str!("m006_segment_speaker_nullable.sql")),
     (7, include_str!("m007_ai_run_raw_output.sql")),
     (8, include_str!("m008_ai_run_input_json.sql")),
+    (9, include_str!("m009_ai_run_ops.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {

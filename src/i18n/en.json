@@ -88,7 +88,8 @@
     "save": "Save",
     "delete": "Delete",
     "open": "Open",
-    "edit": "Edit"
+    "edit": "Edit",
+    "retry": "Retry"
   },
   "speakers": {
     "title": "Speakers",
@@ -247,15 +248,15 @@
     "running": "Running…",
     "accepted": "Created {{created}} items ({{skipped}} skipped)",
     "rejected": "Rejected",
-    "opsTitle": "AI ops",
+    "opsTitle": "Ops center",
     "ongoingTitle": "Ongoing",
     "historyTitle": "History",
-    "viewAllOps": "Open AI ops",
+    "viewAllOps": "Open ops center",
     "refreshOps": "Refresh",
-    "opDetailTitle": "AI operation detail",
+    "opDetailTitle": "Operation detail",
     "noOngoing": "No ongoing operations",
     "noHistory": "No historical operations yet",
-    "noOperations": "No AI operations yet",
+    "noOperations": "No operations yet",
     "noLinkedSuggestions": "No linked suggestions for this run.",
     "startedAt": "Started",
     "completedAt": "Completed",
@@ -268,11 +269,35 @@
     "linkedSuggestions": "Linked suggestions",
     "payload": "Stored payload",
     "tokenUsage": "Token usage",
+    "operationBreakdown": "Operation breakdown",
+    "operationStageProgress": "{{stage}} {{completed}}/{{total}}",
+    "attemptSummary": "attempt {{attempt}}/{{max}}",
     "status": {
       "running": "Running",
       "complete": "Complete",
       "failed": "Failed",
       "cancelled": "Cancelled"
+    },
+    "stageStatus": {
+      "pending": "Pending",
+      "running": "Running",
+      "complete": "Complete",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "retrying": "Retrying",
+      "skipped": "Skipped"
+    },
+    "operationStages": {
+      "analyze_source": "Analyze source",
+      "prepare_chunks": "Prepare chunks",
+      "encode_chunks": "Encode chunks",
+      "transcribe_chunks": "Transcribe chunks",
+      "compose_transcript": "Compose transcript",
+      "finalize": "Finalize"
+    },
+    "taskKinds": {
+      "encode_chunk": "Encode chunk",
+      "transcribe_chunk": "Transcribe chunk"
     },
     "operationWithInterview": "{{kind}} {{name}}",
     "kinds": {

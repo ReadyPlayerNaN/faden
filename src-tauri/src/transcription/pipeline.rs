@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::queries::ai_run::{self, AiRunKind};
+use crate::db::queries::ai_run_ops::{self, AiRunNodeStatus, AiRunStageKey, AiRunTaskKind};
 use crate::db::queries::interview::{self, TranscriptStatus};
 use crate::db::queries::{segment as segment_q, speaker as speaker_q};
 use crate::error::{AppError, AppResult};
@@ -49,6 +50,49 @@ fn emit(app: &tauri::AppHandle, p: &TranscriptionProgress) {
     let _ = app.emit(EVENT_NAME, p);
 }
 
+fn stage_progress_counts(
+    conn: &rusqlite::Connection,
+    run_id: i64,
+    stage_key: AiRunStageKey,
+) -> AppResult<(i64, i64)> {
+    let tasks = ai_run_ops::list_tasks(conn, run_id)?;
+    let relevant: Vec<_> = tasks
+        .into_iter()
+        .filter(|task| {
+            matches!(
+                (stage_key, task.kind),
+                (AiRunStageKey::EncodeChunks, AiRunTaskKind::EncodeChunk)
+                    | (
+                        AiRunStageKey::TranscribeChunks,
+                        AiRunTaskKind::TranscribeChunk
+                    )
+            )
+        })
+        .collect();
+    let total = relevant.len() as i64;
+    let complete = relevant
+        .iter()
+        .filter(|task| task.status == AiRunNodeStatus::Complete)
+        .count() as i64;
+    Ok((total, complete))
+}
+
+fn sync_stage_counts(
+    conn: &rusqlite::Connection,
+    run_id: i64,
+    stage_key: AiRunStageKey,
+) -> AppResult<()> {
+    let (total, complete) = stage_progress_counts(conn, run_id, stage_key)?;
+    ai_run_ops::set_stage_counts(
+        conn,
+        run_id,
+        stage_key,
+        Some(total),
+        Some(complete),
+        Some(0),
+    )
+}
+
 pub async fn run_pipeline(
     app: tauri::AppHandle,
     interview_id: i64,
@@ -60,7 +104,6 @@ pub async fn run_pipeline(
     let project_dir = state.current_project()?;
     let sqlite_path = project_dir.join("project.sqlite");
 
-    // Step 1: load interview + verify audio
     let mut conn = db::open(&sqlite_path)?;
     let iv = interview::get(&conn, interview_id)?;
     let audio_rel = iv
@@ -75,7 +118,6 @@ pub async fn run_pipeline(
         )));
     }
 
-    // Paths
     let cache_dir = project_dir
         .join("cache")
         .join(format!("interview_{interview_id}"));
@@ -88,7 +130,6 @@ pub async fn run_pipeline(
 
     let cache = ChunkCache::new(chunk_results_dir.clone());
 
-    // Step 2: ai_run + status
     let transcription_input_json = serde_json::json!({
         "provider": "gemini",
         "mode": "chunked_audio_transcription",
@@ -111,6 +152,7 @@ pub async fn run_pipeline(
         &config.user_prompt,
         Some(&transcription_input_json),
     )?;
+    ai_run_ops::create_transcription_stages(&conn, run_id)?;
     interview::set_status(&conn, interview_id, TranscriptStatus::InProgress)?;
     emit(
         &app,
@@ -120,106 +162,296 @@ pub async fn run_pipeline(
         },
     );
 
-    // Helper to fail and return early
-    let fail = |conn: &rusqlite::Connection, app: &tauri::AppHandle, msg: String| {
+    let fail = |conn: &rusqlite::Connection,
+                app: &tauri::AppHandle,
+                stage_key: AiRunStageKey,
+                msg: String| {
+        let _ = ai_run_ops::mark_stage_failed(conn, run_id, stage_key, &msg);
+        let _ = ai_run_ops::mark_pending_stages_cancelled_from(conn, run_id, stage_key);
         let _ = ai_run::fail(conn, run_id, &msg, None);
         let _ = interview::set_status(conn, interview_id, TranscriptStatus::Failed);
         emit(
             app,
             &TranscriptionProgress::Failed {
                 interview_id,
+                run_id,
                 message: msg,
             },
         );
     };
 
-    // Step 3: normalize
-    emit(&app, &TranscriptionProgress::Normalizing { interview_id });
+    let cancel_run = |conn: &rusqlite::Connection,
+                      app: &tauri::AppHandle,
+                      stage_key: AiRunStageKey| {
+        let _ = ai_run_ops::mark_pending_tasks_cancelled(conn, run_id, AiRunStageKey::EncodeChunks);
+        let _ =
+            ai_run_ops::mark_pending_tasks_cancelled(conn, run_id, AiRunStageKey::TranscribeChunks);
+        let _ = ai_run_ops::mark_pending_stages_cancelled_from(conn, run_id, stage_key);
+        let _ = ai_run::cancel(conn, run_id);
+        let _ = interview::set_status(conn, interview_id, TranscriptStatus::Failed);
+        emit(
+            app,
+            &TranscriptionProgress::Cancelled {
+                interview_id,
+                run_id,
+            },
+        );
+    };
+
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::AnalyzeSource)?;
+    emit(
+        &app,
+        &TranscriptionProgress::AnalyzingSource {
+            interview_id,
+            run_id,
+        },
+    );
+
     if !normalized_path.exists() {
         if let Err(e) =
             ffmpeg::normalize(&app, &audio_path, &normalized_path, &config.normalize).await
         {
-            fail(&conn, &app, format!("normalize: {e}"));
+            fail(
+                &conn,
+                &app,
+                AiRunStageKey::AnalyzeSource,
+                format!("normalize: {e}"),
+            );
             return Err(e);
         }
     }
 
-    // Cancellation check after each long step
     if cancel.is_cancelled() {
-        let _ = ai_run::cancel(&conn, run_id);
-        let _ = interview::set_status(&conn, interview_id, TranscriptStatus::Failed);
-        emit(&app, &TranscriptionProgress::Cancelled { interview_id });
+        cancel_run(&conn, &app, AiRunStageKey::AnalyzeSource);
         return Ok(());
     }
 
-    // Step 4: probe duration + plan chunks
     let duration = match ffmpeg::probe_duration(&app, &normalized_path).await {
-        Ok(d) => d,
+        Ok(value) => value,
         Err(e) => {
-            fail(&conn, &app, format!("probe: {e}"));
+            fail(
+                &conn,
+                &app,
+                AiRunStageKey::AnalyzeSource,
+                format!("probe: {e}"),
+            );
             return Err(e);
         }
     };
     let plans = chunker::plan_chunks(duration, config.chunk_seconds);
     let total = plans.len();
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::AnalyzeSource,
+        Some(1),
+        Some(1),
+        Some(0),
+    )?;
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::AnalyzeSource)?;
+
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::PrepareChunks)?;
     emit(
         &app,
-        &TranscriptionProgress::Chunking {
+        &TranscriptionProgress::PreparingChunks {
             interview_id,
+            run_id,
             total_chunks: total,
         },
     );
+    ai_run_ops::create_chunk_tasks(
+        &conn,
+        run_id,
+        AiRunStageKey::EncodeChunks,
+        AiRunTaskKind::EncodeChunk,
+        total,
+        1,
+    )?;
+    ai_run_ops::create_chunk_tasks(
+        &conn,
+        run_id,
+        AiRunStageKey::TranscribeChunks,
+        AiRunTaskKind::TranscribeChunk,
+        total,
+        retry::MAX_RETRY_ATTEMPTS,
+    )?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::PrepareChunks,
+        Some(total as i64),
+        Some(total as i64),
+        Some(0),
+    )?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::EncodeChunks,
+        Some(total as i64),
+        Some(0),
+        Some(0),
+    )?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::TranscribeChunks,
+        Some(total as i64),
+        Some(0),
+        Some(0),
+    )?;
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::PrepareChunks)?;
 
-    // Step 5: split into chunk files (only if not already split)
-    let chunk_files_match =
-        (0..total).all(|i| chunks_dir.join(format!("chunk_{i:03}.mp3")).exists());
-    if !chunk_files_match {
-        if let Err(e) =
-            ffmpeg::split_into_chunks(&app, &normalized_path, &chunks_dir, config.chunk_seconds)
-                .await
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::EncodeChunks)?;
+    for plan in &plans {
+        if cancel.is_cancelled() {
+            cancel_run(&conn, &app, AiRunStageKey::EncodeChunks);
+            return Ok(());
+        }
+
+        let chunk_path = chunks_dir.join(format!("chunk_{:03}.mp3", plan.index));
+        if chunk_path.exists() {
+            ai_run_ops::mark_task_complete(
+                &conn,
+                run_id,
+                AiRunStageKey::EncodeChunks,
+                plan.index,
+                1,
+                1,
+            )?;
+            sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
+            continue;
+        }
+
+        emit(
+            &app,
+            &TranscriptionProgress::EncodingChunk {
+                interview_id,
+                run_id,
+                index: plan.index,
+                total,
+            },
+        );
+        ai_run_ops::mark_task_running(
+            &conn,
+            run_id,
+            AiRunStageKey::EncodeChunks,
+            plan.index,
+            1,
+            1,
+        )?;
+        if let Err(e) = ffmpeg::extract_subchunk(
+            &app,
+            &normalized_path,
+            &chunk_path,
+            plan.offset_seconds,
+            plan.duration_seconds,
+            &config.normalize,
+        )
+        .await
         {
-            fail(&conn, &app, format!("split: {e}"));
+            ai_run_ops::mark_task_failed(
+                &conn,
+                run_id,
+                AiRunStageKey::EncodeChunks,
+                plan.index,
+                1,
+                1,
+                &e.to_string(),
+            )?;
+            fail(
+                &conn,
+                &app,
+                AiRunStageKey::EncodeChunks,
+                format!("encode chunk {}: {e}", plan.index),
+            );
             return Err(e);
         }
+        ai_run_ops::mark_task_complete(
+            &conn,
+            run_id,
+            AiRunStageKey::EncodeChunks,
+            plan.index,
+            1,
+            1,
+        )?;
+        sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
     }
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::EncodeChunks)?;
 
-    // Step 6: per-chunk transcribe
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
     let client =
         GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
 
-    let mut prior_segments_for_context: Vec<ParsedSegment> = cache.load_all().unwrap_or_default();
+    let mut prior_segments_for_context: Vec<ParsedSegment> = match cache.load_all() {
+        Ok(segments) => segments,
+        Err(e) => {
+            fail(
+                &conn,
+                &app,
+                AiRunStageKey::TranscribeChunks,
+                format!("load cache: {e}"),
+            );
+            return Err(e);
+        }
+    };
     let mut total_segments = prior_segments_for_context.len();
 
     for plan in &plans {
         if cancel.is_cancelled() {
-            let _ = ai_run::cancel(&conn, run_id);
-            let _ = interview::set_status(&conn, interview_id, TranscriptStatus::Failed);
-            emit(&app, &TranscriptionProgress::Cancelled { interview_id });
+            cancel_run(&conn, &app, AiRunStageKey::TranscribeChunks);
             return Ok(());
         }
 
         if cache.exists(plan.index) {
-            // already done
+            ai_run_ops::mark_task_complete(
+                &conn,
+                run_id,
+                AiRunStageKey::TranscribeChunks,
+                plan.index,
+                1,
+                retry::MAX_RETRY_ATTEMPTS,
+            )?;
+            sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
             continue;
         }
 
         let chunk_path = chunks_dir.join(format!("chunk_{:03}.mp3", plan.index));
         if !chunk_path.exists() {
+            let error = AppError::NotFound(chunk_path.to_string_lossy().to_string());
+            ai_run_ops::mark_task_failed(
+                &conn,
+                run_id,
+                AiRunStageKey::TranscribeChunks,
+                plan.index,
+                1,
+                retry::MAX_RETRY_ATTEMPTS,
+                &error.to_string(),
+            )?;
             fail(
                 &conn,
                 &app,
+                AiRunStageKey::TranscribeChunks,
                 format!("missing chunk file: {}", chunk_path.display()),
             );
-            return Err(AppError::NotFound(chunk_path.to_string_lossy().to_string()));
+            return Err(error);
         }
 
         let mut attempt: u32 = 0;
         let segments_for_chunk = loop {
             attempt += 1;
+            ai_run_ops::mark_task_running(
+                &conn,
+                run_id,
+                AiRunStageKey::TranscribeChunks,
+                plan.index,
+                attempt,
+                retry::MAX_RETRY_ATTEMPTS,
+            )?;
             emit(
                 &app,
                 &TranscriptionProgress::TranscribingChunk {
                     interview_id,
+                    run_id,
                     index: plan.index,
                     total,
                     attempt,
@@ -227,17 +459,29 @@ pub async fn run_pipeline(
             );
 
             let prompt = prompts::build_prompt(&prior_segments_for_context);
-
-            // upload, generate, parse
             let upload_result = client.upload_file(&chunk_path, "audio/mpeg").await;
             let uploaded = match upload_result {
-                Ok(f) => f,
+                Ok(file) => file,
                 Err(e) => {
                     if attempt < retry::MAX_RETRY_ATTEMPTS {
                         tokio::time::sleep(retry::delay_for_attempt(attempt)).await;
                         continue;
                     }
-                    fail(&conn, &app, format!("upload chunk {}: {e}", plan.index));
+                    ai_run_ops::mark_task_failed(
+                        &conn,
+                        run_id,
+                        AiRunStageKey::TranscribeChunks,
+                        plan.index,
+                        attempt,
+                        retry::MAX_RETRY_ATTEMPTS,
+                        &e.to_string(),
+                    )?;
+                    fail(
+                        &conn,
+                        &app,
+                        AiRunStageKey::TranscribeChunks,
+                        format!("upload chunk {}: {e}", plan.index),
+                    );
                     return Err(e);
                 }
             };
@@ -253,25 +497,31 @@ pub async fn run_pipeline(
                 )
                 .await;
 
-            // Cleanup uploaded file (best effort)
             let _ = client.delete_file(&uploaded.name).await;
 
             match gen_result {
                 Ok(resp) => {
-                    // Detect MAX_TOKENS
                     if resp.finish_reason.as_deref() == Some("MAX_TOKENS") {
-                        // Fall back to sub-chunking. For simplicity in this initial implementation,
-                        // we mark the run as failed if sub-chunking can't help.
-                        // (Full recursive sub-chunking is a follow-up.)
+                        let error = AppError::Invalid("MAX_TOKENS".into());
+                        ai_run_ops::mark_task_failed(
+                            &conn,
+                            run_id,
+                            AiRunStageKey::TranscribeChunks,
+                            plan.index,
+                            attempt,
+                            retry::MAX_RETRY_ATTEMPTS,
+                            &error.to_string(),
+                        )?;
                         fail(
                             &conn,
                             &app,
+                            AiRunStageKey::TranscribeChunks,
                             format!(
                                 "chunk {} hit MAX_TOKENS (sub-chunking not yet implemented)",
                                 plan.index
                             ),
                         );
-                        return Err(AppError::Invalid("MAX_TOKENS".into()));
+                        return Err(error);
                     }
                     match crate::transcription::schema::parse_response(
                         &resp.text,
@@ -283,7 +533,21 @@ pub async fn run_pipeline(
                             continue;
                         }
                         Err(e) => {
-                            fail(&conn, &app, format!("parse chunk {}: {e}", plan.index));
+                            ai_run_ops::mark_task_failed(
+                                &conn,
+                                run_id,
+                                AiRunStageKey::TranscribeChunks,
+                                plan.index,
+                                attempt,
+                                retry::MAX_RETRY_ATTEMPTS,
+                                &e.to_string(),
+                            )?;
+                            fail(
+                                &conn,
+                                &app,
+                                AiRunStageKey::TranscribeChunks,
+                                format!("parse chunk {}: {e}", plan.index),
+                            );
                             return Err(e);
                         }
                     }
@@ -293,61 +557,126 @@ pub async fn run_pipeline(
                         tokio::time::sleep(retry::delay_for_attempt(attempt)).await;
                         continue;
                     }
-                    fail(&conn, &app, format!("generate chunk {}: {e}", plan.index));
+                    ai_run_ops::mark_task_failed(
+                        &conn,
+                        run_id,
+                        AiRunStageKey::TranscribeChunks,
+                        plan.index,
+                        attempt,
+                        retry::MAX_RETRY_ATTEMPTS,
+                        &e.to_string(),
+                    )?;
+                    fail(
+                        &conn,
+                        &app,
+                        AiRunStageKey::TranscribeChunks,
+                        format!("generate chunk {}: {e}", plan.index),
+                    );
                     return Err(e);
                 }
             }
         };
 
-        // Persist to cache + DB
         cache.save(plan.index, &segments_for_chunk)?;
 
-        // Insert into DB with offset applied
         let new_segments: Vec<segment_q::NewSegment> = {
             let mut out = Vec::with_capacity(segments_for_chunk.len());
-            for s in &segments_for_chunk {
-                let sp = speaker_q::create_or_get(&conn, interview_id, &s.speaker, None)?;
+            for segment in &segments_for_chunk {
+                let speaker =
+                    speaker_q::create_or_get(&conn, interview_id, &segment.speaker, None)?;
                 out.push(segment_q::NewSegment {
-                    speaker_id: Some(sp.id),
-                    start_sec: s.start + plan.offset_seconds,
-                    end_sec: s.end + plan.offset_seconds,
-                    text: s.text.clone(),
+                    speaker_id: Some(speaker.id),
+                    start_sec: segment.start + plan.offset_seconds,
+                    end_sec: segment.end + plan.offset_seconds,
+                    text: segment.text.clone(),
                 });
             }
             out
         };
         segment_q::insert_batch(&mut conn, interview_id, &new_segments)?;
 
-        prior_segments_for_context.extend(segments_for_chunk.iter().cloned().map(|mut s| {
-            s.start += plan.offset_seconds;
-            s.end += plan.offset_seconds;
-            s
+        prior_segments_for_context.extend(segments_for_chunk.iter().cloned().map(|mut segment| {
+            segment.start += plan.offset_seconds;
+            segment.end += plan.offset_seconds;
+            segment
         }));
         total_segments += segments_for_chunk.len();
 
-        emit(
-            &app,
-            &TranscriptionProgress::ChunkComplete {
-                interview_id,
-                index: plan.index,
-                segments_added: segments_for_chunk.len(),
-            },
-        );
+        ai_run_ops::mark_task_complete(
+            &conn,
+            run_id,
+            AiRunStageKey::TranscribeChunks,
+            plan.index,
+            attempt,
+            retry::MAX_RETRY_ATTEMPTS,
+        )?;
+        sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
     }
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
 
-    // Step 7: complete
+    let (total_chunks, completed_chunks) =
+        stage_progress_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::ComposeTranscript)?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::ComposeTranscript,
+        Some(1),
+        Some(0),
+        Some(0),
+    )?;
+    emit(
+        &app,
+        &TranscriptionProgress::ComposingTranscript {
+            interview_id,
+            run_id,
+            completed_chunks: completed_chunks as usize,
+            total_chunks: total_chunks as usize,
+        },
+    );
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::ComposeTranscript,
+        Some(1),
+        Some(1),
+        Some(0),
+    )?;
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::ComposeTranscript)?;
+
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::Finalize)?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::Finalize,
+        Some(1),
+        Some(0),
+        Some(0),
+    )?;
     interview::set_status(&conn, interview_id, TranscriptStatus::Complete)?;
     ai_run::complete(
         &conn,
         run_id,
         None,
-        Some(&format!("{total_segments} segments")),
+        Some(&format!(
+            "{completed_chunks}/{total_chunks} chunks, {total_segments} segments"
+        )),
         None,
     )?;
+    ai_run_ops::set_stage_counts(
+        &conn,
+        run_id,
+        AiRunStageKey::Finalize,
+        Some(1),
+        Some(1),
+        Some(0),
+    )?;
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::Finalize)?;
     emit(
         &app,
         &TranscriptionProgress::Complete {
             interview_id,
+            run_id,
             total_segments,
         },
     );
