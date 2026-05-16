@@ -1,6 +1,6 @@
 use crate::commands::util::project_conn;
 use crate::db;
-use crate::db::queries::interview::{self, Interview};
+use crate::db::queries::interview::{self, Interview, TranscriptStatus};
 use crate::db::queries::segment;
 use crate::db::queries::speaker::{self, Speaker};
 use crate::error::{AppError, AppResult};
