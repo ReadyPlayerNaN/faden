@@ -6,52 +6,41 @@ ROOT="$(cd "$HERE/.." && pwd)"
 VERSION="${1:-}"
 
 if [[ -z "$VERSION" ]]; then
-  echo "Usage: $0 <semver>" >&2
-  exit 1
+	echo "Usage: $0 <semver>" >&2
+	exit 1
 fi
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Version must be semver in the form X.Y.Z" >&2
-  exit 1
+	echo "Version must be semver in the form X.Y.Z" >&2
+	exit 1
 fi
 
-python - "$ROOT/package.json" "$VERSION" <<'PY'
-import json
-import sys
-from pathlib import Path
+node - "$ROOT" "$VERSION" <<'NODE'
+const fs = require('fs');
+const path = require('path');
 
-path = Path(sys.argv[1])
-version = sys.argv[2]
-data = json.loads(path.read_text())
-data["version"] = version
-path.write_text(json.dumps(data, indent=2) + "\n")
-PY
+const root = process.argv[2];
+const version = process.argv[3];
 
-python - "$ROOT/src-tauri/Cargo.toml" "$VERSION" <<'PY'
-import re
-import sys
-from pathlib import Path
+const packageJsonPath = path.join(root, 'package.json');
+const cargoTomlPath = path.join(root, 'src-tauri', 'Cargo.toml');
+const tauriConfigPath = path.join(root, 'src-tauri', 'tauri.conf.json');
 
-path = Path(sys.argv[1])
-version = sys.argv[2]
-text = path.read_text()
-new_text, count = re.subn(r'^version = ".*?"$', f'version = "{version}"', text, count=1, flags=re.MULTILINE)
-if count != 1:
-    raise SystemExit("Failed to update version in src-tauri/Cargo.toml")
-path.write_text(new_text)
-PY
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+packageJson.version = version;
+fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
-python - "$ROOT/src-tauri/tauri.conf.json" <<'PY'
-import json
-import sys
-from pathlib import Path
+const cargoToml = fs.readFileSync(cargoTomlPath, 'utf8');
+const updatedCargoToml = cargoToml.replace(/^version = ".*?"$/m, `version = "${version}"`);
+if (updatedCargoToml === cargoToml) {
+  throw new Error('Failed to update version in src-tauri/Cargo.toml');
+}
+fs.writeFileSync(cargoTomlPath, updatedCargoToml);
 
-path = Path(sys.argv[1])
-data = json.loads(path.read_text())
-expected = "../package.json"
-actual = data.get("version")
-if actual != expected:
-    raise SystemExit(f"Expected src-tauri/tauri.conf.json version to be {expected!r}, got {actual!r}")
-PY
+const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
+if (tauriConfig.version !== '../package.json') {
+  throw new Error(`Expected src-tauri/tauri.conf.json version to be '../package.json', got ${JSON.stringify(tauriConfig.version)}`);
+}
+NODE
 
 echo "Bumped version to $VERSION"
