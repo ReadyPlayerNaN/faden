@@ -10,11 +10,7 @@ DISPLAY_NAME="${DISPLAY_NAME:-Faden}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT/dist/aur}"
 PACKAGE_DIR="$OUTPUT_ROOT/$PACKAGE_NAME"
 
-PKG_DESC="${PKG_DESC:-$(python3 - <<'PY'
-import tomllib, pathlib
-print(tomllib.loads(pathlib.Path('src-tauri/Cargo.toml').read_text())['package']['description'])
-PY
-)}"
+PKG_DESC="${PKG_DESC:-$(awk -F ' = ' '/^description = / { gsub(/^"|"$/, "", $2); print $2; exit }' "$ROOT/src-tauri/Cargo.toml")}"
 
 rm -rf "$PACKAGE_DIR"
 mkdir -p "$PACKAGE_DIR"

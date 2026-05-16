@@ -19,11 +19,7 @@ fi
 
 PACKAGE_NAME="${PACKAGE_NAME:-${REPOSITORY##*/}}"
 BASE_NAME="${BASE_NAME:-$PACKAGE_NAME}"
-PKG_DESC="${PKG_DESC:-$(python3 - <<'PY'
-import tomllib, pathlib
-print(tomllib.loads(pathlib.Path('src-tauri/Cargo.toml').read_text())['package']['description'])
-PY
-)}"
+PKG_DESC="${PKG_DESC:-$(awk -F ' = ' '/^description = / { gsub(/^"|"$/, "", $2); print $2; exit }' "$ROOT/src-tauri/Cargo.toml")}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT/dist/aur}"
 PACKAGE_DIR="$OUTPUT_ROOT/$PACKAGE_NAME"
 SOURCE_URL="https://github.com/$REPOSITORY/archive/refs/tags/$TAG.tar.gz"
