@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsGet, settingsSet } from "../../ipc/settings";
@@ -8,6 +8,7 @@ import { globalSettingsAtom } from "../../state/settings";
 import { currentProjectAtom } from "../../state/project";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/TextField/TextField";
+import { ErrorBanner } from "../../components/ErrorBanner";
 import { PromptEditors } from "./PromptEditors";
 import styles from "./Settings.module.css";
 
@@ -16,6 +17,9 @@ type LangChoice = "auto" | "en" | "cs";
 export const Settings = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { projectPath: backProjectPath } = useParams({ strict: false }) as {
+    projectPath?: string;
+  };
   const [settings, setSettings] = useAtom(globalSettingsAtom);
   const [project, setProject] = useAtom(currentProjectAtom);
   const [apiKey, setApiKey] = useState("");
@@ -23,26 +27,42 @@ export const Settings = () => {
   const [aiModel, setAiModel] = useState("");
   const [uiLanguage, setUiLanguage] = useState<LangChoice>("auto");
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const applySettings = (next: NonNullable<typeof settings>) => {
+    setSettings(next);
+    setApiKey(next.geminiApiKey);
+    setTranscriptionModel(next.defaultTranscriptionModel);
+    setAiModel(next.defaultAiModel);
+    setUiLanguage((next.uiLanguage as LangChoice | null) ?? "auto");
+  };
 
   useEffect(() => {
-    if (!settings) {
-      void settingsGet().then((s) => {
-        setSettings(s);
-        setApiKey(s.geminiApiKey);
-        setTranscriptionModel(s.defaultTranscriptionModel);
-        setAiModel(s.defaultAiModel);
-        setUiLanguage((s.uiLanguage as LangChoice | null) ?? "auto");
+    let cancelled = false;
+    setIsLoading(true);
+    setSaveError(null);
+    void settingsGet()
+      .then((s) => {
+        if (cancelled) return;
+        applySettings(s);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setSaveError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoading(false);
       });
-    } else {
-      setApiKey(settings.geminiApiKey);
-      setTranscriptionModel(settings.defaultTranscriptionModel);
-      setAiModel(settings.defaultAiModel);
-      setUiLanguage((settings.uiLanguage as LangChoice | null) ?? "auto");
-    }
-  }, [settings, setSettings]);
+    return () => {
+      cancelled = true;
+    };
+  }, [setSettings]);
 
   const onSave = async () => {
-    if (!settings) return;
+    if (!settings || isLoading || isSaving) return;
     const next = {
       ...settings,
       geminiApiKey: apiKey,
@@ -50,9 +70,18 @@ export const Settings = () => {
       defaultAiModel: aiModel,
       uiLanguage: uiLanguage === "auto" ? null : uiLanguage,
     };
-    await settingsSet(next);
-    setSettings(next);
-    setSavedAt(Date.now());
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await settingsSet(next);
+      const confirmed = await settingsGet();
+      applySettings(confirmed);
+      setSavedAt(Date.now());
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const onRenameProject = async () => {
@@ -70,10 +99,10 @@ export const Settings = () => {
         <Button
           onClick={() =>
             void navigate(
-              project
+              backProjectPath
                 ? {
                     to: "/workspace/$projectPath",
-                    params: { projectPath: encodeURIComponent(project.path) },
+                    params: { projectPath: backProjectPath },
                   }
                 : { to: "/" },
             )
@@ -84,12 +113,16 @@ export const Settings = () => {
       </header>
 
       <section className={styles.section}>
+        {saveError ? (
+          <ErrorBanner message={saveError} onDismiss={() => setSaveError(null)} />
+        ) : null}
         <div className={styles.field}>
           <TextField
             label={t("settings.geminiApiKey")}
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            disabled={isLoading || isSaving}
           />
         </div>
         <div className={styles.field}>
@@ -97,6 +130,7 @@ export const Settings = () => {
             label={t("settings.defaultTranscriptionModel")}
             value={transcriptionModel}
             onChange={(e) => setTranscriptionModel(e.target.value)}
+            disabled={isLoading || isSaving}
           />
         </div>
         <div className={styles.field}>
@@ -104,6 +138,7 @@ export const Settings = () => {
             label={t("settings.defaultAiModel")}
             value={aiModel}
             onChange={(e) => setAiModel(e.target.value)}
+            disabled={isLoading || isSaving}
           />
         </div>
         <div className={styles.field}>
@@ -113,6 +148,7 @@ export const Settings = () => {
               className={styles.select}
               value={uiLanguage}
               onChange={(e) => setUiLanguage(e.target.value as LangChoice)}
+              disabled={isLoading || isSaving}
             >
               <option value="auto">{t("settings.languageAuto")}</option>
               <option value="en">{t("settings.languageEn")}</option>
@@ -121,8 +157,12 @@ export const Settings = () => {
           </label>
         </div>
         <div className={styles.actions}>
-          <Button variant="primary" onClick={() => void onSave()}>
-            {t("settings.save")}
+          <Button
+            variant="primary"
+            onClick={() => void onSave()}
+            disabled={isLoading || isSaving || !settings}
+          >
+            {isSaving ? t("common.loading") : t("settings.save")}
           </Button>
           {savedAt && (
             <span className={styles.saved}>{t("settings.saved")}</span>

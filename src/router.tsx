@@ -31,6 +31,12 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
+const settingsProjectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/$projectPath",
+  component: Settings,
+});
+
 const tagsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tags",
@@ -41,6 +47,7 @@ const routeTree = rootRoute.addChildren([
   pickerRoute,
   workspaceRoute,
   settingsRoute,
+  settingsProjectRoute,
   tagsRoute,
 ]);
 

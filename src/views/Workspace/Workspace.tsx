@@ -91,10 +91,26 @@ export const Workspace = () => {
           <Button onClick={() => void navigate({ to: "/tags" })}>
             {t("tags.title", { defaultValue: "Tags" })}
           </Button>
-          <Button onClick={() => void navigate({ to: "/settings" })}>
+          <Button
+            onClick={() =>
+              void navigate(
+                project
+                  ? {
+                      to: "/settings/$projectPath",
+                      params: { projectPath: encodeURIComponent(project.path) },
+                    }
+                  : { to: "/settings" },
+              )
+            }
+          >
             {t("settings.title")}
           </Button>
-          <Button onClick={() => void navigate({ to: "/" })}>
+          <Button
+            onClick={() => {
+              setProject(null);
+              void navigate({ to: "/" });
+            }}
+          >
             ← {t("settings.back")}
           </Button>
         </div>

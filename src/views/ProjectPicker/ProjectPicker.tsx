@@ -22,8 +22,9 @@ export const ProjectPicker = () => {
   const [, setCurrent] = useAtom(currentProjectAtom);
 
   useEffect(() => {
+    setCurrent(null);
     void settingsGet().then(setSettings);
-  }, [setSettings]);
+  }, [setCurrent, setSettings]);
 
   const goTo = (path: string, name: string) => {
     setCurrent({ path, name });
