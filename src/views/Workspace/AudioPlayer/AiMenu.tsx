@@ -6,6 +6,7 @@ import { interviewListAtom } from "../../../state/interview";
 import { currentProjectAtom } from "../../../state/project";
 import { transcriptionRunsAtom } from "../../../state/transcription";
 import {
+  acknowledgedAiRunsAtom,
   activeAiOperationsAtom,
   aiRunHistoryAtom,
   skipCostConfirmAtom,
@@ -27,7 +28,10 @@ import {
   StatusMenuHeader,
 } from "../../../components/StatusMenu/StatusMenu";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
-import { buildDisplayOperations } from "../../AI/aiOperations";
+import {
+  buildDisplayOperations,
+  isUnresolvedOperation,
+} from "../../AI/aiOperations";
 import styles from "./AiMenu.module.css";
 
 type PendingAction =
@@ -58,6 +62,8 @@ export const AiMenu = () => {
   const setAiRuns = useSetAtom(aiRunHistoryAtom);
   const activeOps = useAtomValue(activeAiOperationsAtom);
   const setActiveOps = useSetAtom(activeAiOperationsAtom);
+  const acknowledgedRuns = useAtomValue(acknowledgedAiRunsAtom);
+  const setAcknowledgedRuns = useSetAtom(acknowledgedAiRunsAtom);
   const [open, setOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(
     null,
@@ -179,7 +185,7 @@ export const AiMenu = () => {
     setEstimate(null);
   };
 
-  const { ongoing } = useMemo(
+  const { all } = useMemo(
     () =>
       buildDisplayOperations({
         interviews,
@@ -191,7 +197,13 @@ export const AiMenu = () => {
     [activeOps, aiRuns, interviews, t, transcriptionRuns],
   );
 
-  const runningCount = ongoing.length;
+  const unresolved = useMemo(
+    () => all.filter((op) => isUnresolvedOperation(op, acknowledgedRuns)),
+    [acknowledgedRuns, all],
+  );
+
+  const unresolvedCount = unresolved.length;
+  const hasFailed = unresolved.some((op) => op.status === "failed");
   const triggerTitle = t("ai.triggerTitle", { defaultValue: "Operations" });
 
   return (
@@ -200,34 +212,77 @@ export const AiMenu = () => {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${triggerTitle} (${runningCount})`}
+        aria-label={`${triggerTitle} (${unresolvedCount})`}
         title={triggerTitle}
-        className={styles.trigger}
+        className={`${styles.trigger} ${hasFailed ? styles.triggerFailed : ""}`.trim()}
       >
         <span className={styles.triggerContent}>
           <span className={styles.triggerIcon} aria-hidden="true">⚙</span>
-          <span className={styles.triggerCount} aria-label={`${runningCount} running operations`}>
-            {runningCount}
+          <span className={styles.triggerCount} aria-label={`${unresolvedCount} unresolved operations`}>
+            {unresolvedCount}
           </span>
         </span>
       </Button>
       {open && (
         <StatusMenu role="menu">
           <StatusMenuHeader>
-            {t("ai.ongoingTitle", { defaultValue: "Ongoing" })}
+            {t("ai.unresolvedTitle", { defaultValue: "Unresolved" })}
           </StatusMenuHeader>
-          {ongoing.length === 0 ? (
+          {unresolved.length === 0 ? (
             <StatusMenuEmpty>
-              {t("ai.noOngoing", { defaultValue: "No ongoing operations" })}
+              {t("ai.noUnresolved", { defaultValue: "No unresolved operations" })}
             </StatusMenuEmpty>
           ) : (
             <ul className={styles.ongoingList}>
-              {ongoing.map((op) => (
-                <li key={op.id} className={styles.ongoingItem}>
-                  <span className={styles.loaderInline} aria-hidden="true" />
-                  <span className={styles.ongoingLabel}>{op.title}</span>
-                </li>
-              ))}
+              {unresolved.map((op) => {
+                const failed = op.status === "failed";
+                return (
+                  <li key={op.id} className={`${styles.ongoingItem} ${failed ? styles.failedItem : ""}`.trim()}>
+                    <div className={styles.itemMain}>
+                      {failed ? (
+                        <span className={styles.failedDot} aria-hidden="true">!</span>
+                      ) : (
+                        <span className={styles.loaderInline} aria-hidden="true" />
+                      )}
+                      <div className={styles.itemText}>
+                        {op.runId !== null && project ? (
+                          <button
+                            type="button"
+                            className={styles.titleButton}
+                            onClick={() => {
+                              setOpen(false);
+                              void navigate({
+                                to: "/workspace/$projectPath/ai-ops/$runId",
+                                params: {
+                                  projectPath: encodeURIComponent(project.path),
+                                  runId: String(op.runId),
+                                },
+                              });
+                            }}
+                          >
+                            <span className={styles.ongoingLabel}>{op.title}</span>
+                          </button>
+                        ) : (
+                          <span className={styles.ongoingLabel}>{op.title}</span>
+                        )}
+                      </div>
+                    </div>
+                    {failed && op.runId !== null ? (
+                      <button
+                        type="button"
+                        className={styles.ackButton}
+                        aria-label={t("ai.acknowledge", { defaultValue: "Acknowledge" })}
+                        title={t("ai.acknowledge", { defaultValue: "Acknowledge" })}
+                        onClick={() =>
+                          setAcknowledgedRuns((prev) => ({ ...prev, [op.runId as number]: true }))
+                        }
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
           <StatusMenuFooter>

@@ -32,6 +32,16 @@ export type DisplayOperation = {
   retryAvailable: boolean;
 };
 
+export const isAcknowledgedOperation = (
+  operation: DisplayOperation,
+  acknowledgedRuns: Record<number, boolean>,
+) => operation.status === "failed" && operation.runId !== null && !!acknowledgedRuns[operation.runId];
+
+export const isUnresolvedOperation = (
+  operation: DisplayOperation,
+  acknowledgedRuns: Record<number, boolean>,
+) => operation.status === "running" || (operation.status === "failed" && !isAcknowledgedOperation(operation, acknowledgedRuns));
+
 const TRANSCRIPTION_RUNNING_STAGES = new Set([
   "starting",
   "analyzing_source",

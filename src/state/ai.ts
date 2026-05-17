@@ -16,6 +16,7 @@ export const pendingProposalsAtom = atom<ProposalDTO[]>([]);
 export const activeProposalIdAtom = atom<number | null>(null);
 export const aiRunHistoryAtom = atom<AiRunDTO[]>([]);
 export const activeAiOperationsAtom = atom<LocalAiOperation[]>([]);
+export const acknowledgedAiRunsAtom = atom<Record<number, boolean>>({});
 export const hasOngoingAiOperationsAtom = atom(
   (get) =>
     get(activeAiOperationsAtom).length > 0 ||

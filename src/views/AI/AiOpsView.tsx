@@ -13,13 +13,19 @@ import {
 import { interviewList as fetchInterviews } from "../../ipc/interview";
 import { projectOpen } from "../../ipc/project";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
-import { activeAiOperationsAtom, aiRunHistoryAtom } from "../../state/ai";
+import {
+  acknowledgedAiRunsAtom,
+  activeAiOperationsAtom,
+  aiRunHistoryAtom,
+} from "../../state/ai";
 import { interviewListAtom } from "../../state/interview";
 import { currentProjectAtom } from "../../state/project";
 import { transcriptionRunsAtom } from "../../state/transcription";
 import {
   buildDisplayOperations,
   formatTimestamp,
+  isAcknowledgedOperation,
+  isUnresolvedOperation,
   stageProgressText,
   type DisplayOperation,
 } from "./aiOperations";
@@ -36,6 +42,7 @@ export const AiOpsView = () => {
   const setRuns = useSetAtom(transcriptionRunsAtom);
   const activeOps = useAtomValue(activeAiOperationsAtom);
   const [aiRuns, setAiRuns] = useAtom(aiRunHistoryAtom);
+  const [acknowledgedRuns, setAcknowledgedRuns] = useAtom(acknowledgedAiRunsAtom);
   const [loading, setLoading] = useState(true);
   const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +110,7 @@ export const AiOpsView = () => {
     };
   }, [setRuns]);
 
-  const { ongoing, all } = useMemo(
+  const { all } = useMemo(
     () =>
       buildDisplayOperations({
         interviews,
@@ -115,10 +122,17 @@ export const AiOpsView = () => {
     [activeOps, aiRuns, interviews, t, transcriptionRuns],
   );
 
+  const unresolved = all.filter((op) => isUnresolvedOperation(op, acknowledgedRuns));
   const history = all.filter((op) => op.status !== "running");
 
   const retryRun = async (runId: number) => {
     setRetryingRunId(runId);
+    setAcknowledgedRuns((prev) => {
+      if (!prev[runId]) return prev;
+      const next = { ...prev };
+      delete next[runId];
+      return next;
+    });
     try {
       await aiRunRetry(runId);
       await refresh();
@@ -157,22 +171,26 @@ export const AiOpsView = () => {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>
-            {t("ai.ongoingTitle", { defaultValue: "Ongoing" })}
+            {t("ai.unresolvedTitle", { defaultValue: "Unresolved" })}
           </h2>
-          <span className={styles.sectionCount}>{ongoing.length}</span>
+          <span className={styles.sectionCount}>{unresolved.length}</span>
         </div>
-        {ongoing.length === 0 ? (
+        {unresolved.length === 0 ? (
           <p className={styles.empty}>
-            {t("ai.noOngoing", { defaultValue: "No ongoing operations" })}
+            {t("ai.noUnresolved", { defaultValue: "No unresolved operations" })}
           </p>
         ) : (
           <ul className={styles.opsList}>
-            {ongoing.map((op) => (
+            {unresolved.map((op) => (
               <OperationCard
                 key={op.id}
                 operation={op}
                 projectPath={projectPath}
                 retrying={retryingRunId === op.runId}
+                acknowledged={isAcknowledgedOperation(op, acknowledgedRuns)}
+                onAcknowledge={(runId) =>
+                  setAcknowledgedRuns((prev) => ({ ...prev, [runId]: true }))
+                }
                 onRetry={retryRun}
               />
             ))}
@@ -201,6 +219,10 @@ export const AiOpsView = () => {
                 operation={op}
                 projectPath={projectPath}
                 retrying={retryingRunId === op.runId}
+                acknowledged={isAcknowledgedOperation(op, acknowledgedRuns)}
+                onAcknowledge={(runId) =>
+                  setAcknowledgedRuns((prev) => ({ ...prev, [runId]: true }))
+                }
                 onRetry={retryRun}
               />
             ))}
@@ -215,6 +237,8 @@ type OperationCardProps = {
   operation: DisplayOperation;
   projectPath: string;
   retrying: boolean;
+  acknowledged: boolean;
+  onAcknowledge: (runId: number) => void;
   onRetry: (runId: number) => Promise<void>;
 };
 
@@ -228,7 +252,14 @@ const StageBadge = ({ stage }: { stage: AiRunStageDTO }) => {
   );
 };
 
-const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationCardProps) => {
+const OperationCard = ({
+  operation,
+  projectPath,
+  retrying,
+  acknowledged,
+  onAcknowledge,
+  onRetry,
+}: OperationCardProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
@@ -253,10 +284,17 @@ const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationC
       <div className={styles.opsCardBody}>
         <div className={styles.opsTopRow}>
           <span className={styles.kind}>{title}</span>
-          <span className={`${styles.statusBadge} ${styles[`status_${status}`]}`}>
-            {status === "running" && <span className={styles.loaderInline} aria-hidden="true" />}
-            {t(`ai.status.${status}`)}
-          </span>
+          <div className={styles.topRowBadges}>
+            {acknowledged && (
+              <span className={styles.ackBadge}>
+                {t("ai.acknowledged", { defaultValue: "Acknowledged" })}
+              </span>
+            )}
+            <span className={`${styles.statusBadge} ${styles[`status_${status}`]}`}>
+              {status === "running" && <span className={styles.loaderInline} aria-hidden="true" />}
+              {t(`ai.status.${status}`)}
+            </span>
+          </div>
         </div>
         {label && label !== title && <div className={styles.summary}>{label}</div>}
         {summary && <div className={styles.summary}>{summary}</div>}
@@ -298,6 +336,11 @@ const OperationCard = ({ operation, projectPath, retrying, onRetry }: OperationC
             }
           >
             {t("common.open")}
+          </Button>
+        )}
+        {status === "failed" && runId !== null && !acknowledged && (
+          <Button onClick={() => onAcknowledge(runId)}>
+            {t("ai.acknowledge", { defaultValue: "Acknowledge" })}
           </Button>
         )}
         {retryAvailable && runId !== null && (
