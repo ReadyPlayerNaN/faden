@@ -19,6 +19,7 @@ import { codebookTree as fetchCodebookTree } from "../../../ipc/codebook";
 import { CodebookProposalView } from "./CodebookProposalView";
 import { SpanProposalView } from "./SpanProposalView";
 import { Button } from "../../../components/Button/Button";
+import { ErrorBanner } from "../../../components/ErrorBanner";
 import { Modal } from "../../../components/Modal/Modal";
 import styles from "./StagingPanel.module.css";
 
@@ -42,20 +43,39 @@ export const StagingPanel = ({
 		initialSelectedStatuses,
 	);
 	const [filterOpen, setFilterOpen] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 	const filterRef = useRef<HTMLDivElement | null>(null);
 	const prevHasOngoingRef = useRef(false);
 
 	const refreshProposals = async () => {
-		const nextProposals = await aiProposalList();
-		setProposals(nextProposals);
-		return nextProposals;
+		try {
+			setError(null);
+			const nextProposals = await aiProposalList();
+			setProposals(nextProposals);
+			return nextProposals;
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message);
+			return proposals;
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	const refreshActiveProposal = async () => {
 		if (activeId === null) return null;
-		const nextActive = await aiProposalGet(activeId).catch(() => null);
-		setActive(nextActive);
-		return nextActive;
+		try {
+			const nextActive = await aiProposalGet(activeId);
+			setActive(nextActive);
+			return nextActive;
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message);
+			setActive(null);
+			setActiveId(null);
+			return null;
+		}
 	};
 
 	useEffect(() => {
@@ -123,11 +143,14 @@ export const StagingPanel = ({
 	};
 
 	const toggleStatus = (status: ProposalStatus) => {
-		setSelectedStatuses((current) =>
-			current.includes(status)
-				? current.filter((value) => value !== status)
-				: [...current, status],
-		);
+		setSelectedStatuses((current) => {
+			if (current.includes(status)) {
+				return current.length === 1
+					? current
+					: current.filter((value) => value !== status);
+			}
+			return [...current, status];
+		});
 	};
 
 	const visibleProposals = useMemo(() => {
@@ -138,7 +161,9 @@ export const StagingPanel = ({
 	}, [proposals, selectedStatuses]);
 
 	const filterLabel = useMemo(() => {
-		if (selectedStatuses.length === 0) return t("ai.filterSuggestions");
+		if (selectedStatuses.length === 3) {
+			return t("ai.filterSuggestionsAll", { defaultValue: "All statuses" });
+		}
 		return selectedStatuses
 			.map((status) =>
 				t(`ai.proposalStatus.${status === "pending" ? "new" : status}`),
@@ -158,6 +183,7 @@ export const StagingPanel = ({
 			<header className={styles.header}>
 				<span>{t("ai.staging", { count: visibleProposals.length })}</span>
 			</header>
+			{error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 			<div className={styles.filters} ref={filterRef}>
 				<Button
 					onClick={() => setFilterOpen((open) => !open)}
@@ -199,7 +225,15 @@ export const StagingPanel = ({
 					</div>
 				)}
 			</div>
-			{proposals.length === 0 ? (
+			{loading && proposals.length === 0 ? (
+				<p className={styles.empty}>{t("ai.loadingSuggestions", { defaultValue: "Loading suggestions…" })}</p>
+			) : error && proposals.length === 0 ? (
+				<p className={styles.empty}>
+					{t("ai.suggestionsLoadFailed", {
+						defaultValue: "Couldn’t load suggestions right now.",
+					})}
+				</p>
+			) : proposals.length === 0 ? (
 				<p className={styles.empty}>{t("ai.noProposals")}</p>
 			) : visibleProposals.length === 0 ? (
 				<p className={styles.empty}>{t("ai.noFilteredProposals")}</p>

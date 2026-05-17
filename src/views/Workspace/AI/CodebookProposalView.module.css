@@ -17,6 +17,15 @@
   opacity: 0.7;
   font-size: 0.9em;
 }
+.summary {
+  margin: 0;
+  font-weight: 600;
+}
+.helper {
+  margin: -0.15rem 0 0;
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
 .actions {
   display: flex;
   align-items: center;

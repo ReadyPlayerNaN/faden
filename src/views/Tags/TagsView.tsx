@@ -168,6 +168,11 @@ export const TagsView = () => {
 
   const refreshProposals = async () => setPendingProposals(await aiProposalList());
   const refreshRuns = async () => setAiRunHistory(await aiRunList());
+  const structureStatusText = (kind: PendingStructureAction["kind"]) =>
+    t("ai.startingKind", {
+      kind: t(`ai.kinds.${kind}`),
+      defaultValue: `Starting ${t(`ai.kinds.${kind}`)}…`,
+    });
 
   const startLocalStructureOperation = (kind: PendingStructureAction["kind"]) => {
     const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -197,7 +202,7 @@ export const TagsView = () => {
   const actuallyStartStructureAction = async (action: PendingStructureAction) => {
     const localId = startLocalStructureOperation(action.kind);
     setStructureBusy(true);
-    setStructureStatus(t("ai.running"));
+    setStructureStatus(structureStatusText(action.kind));
     try {
       const runId =
         action.kind === "categorize"

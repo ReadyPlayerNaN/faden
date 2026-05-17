@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { aiProposalAccept, type ProposalDTO } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
@@ -182,6 +182,94 @@ export const CodebookProposalView = ({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const isPending = proposal.status === "pending";
+
+  const selectionMeta = useMemo(() => {
+    switch (sel.mode) {
+      case "flat": {
+        const total = sel.tags.length;
+        const selected = sel.tags.filter((tag) => tag.accept).length;
+        return {
+          selected,
+          total,
+          allSelected: total > 0 && selected === total,
+          hasSelection: selected > 0,
+          summary: null,
+          helper: null,
+        };
+      }
+      case "legacy": {
+        const total = sel.clusters.length;
+        const selected = sel.clusters.filter((cluster) => cluster.accept).length;
+        return {
+          selected,
+          total,
+          allSelected: total > 0 && selected === total,
+          hasSelection: selected > 0,
+          summary: null,
+          helper: null,
+        };
+      }
+      case "categorize": {
+        const totalGroups = sel.proposals.length;
+        const selectedGroups = sel.proposals.filter((category) => category.accept).length;
+        const totalItems = sel.proposals.reduce((sum, category) => sum + category.tags.length, 0);
+        const selectedItems = sel.proposals.reduce(
+          (sum, category) => sum + (category.accept ? category.tags.filter((tag) => tag.accept).length : 0),
+          0,
+        );
+        return {
+          selected: selectedItems,
+          total: totalItems,
+          allSelected: totalGroups > 0 && selectedGroups === totalGroups && selectedItems === totalItems,
+          hasSelection: selectedGroups > 0 && selectedItems > 0,
+          summary: t("ai.selectionSummaryCategorize", {
+            selectedGroups,
+            totalGroups,
+            selectedItems,
+            totalItems,
+            defaultValue: "{{selectedGroups}}/{{totalGroups}} categories, {{selectedItems}}/{{totalItems}} tags selected",
+          }),
+          helper: t("ai.partialAcceptHintCategorize", {
+            defaultValue: "Uncheck any suggested category or tag to accept only part of this proposal.",
+          }),
+        };
+      }
+      case "cluster": {
+        const totalGroups = sel.proposals.length;
+        const selectedGroups = sel.proposals.filter((cluster) => cluster.accept).length;
+        const totalItems = sel.proposals.reduce((sum, cluster) => sum + cluster.categories.length, 0);
+        const selectedItems = sel.proposals.reduce(
+          (sum, cluster) =>
+            sum + (cluster.accept ? cluster.categories.filter((category) => category.accept).length : 0),
+          0,
+        );
+        return {
+          selected: selectedItems,
+          total: totalItems,
+          allSelected: totalGroups > 0 && selectedGroups === totalGroups && selectedItems === totalItems,
+          hasSelection: selectedGroups > 0 && selectedItems > 0,
+          summary: t("ai.selectionSummaryCluster", {
+            selectedGroups,
+            totalGroups,
+            selectedItems,
+            totalItems,
+            defaultValue:
+              "{{selectedGroups}}/{{totalGroups}} clusters, {{selectedItems}}/{{totalItems}} categories selected",
+          }),
+          helper: t("ai.partialAcceptHintCluster", {
+            defaultValue: "Uncheck any suggested cluster or category to accept only part of this proposal.",
+          }),
+        };
+      }
+    }
+  }, [sel, t]);
+
+  const acceptLabel =
+    proposal.kind === "categorize" || proposal.kind === "cluster"
+      ? selectionMeta.allSelected
+        ? t("ai.acceptAll")
+        : t("ai.accept")
+      : t("ai.accept");
 
   const onAccept = async () => {
     setBusy(true);
@@ -379,6 +467,8 @@ export const CodebookProposalView = ({
     <div className={styles.wrap}>
       <h2>{proposalTitle(proposal, t)}</h2>
       <p>{t(`ai.proposalStatus.${proposal.status === "pending" ? "new" : proposal.status}`)}</p>
+      {selectionMeta.summary ? <p className={styles.summary}>{selectionMeta.summary}</p> : null}
+      {selectionMeta.helper ? <p className={styles.helper}>{selectionMeta.helper}</p> : null}
       {sel.mode === "flat"
         ? sel.tags.map((tag, i) => (
             <div key={`${tag.name}-${i}`} className={styles.tag}>
@@ -543,8 +633,12 @@ export const CodebookProposalView = ({
           </Button>
         )}
         {isPending && (
-          <Button variant="primary" onClick={() => void onAccept()} disabled={busy}>
-            {t("ai.accept")}
+          <Button
+            variant="primary"
+            onClick={() => void onAccept()}
+            disabled={busy || !selectionMeta.hasSelection}
+          >
+            {acceptLabel}
           </Button>
         )}
       </div>

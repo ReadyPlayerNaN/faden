@@ -4,6 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { aiProposalList, type ProposalDTO } from "../../../ipc/ai";
 import { Button } from "../../../components/Button/Button";
+import { ErrorBanner } from "../../../components/ErrorBanner";
 import {
   StatusMenu,
   StatusMenuEmpty,
@@ -23,13 +24,18 @@ export const SuggestionMenu = () => {
   const setActiveProposalId = useSetAtom(activeProposalIdAtom);
   const [open, setOpen] = useState(false);
   const [pendingProposals, setPendingProposals] = useState<ProposalDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const refreshProposals = async () => {
     try {
+      setError(null);
       setPendingProposals(await aiProposalList(["pending"]));
-    } catch {
-      // best-effort only
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,7 +108,20 @@ export const SuggestionMenu = () => {
               defaultValue: "Unresolved suggestions ({{count}})",
             })}
           </StatusMenuHeader>
-          {overview.length === 0 ? (
+          {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
+          {loading && overview.length === 0 ? (
+            <StatusMenuEmpty>
+              {t("ai.loadingSuggestions", {
+                defaultValue: "Loading suggestions…",
+              })}
+            </StatusMenuEmpty>
+          ) : error && overview.length === 0 ? (
+            <StatusMenuEmpty>
+              {t("ai.suggestionsLoadFailed", {
+                defaultValue: "Couldn’t load suggestions right now.",
+              })}
+            </StatusMenuEmpty>
+          ) : overview.length === 0 ? (
             <StatusMenuEmpty>
               {t("ai.noUnresolvedSuggestions", {
                 defaultValue: "No unresolved suggestions.",
