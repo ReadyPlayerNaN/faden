@@ -12,7 +12,7 @@
   },
   "workspace": {
     "leftPaneTitle": "Projekt",
-    "centerPaneEmpty": "Vyberte rozhovor",
+    "centerPaneEmpty": "Vyberte rozhovor pro zobrazení přepisu.",
     "rightPaneEmpty": "Vyberte označený úsek pro zobrazení detailu.",
     "interviews": "Rozhovory",
     "edits": "Úpravy",
@@ -30,7 +30,7 @@
     "transcriptComplete": "✓",
     "transcriptFailed": "Selhalo",
     "audioFilter": "Zvuk",
-    "selectInterview": "Vyberte rozhovor",
+    "selectInterview": "Vyberte rozhovor pro zobrazení přepisu.",
     "noSegments": "Tento rozhovor zatím nemá přepis.",
     "noSegmentsNoAudio": "Tento rozhovor zatím nemá zvuk. Přidejte zvuk, aby bylo možné vytvořit přepis.",
     "speaker": "Mluvčí",
@@ -411,6 +411,7 @@
   "errors": {
     "networkFailed": "Síťový požadavek selhal",
     "notFound": "Nenalezeno",
+    "commandUnavailable": "Příkaz není dostupný: {{command}}. Restartujte aplikaci.",
     "conflict": "Tento název už existuje",
     "invalid": "Neplatný vstup",
     "unknown": "Něco se pokazilo"

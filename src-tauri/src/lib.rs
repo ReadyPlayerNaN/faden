@@ -93,6 +93,7 @@ pub fn run() {
             commands::interview::interview_audio_stream_url,
             commands::segment::segment_update_text,
             commands::segment::segment_set_speaker,
+            commands::segment::segment_append,
             commands::segment::segment_delete,
             commands::segment::segment_split,
             commands::segment::segment_merge,

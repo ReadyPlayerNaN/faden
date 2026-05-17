@@ -229,6 +229,7 @@ export const StagingPanel = ({
 				{active &&
 					(active.kind === "pretag" || active.kind === "find_more" ? (
 						<SpanProposalView
+							key={active.id}
 							proposal={active}
 							onAccepted={() => void onAccepted()}
 							onReject={() => void onReject(active.id)}
@@ -236,6 +237,7 @@ export const StagingPanel = ({
 						/>
 					) : (
 						<CodebookProposalView
+							key={active.id}
 							proposal={active}
 							onAccepted={() => void onAccepted()}
 							onReject={() => void onReject(active.id)}

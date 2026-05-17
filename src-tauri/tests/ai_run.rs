@@ -30,6 +30,22 @@ fn start_creates_running_run() {
 }
 
 #[test]
+fn start_accepts_structuring_run_kinds_after_migrations() {
+    let conn = fresh_conn();
+    let categorize_id = ai_run::start(&conn, AiRunKind::Categorize, None, "m", "p", None).unwrap();
+    let cluster_id = ai_run::start(&conn, AiRunKind::Cluster, None, "m", "p", None).unwrap();
+
+    assert_eq!(
+        ai_run::get(&conn, categorize_id).unwrap().kind,
+        AiRunKind::Categorize
+    );
+    assert_eq!(
+        ai_run::get(&conn, cluster_id).unwrap().kind,
+        AiRunKind::Cluster
+    );
+}
+
+#[test]
 fn complete_transitions_to_complete() {
     let conn = fresh_conn();
     let id = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p", None).unwrap();

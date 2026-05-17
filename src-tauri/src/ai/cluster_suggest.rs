@@ -1,7 +1,7 @@
 use crate::ai::text;
 use crate::ai::{prompts, ClusterSuggestions, CLUSTER_SUGGESTIONS_SCHEMA};
 use crate::db::queries::ai_run::{self, AiRunKind};
-use crate::db::queries::{category, cluster};
+use crate::db::queries::category;
 use crate::db::queries::proposal::{self, ProposalKind};
 use crate::error::{AppError, AppResult};
 use crate::transcription::gemini::GeminiClient;
@@ -87,23 +87,13 @@ pub fn finalize(
         .iter()
         .map(|category| category.id)
         .collect();
-    let known_cluster_ids: HashSet<i64> = cluster::list(conn)?
-        .into_iter()
-        .map(|cluster| cluster.id)
-        .collect();
+    let known_clusters = crate::db::queries::cluster::list(conn)?;
+    let known_cluster_ids: HashSet<i64> = known_clusters.iter().map(|cluster| cluster.id).collect();
     let mut seen_categories = HashSet::new();
     let mut filtered = Vec::new();
     let mut skipped = 0usize;
 
     for mut proposal in parsed.proposals {
-        if proposal
-            .cluster
-            .existing_cluster_id
-            .is_some_and(|id| !known_cluster_ids.contains(&id))
-        {
-            proposal.cluster.existing_cluster_id = None;
-            skipped += 1;
-        }
         let mut valid_categories = Vec::new();
         for category in proposal.categories {
             if !known_category_ids.contains(&category.id) || !seen_categories.insert(category.id) {
@@ -115,6 +105,14 @@ pub fn finalize(
         if valid_categories.is_empty() {
             skipped += 1;
             continue;
+        }
+        if proposal
+            .cluster
+            .existing_cluster_id
+            .is_some_and(|id| !known_cluster_ids.contains(&id))
+        {
+            proposal.cluster.existing_cluster_id = None;
+            skipped += 1;
         }
         filtered.push(crate::ai::ClusterSuggestion {
             cluster: proposal.cluster,

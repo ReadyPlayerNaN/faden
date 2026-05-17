@@ -599,48 +599,6 @@ fn find_cluster_by_name(conn: &rusqlite::Connection, name: &str) -> AppResult<Op
         .map(|cluster| cluster.id))
 }
 
-fn resolve_existing_category_target(
-    conn: &rusqlite::Connection,
-    target: &SelectableCategoryTarget,
-    skipped: &mut Vec<String>,
-) -> AppResult<Option<i64>> {
-    match target.existing_category_id {
-        Some(existing_category_id) => match category::get(conn, existing_category_id) {
-            Ok(_) => Ok(Some(existing_category_id)),
-            Err(AppError::NotFound(_)) => {
-                skipped.push(format!(
-                    "category '{}' target {} missing; creating or matching by name instead",
-                    target.name, existing_category_id
-                ));
-                Ok(find_category_by_name(conn, &target.name)?)
-            }
-            Err(error) => Err(error),
-        },
-        None => Ok(find_category_by_name(conn, &target.name)?),
-    }
-}
-
-fn resolve_existing_cluster_target(
-    conn: &rusqlite::Connection,
-    target: &SelectableClusterTarget,
-    skipped: &mut Vec<String>,
-) -> AppResult<Option<i64>> {
-    match target.existing_cluster_id {
-        Some(existing_cluster_id) => match cluster::get(conn, existing_cluster_id) {
-            Ok(_) => Ok(Some(existing_cluster_id)),
-            Err(AppError::NotFound(_)) => {
-                skipped.push(format!(
-                    "cluster '{}' target {} missing; creating or matching by name instead",
-                    target.name, existing_cluster_id
-                ));
-                Ok(find_cluster_by_name(conn, &target.name)?)
-            }
-            Err(error) => Err(error),
-        },
-        None => Ok(find_cluster_by_name(conn, &target.name)?),
-    }
-}
-
 fn accept_categorize_proposal(
     conn: &rusqlite::Connection,
     payload: CategorizeSuggestions,
@@ -688,7 +646,11 @@ fn accept_categorize_proposal(
             continue;
         }
         let target_category_id = if let Some(existing_category_id) =
-            resolve_existing_category_target(conn, &proposal.category, &mut skipped)?
+            proposal.category.existing_category_id
+        {
+            existing_category_id
+        } else if let Some(existing_category_id) =
+            find_category_by_name(conn, &proposal.category.name)?
         {
             existing_category_id
         } else {
@@ -786,7 +748,11 @@ fn accept_cluster_proposal(
             continue;
         }
         let target_cluster_id = if let Some(existing_cluster_id) =
-            resolve_existing_cluster_target(conn, &proposal.cluster, &mut skipped)?
+            proposal.cluster.existing_cluster_id
+        {
+            existing_cluster_id
+        } else if let Some(existing_cluster_id) =
+            find_cluster_by_name(conn, &proposal.cluster.name)?
         {
             existing_cluster_id
         } else {
@@ -1227,7 +1193,7 @@ mod tests {
     use super::{accept_categorize_proposal, accept_cluster_proposal};
     use crate::ai::{CategorizeSuggestions, ClusterSuggestions};
     use crate::db::migrations::apply_migrations;
-    use crate::db::queries::{category, cluster, project_meta, tag};
+    use crate::db::queries::{ai_run, category, cluster, project_meta, proposal, tag};
     use rusqlite::Connection;
     use serde_json::json;
 
@@ -1237,6 +1203,27 @@ mod tests {
         apply_migrations(&mut conn).unwrap();
         project_meta::insert(&conn, "Test").unwrap();
         conn
+    }
+
+    #[test]
+    fn migrations_allow_new_ai_structuring_kinds() {
+        let conn = fresh();
+        let run_id = ai_run::start(
+            &conn,
+            ai_run::AiRunKind::Categorize,
+            None,
+            "model",
+            "prompt",
+            None,
+        )
+        .unwrap();
+        proposal::create(
+            &conn,
+            run_id,
+            proposal::ProposalKind::Cluster,
+            &json!({"proposals": []}),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -1333,61 +1320,5 @@ mod tests {
             Some(created_cluster.id)
         );
         assert_eq!(category::get(&conn, second.id).unwrap().cluster_id, None);
-    }
-
-    #[test]
-    fn accept_categorize_ignores_missing_existing_category_target() {
-        let conn = fresh();
-        let standalone = tag::create(&conn, None, "Shadow process", None, None).unwrap();
-        let payload: CategorizeSuggestions = serde_json::from_value(json!({
-            "proposals": [{
-                "category": {
-                    "existing_category_id": 9999,
-                    "name": "Operational workarounds",
-                    "description": "Unofficial process fixes"
-                },
-                "tags": [{ "id": standalone.id, "name": standalone.name }]
-            }]
-        }))
-        .unwrap();
-
-        let result = accept_categorize_proposal(&conn, payload, json!({})).unwrap();
-
-        assert_eq!(result.created_count, 2);
-        assert!(result.skipped.iter().any(|item| item.contains("target 9999 missing")));
-        let created_category = category::list_all(&conn)
-            .unwrap()
-            .into_iter()
-            .find(|category| category.name == "Operational workarounds")
-            .unwrap();
-        assert_eq!(tag::get(&conn, standalone.id).unwrap().category_id, Some(created_category.id));
-    }
-
-    #[test]
-    fn accept_cluster_ignores_missing_existing_cluster_target() {
-        let conn = fresh();
-        let standalone = category::create(&conn, None, "Informal escalation", None, None).unwrap();
-        let payload: ClusterSuggestions = serde_json::from_value(json!({
-            "proposals": [{
-                "cluster": {
-                    "existing_cluster_id": 9999,
-                    "name": "Coordination patterns",
-                    "description": "How people route work"
-                },
-                "categories": [{ "id": standalone.id, "name": standalone.name }]
-            }]
-        }))
-        .unwrap();
-
-        let result = accept_cluster_proposal(&conn, payload, json!({})).unwrap();
-
-        assert_eq!(result.created_count, 2);
-        assert!(result.skipped.iter().any(|item| item.contains("target 9999 missing")));
-        let created_cluster = cluster::list(&conn)
-            .unwrap()
-            .into_iter()
-            .find(|cluster| cluster.name == "Coordination patterns")
-            .unwrap();
-        assert_eq!(category::get(&conn, standalone.id).unwrap().cluster_id, Some(created_cluster.id));
     }
 }

@@ -42,6 +42,33 @@ fn list_pending_filters_by_kind() {
 }
 
 #[test]
+fn create_accepts_structuring_proposal_kinds_after_migrations() {
+    let conn = fresh();
+    let categorize_run_id =
+        ai_run::start(&conn, AiRunKind::Categorize, None, "m", "p", None).unwrap();
+    let cluster_run_id = ai_run::start(&conn, AiRunKind::Cluster, None, "m", "p", None).unwrap();
+
+    let categorize_id = proposal::create(
+        &conn,
+        categorize_run_id,
+        ProposalKind::Categorize,
+        &json!({}),
+    )
+    .unwrap();
+    let cluster_id =
+        proposal::create(&conn, cluster_run_id, ProposalKind::Cluster, &json!({})).unwrap();
+
+    assert_eq!(
+        proposal::get(&conn, categorize_id).unwrap().kind,
+        ProposalKind::Categorize
+    );
+    assert_eq!(
+        proposal::get(&conn, cluster_id).unwrap().kind,
+        ProposalKind::Cluster
+    );
+}
+
+#[test]
 fn list_for_run_filters_by_ai_run_id() {
     let conn = fresh();
     let first_run_id = make_run(&conn);

@@ -2,7 +2,7 @@ use crate::ai::text;
 use crate::ai::{prompts, CategorizeSuggestions, CATEGORIZE_SUGGESTIONS_SCHEMA};
 use crate::db::queries::ai_run::{self, AiRunKind};
 use crate::db::queries::proposal::{self, ProposalKind};
-use crate::db::queries::{category, tag};
+use crate::db::queries::tag;
 use crate::error::{AppError, AppResult};
 use crate::transcription::gemini::GeminiClient;
 use rusqlite::Connection;
@@ -84,23 +84,13 @@ pub fn finalize(
 
     let known_tags = tag::list_all(conn)?;
     let known_tag_ids: HashSet<i64> = known_tags.iter().map(|tag| tag.id).collect();
-    let known_category_ids: HashSet<i64> = category::list_all(conn)?
-        .into_iter()
-        .map(|category| category.id)
-        .collect();
+    let known_categories = crate::db::queries::category::list_all(conn)?;
+    let known_category_ids: HashSet<i64> = known_categories.iter().map(|category| category.id).collect();
     let mut seen_tags = HashSet::new();
     let mut filtered = Vec::new();
     let mut skipped = 0usize;
 
     for mut proposal in parsed.proposals {
-        if proposal
-            .category
-            .existing_category_id
-            .is_some_and(|id| !known_category_ids.contains(&id))
-        {
-            proposal.category.existing_category_id = None;
-            skipped += 1;
-        }
         let mut valid_tags = Vec::new();
         for tag in proposal.tags {
             if !known_tag_ids.contains(&tag.id) || !seen_tags.insert(tag.id) {
@@ -112,6 +102,14 @@ pub fn finalize(
         if valid_tags.is_empty() {
             skipped += 1;
             continue;
+        }
+        if proposal
+            .category
+            .existing_category_id
+            .is_some_and(|id| !known_category_ids.contains(&id))
+        {
+            proposal.category.existing_category_id = None;
+            skipped += 1;
         }
         filtered.push(crate::ai::CategorizeSuggestion {
             category: proposal.category,

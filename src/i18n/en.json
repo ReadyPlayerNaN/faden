@@ -412,6 +412,7 @@
   "errors": {
     "networkFailed": "Network request failed",
     "notFound": "Not found",
+    "commandUnavailable": "Command unavailable: {{command}}. Restart the app.",
     "conflict": "This name is already in use",
     "invalid": "Invalid input",
     "unknown": "Something went wrong"
