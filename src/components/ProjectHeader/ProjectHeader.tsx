@@ -180,8 +180,9 @@ export const ProjectHeader = ({
 	return (
 		<>
 			<header className={styles.header}>
-				<div className={styles.headerLeft}>
-					<div className={styles.projectMenuWrap} ref={projectMenuRef}>
+				<div className={styles.headerInner}>
+					<div className={styles.headerLeft}>
+						<div className={styles.projectMenuWrap} ref={projectMenuRef}>
 						<Button
 							onClick={() => setProjectMenuOpen((v) => !v)}
 							aria-haspopup="menu"
@@ -244,8 +245,8 @@ export const ProjectHeader = ({
 								</button>
 							</div>
 						)}
-					</div>
-					<div className={styles.viewMenuWrap} ref={viewMenuRef}>
+						</div>
+						<div className={styles.viewMenuWrap} ref={viewMenuRef}>
 						<Button
 							onClick={() => setViewMenuOpen((v) => !v)}
 							aria-haspopup="menu"
@@ -283,16 +284,17 @@ export const ProjectHeader = ({
 								})}
 							</div>
 						)}
+						</div>
+						{viewAccessory ? <div className={styles.viewAccessory}>{viewAccessory}</div> : null}
+						{leftActions ? (
+							<>
+								<div className={styles.separator} aria-hidden="true" />
+								<div className={styles.headerActions}>{leftActions}</div>
+							</>
+						) : null}
 					</div>
-					{viewAccessory ? <div className={styles.viewAccessory}>{viewAccessory}</div> : null}
-					{leftActions ? (
-						<>
-							<div className={styles.separator} aria-hidden="true" />
-							<div className={styles.headerActions}>{leftActions}</div>
-						</>
-					) : null}
+					<div className={styles.headerActions}>{actions}</div>
 				</div>
-				<div className={styles.headerActions}>{actions}</div>
 			</header>
 			{project && (
 				<EditProjectModal

@@ -1,11 +1,18 @@
 .header {
+  min-height: 3.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-muted);
+}
+
+.headerInner {
+  width: 100%;
+  max-width: var(--app-content-max-width);
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 3.5rem;
-  padding: 0.5rem 1rem 0.5rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-muted);
+  gap: 1rem;
 }
 
 .headerLeft {

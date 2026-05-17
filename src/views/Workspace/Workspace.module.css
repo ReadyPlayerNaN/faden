@@ -25,6 +25,15 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  padding-inline: 1rem;
+}
+
+.layoutInner {
+  width: 100%;
+  max-width: var(--app-content-max-width);
+  margin: 0 auto;
+  min-height: 0;
+  display: flex;
 }
 
 .panes {
@@ -94,6 +103,10 @@
 @media (max-width: 760px) {
   .shell {
     --workspace-right-pane-width: 240px;
+  }
+
+  .layout {
+    padding-inline: 0;
   }
 
   .panes {

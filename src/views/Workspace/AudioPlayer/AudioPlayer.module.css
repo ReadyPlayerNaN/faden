@@ -1,12 +1,18 @@
 .bar {
-  display: grid;
-  grid-template-columns: var(--workspace-left-pane-width) minmax(0, 1fr) var(--workspace-right-pane-width);
-  align-items: center;
-  gap: 0;
-  padding: 0.4rem 0;
+  padding: 0.4rem 1rem;
   background: var(--bg-muted);
   border-top: 1px solid var(--border);
   font-size: 0.9rem;
+}
+
+.barInner {
+  width: 100%;
+  max-width: var(--app-content-max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: var(--workspace-left-pane-width, 0px) minmax(0, 1fr) var(--workspace-right-pane-width);
+  align-items: center;
+  gap: 0;
 }
 
 .audioPanel,
@@ -126,7 +132,7 @@
 }
 
 @media (max-width: 1100px) {
-  .bar {
+  .barInner {
     grid-template-columns: minmax(0, 1fr) var(--workspace-right-pane-width);
   }
 

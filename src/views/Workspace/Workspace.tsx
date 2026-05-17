@@ -343,34 +343,36 @@ export const Workspace = () => {
         }
       />
       <div className={styles.layout} data-mobile-pane={mobilePane}>
-        <div
-          ref={panesRef}
-          className={styles.panes}
-          style={{
-            "--workspace-right-pane-width": `${rightPaneWidth}px`,
-          } as CSSProperties}
-        >
-          <CenterPane />
+        <div className={styles.layoutInner}>
           <div
-            className={styles.resizer}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t("workspace.rightPaneResizeHandle", {
-              defaultValue: "Resize details panel",
-            })}
-            aria-valuemin={MIN_RIGHT_PANE_WIDTH}
-            aria-valuemax={MAX_RIGHT_PANE_WIDTH}
-            aria-valuenow={Math.round(rightPaneWidth)}
-            tabIndex={0}
-            title={t("workspace.rightPaneResizeHandleHint", {
-              defaultValue:
-                "Drag to resize the details panel. Use Left/Right arrows to adjust, Home for wider, End for narrower.",
-            })}
-            onPointerDown={onRightPaneResizePointerDown}
-            onKeyDown={onRightPaneResizeKeyDown}
-            onDoubleClick={resetRightPaneWidth}
-          />
-          <RightPane />
+            ref={panesRef}
+            className={styles.panes}
+            style={{
+              "--workspace-right-pane-width": `${rightPaneWidth}px`,
+            } as CSSProperties}
+          >
+            <CenterPane />
+            <div
+              className={styles.resizer}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("workspace.rightPaneResizeHandle", {
+                defaultValue: "Resize details panel",
+              })}
+              aria-valuemin={MIN_RIGHT_PANE_WIDTH}
+              aria-valuemax={MAX_RIGHT_PANE_WIDTH}
+              aria-valuenow={Math.round(rightPaneWidth)}
+              tabIndex={0}
+              title={t("workspace.rightPaneResizeHandleHint", {
+                defaultValue:
+                  "Drag to resize the details panel. Use Left/Right arrows to adjust, Home for wider, End for narrower.",
+              })}
+              onPointerDown={onRightPaneResizePointerDown}
+              onKeyDown={onRightPaneResizeKeyDown}
+              onDoubleClick={resetRightPaneWidth}
+            />
+            <RightPane />
+          </div>
         </div>
       </div>
     </div>

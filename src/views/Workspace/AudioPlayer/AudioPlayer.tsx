@@ -352,10 +352,12 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   if (!showAudioControls) {
     return (
       <div className={styles.bar}>
-        <div className={styles.audioPanelPlaceholder} aria-hidden="true" />
-        <div className={styles.statusArea}>
-          <SuggestionMenu />
-          <AiMenu />
+        <div className={styles.barInner}>
+          <div className={styles.audioPanelPlaceholder} aria-hidden="true" />
+          <div className={styles.statusArea}>
+            <SuggestionMenu />
+            <AiMenu />
+          </div>
         </div>
       </div>
     );
@@ -364,12 +366,14 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   if (!interview?.audioPath) {
     return (
       <div className={styles.bar}>
-        <div className={styles.audioPanel}>
-          <span className={styles.empty}>{t("workspace.audioFilter")}</span>
-        </div>
-        <div className={styles.statusArea}>
-          <SuggestionMenu />
-          <AiMenu />
+        <div className={styles.barInner}>
+          <div className={styles.audioPanel}>
+            <span className={styles.empty}>{t("workspace.audioFilter")}</span>
+          </div>
+          <div className={styles.statusArea}>
+            <SuggestionMenu />
+            <AiMenu />
+          </div>
         </div>
       </div>
     );
@@ -377,7 +381,8 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
 
   return (
     <div className={styles.bar}>
-      <div className={styles.audioPanel}>
+      <div className={styles.barInner}>
+        <div className={styles.audioPanel}>
         <button
           className={styles.playBtn}
           onClick={() => void togglePlay()}
@@ -450,14 +455,15 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
           )}
         </div>
       </div>
-      <div className={styles.statusArea}>
-        {playbackError && (
-          <span className={styles.error} title={playbackError}>
-            Audio failed: {playbackError}
-          </span>
-        )}
-        <SuggestionMenu />
-        <AiMenu />
+        <div className={styles.statusArea}>
+          {playbackError && (
+            <span className={styles.error} title={playbackError}>
+              Audio failed: {playbackError}
+            </span>
+          )}
+          <SuggestionMenu />
+          <AiMenu />
+        </div>
       </div>
       <audio
         ref={(el) => {
