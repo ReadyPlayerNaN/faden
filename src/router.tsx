@@ -20,7 +20,6 @@ import { AnalysisView } from "./views/Analysis/AnalysisView";
 import { normalizeAnalysisSearch } from "./views/Analysis/analysisSearch";
 import { AudioPlayer } from "./views/Workspace/AudioPlayer/AudioPlayer";
 import { ThemeController } from "./components/ThemeController";
-import { ThemeDebugBadge } from "./components/ThemeDebugBadge";
 import { currentProjectAtom } from "./state/project";
 
 const isProjectRoute = (pathname: string) =>
@@ -38,7 +37,6 @@ const RootLayout = () => {
 	return (
 		<>
 			<ThemeController />
-			<ThemeDebugBadge />
 			<div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
 				<div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
 					<Outlet />
