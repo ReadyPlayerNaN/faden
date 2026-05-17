@@ -93,6 +93,7 @@
 .menuBtn {
 	width: 24px;
 	height: 24px;
+	aspect-ratio: 1 / 1;
 	padding: 0;
 	background: transparent;
 	border: 1px solid transparent;
