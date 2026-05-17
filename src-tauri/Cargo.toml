@@ -1,6 +1,6 @@
 [package]
 name = "faden"
-version = "0.1.4"
+version = "0.2.0"
 description = "Faden - desktop app for qualitative interview research"
 homepage = "https://faden.space"
 authors = ["Pavel Žák"]
