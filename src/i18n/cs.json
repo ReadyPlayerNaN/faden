@@ -288,8 +288,8 @@
     "panel": "AI",
     "triggerTitle": "Operace",
     "suggestionsTriggerTitle": "Návrhy",
-    "generateCodebook": "Odvodit číselník",
-    "preTag": "Doplnit štítky",
+    "generateCodebook": "Detekovat značky",
+    "preTag": "Oštítkovat",
     "findMore": "Najít další",
     "categorize": "Kategorizovat štítky",
     "cluster": "Seskupit kategorie do klastrů",
@@ -411,8 +411,8 @@
     "relatedInterviewValue": "Rozhovor: {{name}}",
     "kinds": {
       "transcribe": "Přepis",
-      "codebook_gen": "Odvodit číselník",
-      "pretag": "Doplnit štítky",
+      "codebook_gen": "Detekovat značky",
+      "pretag": "Oštítkovat",
       "find_more": "Najít další",
       "categorize": "Kategorizovat štítky",
       "cluster": "Seskupit kategorie do klastrů"

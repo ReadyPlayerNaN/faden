@@ -1,5 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+	aiCodebookGenStart,
+	aiCostEstimate,
+	aiPretagStart,
+	aiProposalList,
+	aiRunList,
+	type CostEstimate,
+	type ProposalKind,
+} from "../../../ipc/ai";
 import {
 	speakerCreate,
 	speakerDelete,
@@ -12,6 +22,14 @@ import {
 import { personList, type Person } from "../../../ipc/person";
 import { Modal } from "../../../components/Modal/Modal";
 import { Button } from "../../../components/Button/Button";
+import {
+	activeAiOperationsAtom,
+	aiRunHistoryAtom,
+	pendingProposalsAtom,
+	skipCostConfirmAtom,
+} from "../../../state/ai";
+import { interviewListAtom } from "../../../state/interview";
+import { CostPreviewModal } from "../AI/CostPreviewModal";
 import styles from "./SpeakerList.module.css";
 
 type Props = {
@@ -21,13 +39,27 @@ type Props = {
 
 type Action = "" | "add" | "merge";
 
+type PendingAction = {
+	kind: "codebook_gen" | "pretag";
+};
+
 export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 	const { t } = useTranslation();
+	const interviews = useAtomValue(interviewListAtom);
+	const skipCostConfirm = useAtomValue(skipCostConfirmAtom);
+	const aiRuns = useAtomValue(aiRunHistoryAtom);
+	const activeOps = useAtomValue(activeAiOperationsAtom);
+	const setSkipCostConfirm = useSetAtom(skipCostConfirmAtom);
+	const setPendingProposals = useSetAtom(pendingProposalsAtom);
+	const setAiRuns = useSetAtom(aiRunHistoryAtom);
+	const setActiveOps = useSetAtom(activeAiOperationsAtom);
 	const [speakers, setSpeakers] = useState<Speaker[]>([]);
 	const [people, setPeople] = useState<Person[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [action, setAction] = useState<Action>("");
+	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+	const [estimate, setEstimate] = useState<CostEstimate | null>(null);
 	const [newLabel, setNewLabel] = useState("");
 	const [newDisplayName, setNewDisplayName] = useState("");
 	const [newPersonId, setNewPersonId] = useState("");
@@ -37,6 +69,23 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 	const [detailDisplayName, setDetailDisplayName] = useState("");
 	const [detailPersonId, setDetailPersonId] = useState("");
 	const containerRef = useRef<HTMLDivElement | null>(null);
+	const interviewName = useMemo(
+		() => interviews.find((item) => item.id === interviewId)?.name ?? `#${interviewId}`,
+		[interviewId, interviews],
+	);
+	const isCodebookRunning =
+		activeOps.some((op) => op.kind === "codebook_gen" && op.interviewId === interviewId) ||
+		aiRuns.some(
+			(run) =>
+				run.status === "running" &&
+				run.kind === "codebook_gen" &&
+				run.interviewId === interviewId,
+		);
+	const isPretagRunning =
+		activeOps.some((op) => op.kind === "pretag" && op.interviewId === interviewId) ||
+		aiRuns.some(
+			(run) => run.status === "running" && run.kind === "pretag" && run.interviewId === interviewId,
+		);
 
 	const refresh = async () => {
 		const [nextSpeakers, nextPeople] = await Promise.all([
@@ -99,6 +148,90 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 		setDetailSpeaker(null);
 		setDetailDisplayName("");
 		setDetailPersonId("");
+	};
+
+	const refreshProposals = async () => setPendingProposals(await aiProposalList());
+	const refreshRuns = async () => setAiRuns(await aiRunList());
+
+	const startLocalOperation = (kind: ProposalKind): string => {
+		const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		setActiveOps((prev) => [
+			{
+				id,
+				runId: null,
+				kind,
+				startedAt: new Date().toISOString(),
+				interviewId,
+				label: t("ai.operationWithInterview", {
+					kind: t(`ai.kinds.${kind}`),
+					name: interviewName,
+				}),
+			},
+			...prev,
+		]);
+		return id;
+	};
+
+	const setLocalOperationRunId = (id: string, runId: number) => {
+		setActiveOps((prev) => prev.map((op) => (op.id === id ? { ...op, runId } : op)));
+	};
+
+	const finishLocalOperation = (id: string) => {
+		setActiveOps((prev) => prev.filter((op) => op.id !== id));
+	};
+
+	const startAiAction = async (kind: PendingAction["kind"]) => {
+		const localId = startLocalOperation(kind);
+		try {
+			const runId =
+				kind === "codebook_gen"
+					? await aiCodebookGenStart([interviewId], true)
+					: await aiPretagStart(interviewId);
+			setLocalOperationRunId(localId, runId);
+			await Promise.all([refreshProposals(), refreshRuns()]);
+		} catch (err) {
+			await refreshRuns().catch(() => undefined);
+			setError(String((err as { message?: string }).message ?? err));
+		} finally {
+			finishLocalOperation(localId);
+		}
+	};
+
+	const requestAiAction = async (kind: PendingAction["kind"]) => {
+		setError(null);
+		setMenuOpen(false);
+		const isRunning = kind === "codebook_gen" ? isCodebookRunning : isPretagRunning;
+		if (isRunning) return;
+		if (skipCostConfirm[kind]) {
+			await startAiAction(kind);
+			return;
+		}
+		try {
+			const args =
+				kind === "codebook_gen"
+					? { interview_ids: [interviewId], include_existing_codebook: true }
+					: { interview_id: interviewId };
+			setEstimate(await aiCostEstimate(kind, args));
+			setPendingAction({ kind });
+		} catch (err) {
+			setError(String((err as { message?: string }).message ?? err));
+		}
+	};
+
+	const closeCostPreview = () => {
+		setPendingAction(null);
+		setEstimate(null);
+	};
+
+	const confirmAiAction = async (dontAsk: boolean) => {
+		const nextAction = pendingAction;
+		setPendingAction(null);
+		setEstimate(null);
+		if (!nextAction) return;
+		if (dontAsk) {
+			setSkipCostConfirm({ ...skipCostConfirm, [nextAction.kind]: true });
+		}
+		await startAiAction(nextAction.kind);
 	};
 
 	const toggleMergeSpeaker = (speakerId: number) => {
@@ -219,6 +352,24 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 								type="button"
 								role="menuitem"
 								className={styles.menuItem}
+								disabled={isCodebookRunning}
+								onClick={() => void requestAiAction("codebook_gen")}
+							>
+								{t("ai.generateCodebook")}
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								className={styles.menuItem}
+								disabled={isPretagRunning}
+								onClick={() => void requestAiAction("pretag")}
+							>
+								{t("ai.preTag")}
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								className={styles.menuItem}
 								onClick={() => openAction("add")}
 							>
 								{t("speakers.add", { defaultValue: "Add speaker" })}
@@ -237,6 +388,14 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				</div>
 			</div>
 			{error && <div className={styles.error}>{error}</div>}
+			{pendingAction && estimate && (
+				<CostPreviewModal
+					estimate={estimate}
+					prompt=""
+					onSend={confirmAiAction}
+					onCancel={closeCostPreview}
+				/>
+			)}
 
 			<Modal
 				open={action === "add"}
