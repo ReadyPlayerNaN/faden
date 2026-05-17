@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
+import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
@@ -29,22 +30,19 @@ export const InterviewsView = () => {
     <div className={styles.shell}>
       <ProjectHeader activeView="interviews" />
       <PageContainer className={styles.wrap}>
-        <div className={styles.headerRow}>
-          <div>
-            <h1 className={styles.title}>
-              {t("workspace.interviews", { defaultValue: "Interviews" })}
-            </h1>
-            <p className={styles.subtitle}>
-              {t("workspace.interviewsSubtitle", {
-                defaultValue:
-                  "Manage interviews here. Select one to open it in Coding view.",
-              })}
-            </p>
-          </div>
-          <Button variant="primary" onClick={() => setModalOpen(true)}>
-            + {t("workspace.createInterview", { defaultValue: "Add interview" })}
-          </Button>
-        </div>
+        <PageViewHeader
+          view="interviews"
+          title={t("workspace.interviews", { defaultValue: "Interviews" })}
+          subtitle={t("workspace.interviewsSubtitle", {
+            defaultValue:
+              "Manage interviews here. Select one to open it in Coding view.",
+          })}
+          aside={
+            <Button variant="primary" onClick={() => setModalOpen(true)}>
+              + {t("workspace.createInterview", { defaultValue: "Add interview" })}
+            </Button>
+          }
+        />
 
         <div className={styles.listCard}>
           <InterviewList

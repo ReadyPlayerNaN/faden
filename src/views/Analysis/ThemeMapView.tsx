@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import {
   type CategoryNode,
   type ClusterNode,
@@ -139,30 +140,27 @@ export const ThemeMapView = () => {
 
   return (
     <>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>
-            {t("analysis.themeMap.title", { defaultValue: "Theme map" })}
-          </h1>
-          <p className={styles.subtitle}>
-            {t("analysis.themeMap.subtitle", {
-              defaultValue:
-                "Read the current analytic hierarchy from clusters to categories to tags. Counts reflect currently coded material.",
-            })}
-          </p>
-        </div>
-        <div className={styles.summaryCard}>
-          <strong>{summary.clusters}</strong>
-          <span>
-            {t("analysis.themeMap.summary", {
-              clusters: summary.clusters,
-              categories: summary.categories,
-              tags: summary.tags,
-              defaultValue: "{{clusters}} clusters · {{categories}} categories · {{tags}} tags",
-            })}
-          </span>
-        </div>
-      </header>
+      <PageViewHeader
+        view="analysis"
+        title={t("analysis.themeMap.title", { defaultValue: "Theme map" })}
+        subtitle={t("analysis.themeMap.subtitle", {
+          defaultValue:
+            "Read the current analytic hierarchy from clusters to categories to tags. Counts reflect currently coded material.",
+        })}
+        aside={
+          <div className={styles.summaryCard}>
+            <strong>{summary.clusters}</strong>
+            <span>
+              {t("analysis.themeMap.summary", {
+                clusters: summary.clusters,
+                categories: summary.categories,
+                tags: summary.tags,
+                defaultValue: "{{clusters}} clusters · {{categories}} categories · {{tags}} tags",
+              })}
+            </span>
+          </div>
+        }
+      />
 
       {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 

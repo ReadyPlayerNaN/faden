@@ -1,0 +1,36 @@
+.root {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.content {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--fg-muted, color-mix(in srgb, var(--fg) 72%, transparent));
+  max-width: 52rem;
+}
+
+.aside {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .root {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .aside {
+    width: 100%;
+  }
+}

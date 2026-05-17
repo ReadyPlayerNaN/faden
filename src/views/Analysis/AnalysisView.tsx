@@ -123,7 +123,7 @@ export const AnalysisView = ({ section }: Props) => {
         }
       />
 
-      <PageContainer className={styles.wrap} size="xwide">
+      <PageContainer className={styles.wrap}>
         <AnalysisDataProvider>
           {section === "theme-map" ? (
             <ThemeMapView />

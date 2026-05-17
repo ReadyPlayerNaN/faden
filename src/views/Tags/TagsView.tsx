@@ -12,9 +12,11 @@ import {
   type ProposalKind,
 } from "../../ipc/ai";
 import { Button } from "../../components/Button/Button";
+import { ActionMenu, type ActionMenuItem } from "../../components/ActionMenu/ActionMenu";
 import { Modal } from "../../components/Modal/Modal";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
+import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
-import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import {
   codebookTree as fetchTree,
   clusterDelete,
@@ -58,11 +60,7 @@ type PendingStructureAction = {
   kind: Extract<ProposalKind, "categorize" | "cluster">;
 };
 
-type SectionMenuItem = {
-  label: string;
-  onSelect: () => void;
-  disabled?: boolean;
-};
+type SectionMenuItem = ActionMenuItem;
 
 const errorMessage = (e: unknown): string => {
   if (e && typeof e === "object" && "message" in e) {
@@ -341,10 +339,15 @@ export const TagsView = () => {
     <div className={styles.shell}>
       <ProjectHeader activeView="labels" />
 
-      <div className={styles.wrap}>
-        <h1 className={styles.title}>
-          <ViewModeLabel view="labels">{t("tags.title", { defaultValue: "Tags" })}</ViewModeLabel>
-        </h1>
+      <PageContainer className={styles.wrap}>
+        <PageViewHeader
+          view="labels"
+          title={t("tags.title", { defaultValue: "Tags" })}
+          subtitle={t("tags.subtitle", {
+            defaultValue:
+              "Manage clusters, categories, and tags across the whole project.",
+          })}
+        />
 
         {error && <div className={styles.error}>{error}</div>}
         {findMoreStatus && <div className={styles.notice}>{findMoreStatus}</div>}
@@ -446,7 +449,7 @@ export const TagsView = () => {
             )}
           </div>
         </section>
-      </div>
+      </PageContainer>
 
       <AddClusterModal open={addClusterOpen} onClose={() => setAddClusterOpen(false)} onCreated={() => void reload()} />
       {tree && (
@@ -609,61 +612,14 @@ type SectionHeaderProps = {
 
 const SectionHeader = ({ title, items }: SectionHeaderProps) => {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   return (
     <div className={styles.sectionHeader}>
       <h2 className={styles.sectionTitle}>{title}</h2>
-      <div className={styles.menuWrap} ref={menuRef}>
-        <button
-          type="button"
-          className={styles.menuBtn}
-          aria-label={t("common.actions", { defaultValue: "Actions" }) as string}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
-          ⋯
-        </button>
-        {open && (
-          <div className={styles.menuDropdown} role="menu">
-            {items.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className={styles.menuItem}
-                role="menuitem"
-                disabled={item.disabled}
-                onClick={() => {
-                  setOpen(false);
-                  item.onSelect();
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <ActionMenu
+        ariaLabel={t("common.actions", { defaultValue: "Actions" }) as string}
+        items={items}
+      />
     </div>
   );
 };
@@ -683,29 +639,30 @@ type ManagementRowProps = {
 
 const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete, actionMenu }: ManagementRowProps) => {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [menuOpen]);
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const items: ActionMenuItem[] = [
+    ...(actionMenu
+      ? [
+          {
+            label: t("ai.findMoreOccurrences", { defaultValue: "Find more occurrences" }),
+            disabled: actionMenu.busy,
+            onSelect: actionMenu.onFindMore,
+          },
+        ]
+      : []),
+    {
+      label: t("common.edit", { defaultValue: "Edit" }),
+      onSelect: onEdit,
+    },
+    {
+      label: t("common.delete", { defaultValue: "Delete" }),
+      onSelect: onDelete,
+      destructive: true,
+    },
+  ];
 
   return (
-    <div className={styles.managementRow}>
+    <div className={styles.managementRow} ref={rowRef}>
       <div className={styles.managementMeta}>
         <div className={styles.managementTitleRow}>
           {color && <span className={styles.swatch} style={{ background: color }} />}
@@ -715,67 +672,11 @@ const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete, actionM
         {subtitle ? <div className={styles.managementSubtitle}>{subtitle}</div> : null}
       </div>
       <div className={styles.managementActions}>
-        {actionMenu ? (
-          <div className={styles.menuWrap} ref={menuRef}>
-            <button
-              type="button"
-              className={styles.menuBtn}
-              aria-label={t("common.actions", { defaultValue: "Actions" }) as string}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              ⋯
-            </button>
-            {menuOpen && (
-              <div className={styles.menuDropdown} role="menu">
-                <button
-                  type="button"
-                  className={styles.menuItem}
-                  role="menuitem"
-                  disabled={actionMenu.busy}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    actionMenu.onFindMore();
-                  }}
-                >
-                  {t("ai.findMoreOccurrences", { defaultValue: "Find more occurrences" })}
-                </button>
-                <button
-                  type="button"
-                  className={styles.menuItem}
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onEdit();
-                  }}
-                >
-                  {t("common.edit", { defaultValue: "Edit" })}
-                </button>
-                <button
-                  type="button"
-                  className={styles.menuItem}
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete();
-                  }}
-                >
-                  {t("common.delete", { defaultValue: "Delete" })}
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            <button className={styles.manageBtn} onClick={onEdit}>
-              {t("common.edit", { defaultValue: "Edit" })}
-            </button>
-            <button className={styles.delBtn} onClick={onDelete} title={t("tags.delete", { defaultValue: "Delete" })}>
-              ×
-            </button>
-          </>
-        )}
+        <ActionMenu
+          ariaLabel={t("common.actions", { defaultValue: "Actions" }) as string}
+          items={items}
+          contextMenuTargetRef={rowRef}
+        />
       </div>
     </div>
   );

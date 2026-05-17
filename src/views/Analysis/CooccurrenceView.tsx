@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
+import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import type { TagMeta } from "../../ipc/codebook";
 import { useAnalysisData } from "./AnalysisData";
 import styles from "./CooccurrenceView.module.css";
@@ -65,29 +65,26 @@ export const CooccurrenceView = () => {
 
   return (
     <>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>
-            <ViewModeLabel view="analysis">{t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}</ViewModeLabel>
-          </h1>
-          <p className={styles.subtitle}>
-            {t("analysis.cooccurrence.subtitle", {
-              defaultValue:
-                "See which tag pairs most often appear together on the same coded span. Counts are unordered and each pair is counted once per span.",
-            })}
-          </p>
-        </div>
-        <div className={styles.summaryCard}>
-          <strong>{summary.totalPairs}</strong>
-          <span>
-            {t("analysis.cooccurrence.summary", {
-              total: summary.totalPairs,
-              strongest: summary.strongest,
-              defaultValue: "{{total}} pairs · top count {{strongest}}",
-            })}
-          </span>
-        </div>
-      </header>
+      <PageViewHeader
+        view="analysis"
+        title={t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}
+        subtitle={t("analysis.cooccurrence.subtitle", {
+          defaultValue:
+            "See which tag pairs most often appear together on the same coded span. Counts are unordered and each pair is counted once per span.",
+        })}
+        aside={
+          <div className={styles.summaryCard}>
+            <strong>{summary.totalPairs}</strong>
+            <span>
+              {t("analysis.cooccurrence.summary", {
+                total: summary.totalPairs,
+                strongest: summary.strongest,
+                defaultValue: "{{total}} pairs · top count {{strongest}}",
+              })}
+            </span>
+          </div>
+        }
+      />
 
       {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 

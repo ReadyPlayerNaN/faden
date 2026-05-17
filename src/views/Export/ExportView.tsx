@@ -5,8 +5,8 @@ import { useAtom, useAtomValue } from "jotai";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
+import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
-import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { codebookTree as fetchCodebookTree } from "../../ipc/codebook";
 import {
   exportCodebook,
@@ -137,22 +137,19 @@ export const ExportView = () => {
       <ProjectHeader activeView="export" />
 
       <PageContainer className={styles.wrap}>
-        <div className={styles.headerRow}>
-          <div>
-            <h1 className={styles.title}>
-              <ViewModeLabel view="export">{t("export.title", { defaultValue: "Export" })}</ViewModeLabel>
-            </h1>
-            <p className={styles.subtitle}>
-              {t("export.subtitle", {
-                defaultValue:
-                  "Export the current interview, the full project, or a tag-filtered subset into research-friendly formats.",
-              })}
-            </p>
-          </div>
-          <Button variant="primary" onClick={() => void onRun()} disabled={busy}>
-            {t("export.run", { defaultValue: "Export" })}
-          </Button>
-        </div>
+        <PageViewHeader
+          view="export"
+          title={t("export.title", { defaultValue: "Export" })}
+          subtitle={t("export.subtitle", {
+            defaultValue:
+              "Export the current interview, the full project, or a tag-filtered subset into research-friendly formats.",
+          })}
+          aside={
+            <Button variant="primary" onClick={() => void onRun()} disabled={busy}>
+              {t("export.run", { defaultValue: "Export" })}
+            </Button>
+          }
+        />
 
         <div className={styles.card}>
           <div className={styles.sections}>
