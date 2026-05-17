@@ -30,6 +30,7 @@ import {
   spansForCurrentInterviewAtom,
   selectedSpanIdAtom,
   activeTextSelectionAtom,
+  type ActiveSelection,
 } from "../../../state/tagging";
 import { buildTagMetaMap } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
@@ -222,17 +223,18 @@ const textOffsetWithin = (
 ): number | null => {
   const textRoot = segmentEl.querySelector<HTMLElement>(`.${styles.text}`);
   const root: HTMLElement = textRoot ?? segmentEl;
-  let total = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let cur: Node | null = walker.nextNode();
-  while (cur) {
-    if (cur === node) {
-      return total + offsetInNode;
-    }
-    total += cur.textContent?.length ?? 0;
-    cur = walker.nextNode();
+  if (node !== root && !root.contains(node)) {
+    return null;
   }
-  return null;
+
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    range.setEnd(node, offsetInNode);
+    return range.toString().length;
+  } catch {
+    return null;
+  }
 };
 
 type SegmentEditorProps = {
@@ -500,6 +502,8 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
   const setInterviews = useSetAtom(interviewListAtom);
   const setSkipCostConfirm = useSetAtom(skipCostConfirmAtom);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pointerSelectionStartedInTranscriptRef = useRef(false);
+  const pendingSelectionRef = useRef<ActiveSelection>(null);
   const lastProgress = runs[interviewId]?.lastProgress;
   const interview = useMemo(
     () => interviews.find((item) => item.id === interviewId) ?? null,
@@ -557,30 +561,26 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     [tagMetaById],
   );
 
-  const handleMouseUp = () => {
-    if (editMode) return;
+  const readActiveSelectionFromDom = (): ActiveSelection => {
+    if (editMode) return null;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const range = sel.getRangeAt(0);
     const container = containerRef.current;
     if (!container || !container.contains(range.commonAncestorContainer)) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const startSeg = findAncestorSegment(range.startContainer, container);
     const endSeg = findAncestorSegment(range.endContainer, container);
     if (!startSeg || !endSeg || startSeg !== endSeg) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const segId = Number(startSeg.dataset.segmentId);
     const segText = startSeg.dataset.text ?? "";
     if (!Number.isFinite(segId) || !segText) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const startOffset = textOffsetWithin(
       startSeg,
@@ -597,16 +597,14 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       endOffset === null ||
       endOffset <= startOffset
     ) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const snapped = snapSelectionToWords(segText, startOffset, endOffset);
     if (!snapped) {
-      setActiveSelection(null);
-      return;
+      return null;
     }
     const rect = range.getBoundingClientRect();
-    setActiveSelection({
+    return {
       segmentId: segId,
       startOffset: snapped.startOffset,
       endOffset: snapped.endOffset,
@@ -617,8 +615,71 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
         bottom: rect.bottom,
         right: rect.right,
       },
-    });
+    };
   };
+
+  useEffect(() => {
+    if (editMode) return;
+
+    let frame = 0;
+    const queueSync = (mode: "preview" | "commit") => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const nextSelection = readActiveSelectionFromDom();
+        if (nextSelection) {
+          pendingSelectionRef.current = nextSelection;
+          if (mode === "preview") return;
+          setActiveSelection(nextSelection);
+          return;
+        }
+        if (mode === "commit" && pointerSelectionStartedInTranscriptRef.current) {
+          setActiveSelection(pendingSelectionRef.current);
+          pendingSelectionRef.current = null;
+          pointerSelectionStartedInTranscriptRef.current = false;
+          return;
+        }
+        if (mode === "commit") {
+          setActiveSelection(null);
+          pendingSelectionRef.current = null;
+          pointerSelectionStartedInTranscriptRef.current = false;
+        }
+      });
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      const container = containerRef.current;
+      pointerSelectionStartedInTranscriptRef.current = Boolean(
+        container?.contains(event.target as Node),
+      );
+      if (!pointerSelectionStartedInTranscriptRef.current) {
+        pendingSelectionRef.current = null;
+      }
+    };
+
+    const onSelectionChange = () => {
+      if (!pointerSelectionStartedInTranscriptRef.current) return;
+      queueSync("preview");
+    };
+
+    const onPointerUp = () => {
+      queueSync("commit");
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("selectionchange", onSelectionChange);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("selectionchange", onSelectionChange);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [editMode, setActiveSelection]);
 
   const requestSegmentPlayback = (
     segment: SegmentDTO,
@@ -786,7 +847,6 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       <div
         className={styles.transcript}
         ref={containerRef}
-        onMouseUp={handleMouseUp}
       >
         {segments.map((s, idx) => {
           if (editMode) {
