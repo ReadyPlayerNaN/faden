@@ -25,6 +25,10 @@ src-tauri/gen/
 # Tauri config local overrides
 src-tauri/tauri.conf.local.json
 
+# Local Pi artifacts
+.pi-lens/
+src-tauri/.pi-lens/
+
 # Tauri sidecar binaries (fetched via scripts/fetch-binaries.sh)
 src-tauri/binaries/*
 !src-tauri/binaries/README.md
