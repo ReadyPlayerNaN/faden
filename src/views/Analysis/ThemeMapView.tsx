@@ -212,15 +212,21 @@ export const ThemeMapView = () => {
                   key={`cluster-${branch.cluster.id}`}
                   cluster={branch.cluster}
                   onOpenClusterMemos={() => openMemos({ clusterId: branch.cluster.id })}
-                  onOpenCategoryMemos={(categoryId) => openMemos({ categoryId })}
-                  onOpenTagMemos={(tagId) => openMemos({ tagId })}
+                  onOpenCategoryMemos={(categoryId) =>
+                    openMemos({ clusterId: branch.cluster.id, categoryId })
+                  }
+                  onOpenTagMemos={(categoryId, tagId) =>
+                    openMemos({ clusterId: branch.cluster.id, categoryId, tagId })
+                  }
                 />
               ) : (
                 <StandaloneCategorySection
                   key={`category-${branch.category.id}`}
                   category={branch.category}
                   onOpenCategoryMemos={() => openMemos({ categoryId: branch.category.id })}
-                  onOpenTagMemos={(tagId) => openMemos({ tagId })}
+                  onOpenTagMemos={(tagId) =>
+                    openMemos({ categoryId: branch.category.id, tagId })
+                  }
                 />
               ),
             )}
@@ -379,7 +385,7 @@ const ClusterSection = ({
   cluster: ClusterNode;
   onOpenClusterMemos: () => void;
   onOpenCategoryMemos: (categoryId: number) => void;
-  onOpenTagMemos: (tagId: number) => void;
+  onOpenTagMemos: (categoryId: number, tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -416,7 +422,7 @@ const ClusterSection = ({
               key={category.id}
               category={category}
               onOpenMemos={() => onOpenCategoryMemos(category.id)}
-              onOpenTagMemos={onOpenTagMemos}
+              onOpenTagMemos={(tagId) => onOpenTagMemos(category.id, tagId)}
             />
           ))}
         </div>
