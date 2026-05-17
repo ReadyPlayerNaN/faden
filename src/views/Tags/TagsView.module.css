@@ -109,6 +109,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.45rem 0.25rem;
+  cursor: default;
 }
 .managementRow + .managementRow {
   border-top: 1px solid var(--border);
@@ -116,16 +117,19 @@
 .managementMeta {
   min-width: 0;
   flex: 1;
+  cursor: default;
 }
 .managementTitleRow {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  cursor: default;
 }
 .managementSubtitle {
   opacity: 0.7;
   font-size: 0.85rem;
   margin-top: 0.15rem;
+  cursor: default;
 }
 .managementActions {
   display: flex;
