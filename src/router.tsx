@@ -11,6 +11,7 @@ import { Workspace } from "./views/Workspace/Workspace";
 import { Settings } from "./views/Settings/Settings";
 import { TagsView } from "./views/Tags/TagsView";
 import { PeopleView } from "./views/People/PeopleView";
+import { InterviewsView } from "./views/Interviews/InterviewsView";
 import { AiOpsView } from "./views/AI/AiOpsView";
 import { AiOpDetailView } from "./views/AI/AiOpDetailView";
 import { SuggestionsView } from "./views/AI/SuggestionsView";
@@ -68,6 +69,12 @@ const settingsProjectRoute = createRoute({
 	component: Settings,
 });
 
+const interviewsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/interviews",
+	component: InterviewsView,
+});
+
 const aiOpsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/ai-ops",
@@ -113,6 +120,7 @@ const exportRoute = createRoute({
 const routeTree = rootRoute.addChildren([
 	pickerRoute,
 	workspaceRoute,
+	interviewsRoute,
 	settingsRoute,
 	settingsProjectRoute,
 	aiOpsRoute,

@@ -41,7 +41,10 @@
     "editProject": "Upravit projekt",
     "settings": "Nastavení",
     "openAnotherProject": "Otevřít jiný projekt",
-    "coding": "Kódování"
+    "coding": "Kódování",
+    "interviewsSubtitle": "Spravujte zde rozhovory. Vybráním rozhovoru jej otevřete v režimu Kódování.",
+    "interviewSearch": "Filtrovat rozhovory",
+    "noMatchingInterviews": "Žádné odpovídající rozhovory"
   },
   "codebook": {
     "addCluster": "+ Cluster",

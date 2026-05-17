@@ -42,7 +42,10 @@
     "editProject": "Edit project",
     "settings": "Settings",
     "openAnotherProject": "Open another project",
-    "coding": "Coding"
+    "coding": "Coding",
+    "interviewsSubtitle": "Manage interviews here. Select one to open it in Coding view.",
+    "interviewSearch": "Filter interviews",
+    "noMatchingInterviews": "No interviews found"
   },
   "codebook": {
     "addCluster": "+ Cluster",

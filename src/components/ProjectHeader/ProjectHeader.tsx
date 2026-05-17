@@ -10,13 +10,15 @@ import { EditProjectModal } from "../../views/Workspace/EditProjectModal";
 import styles from "./ProjectHeader.module.css";
 
 type ProjectHeaderProps = {
-	activeView?: "coding" | "labels" | "people" | "export" | null;
+	activeView?: "coding" | "interviews" | "labels" | "people" | "export" | null;
+	viewAccessory?: ReactNode;
 	leftActions?: ReactNode;
 	actions?: ReactNode;
 };
 
 export const ProjectHeader = ({
 	activeView = null,
+	viewAccessory,
 	leftActions,
 	actions,
 }: ProjectHeaderProps) => {
@@ -105,7 +107,7 @@ export const ProjectHeader = ({
 														params: {
 															projectPath: encodeURIComponent(project.path),
 														},
-													}
+												  }
 												: { to: "/settings" },
 										);
 									}}
@@ -138,19 +140,39 @@ export const ProjectHeader = ({
 						>
 							<span className={styles.projectMenuTriggerContent}>
 								<span className={styles.title}>
-									{activeView === "labels"
-										? t("tags.title", { defaultValue: "Labels" })
-										: activeView === "people"
-											? t("people.title", { defaultValue: "People" })
-											: activeView === "export"
-												? t("export.title", { defaultValue: "Export" })
-												: t("workspace.coding", { defaultValue: "Coding" })}
+									{activeView === "interviews"
+										? t("workspace.interviews", { defaultValue: "Interviews" })
+										: activeView === "labels"
+											? t("tags.title", { defaultValue: "Labels" })
+											: activeView === "people"
+												? t("people.title", { defaultValue: "People" })
+												: activeView === "export"
+													? t("export.title", { defaultValue: "Export" })
+													: t("workspace.coding", { defaultValue: "Coding" })}
 								</span>
 								<span aria-hidden="true">▾</span>
 							</span>
 						</Button>
 						{viewMenuOpen && (
 							<div className={styles.projectMenuDropdown} role="menu">
+								{activeView !== "interviews" && project && (
+									<button
+										type="button"
+										role="menuitem"
+										className={styles.projectMenuItem}
+										onClick={() => {
+											setViewMenuOpen(false);
+											void navigate({
+												to: "/workspace/$projectPath/interviews",
+												params: {
+													projectPath: encodeURIComponent(project.path),
+												},
+											});
+										}}
+									>
+										{t("workspace.interviews", { defaultValue: "Interviews" })}
+									</button>
+								)}
 								{activeView !== "coding" && (
 									<button
 										type="button"
@@ -229,6 +251,7 @@ export const ProjectHeader = ({
 							</div>
 						)}
 					</div>
+					{viewAccessory ? <div className={styles.viewAccessory}>{viewAccessory}</div> : null}
 					{leftActions ? (
 						<>
 							<div className={styles.separator} aria-hidden="true" />

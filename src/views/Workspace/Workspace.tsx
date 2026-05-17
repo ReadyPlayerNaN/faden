@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "@tanstack/react-router";
@@ -10,6 +10,7 @@ import { historyStatusAtom } from "../../state/history";
 import {
   interviewContentVersionAtom,
   interviewListAtom,
+  selectedInterviewAtom,
   selectedInterviewIdAtom,
 } from "../../state/interview";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
@@ -20,7 +21,7 @@ import {
 } from "../../state/tagging";
 import { Button } from "../../components/Button/Button";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
-import { LeftPane } from "./LeftPane/LeftPane";
+import { SearchableSelect } from "../../components/SearchableSelect/SearchableSelect";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
 import styles from "./Workspace.module.css";
@@ -32,12 +33,15 @@ export const Workspace = () => {
   const [historyState, setHistoryState] = useAtom(historyStatusAtom);
   const setRuns = useSetAtom(transcriptionRunsAtom);
   const setInterviews = useSetAtom(interviewListAtom);
+  const interviews = useAtomValue(interviewListAtom);
   const selectedInterviewId = useAtomValue(selectedInterviewIdAtom);
+  const selectedInterview = useAtomValue(selectedInterviewAtom);
   const selectedSpanId = useAtomValue(selectedSpanIdAtom);
   const bumpInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
-  const [mobilePane, setMobilePane] = useState<"left" | "edits" | "right">("edits");
+  const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
+  const [mobilePane, setMobilePane] = useState<"edits" | "right">("edits");
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -45,6 +49,10 @@ export const Workspace = () => {
       void projectOpen(path).then(setProject);
     }
   }, [projectPath, project, setProject]);
+
+  useEffect(() => {
+    void fetchInterviews().then(setInterviews);
+  }, [projectPath, setInterviews]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -160,17 +168,37 @@ export const Workspace = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
 
-  const focusEditsPane = () => {
-    setMobilePane("edits");
-    window.requestAnimationFrame(() => {
-      document.getElementById("workspace-center-pane")?.focus();
-    });
-  };
+  const interviewOptions = useMemo(
+    () =>
+      interviews.map((interview) => ({
+        value: String(interview.id),
+        label: interview.name,
+        searchText: `${interview.name} ${interview.recordedAt ?? ""}`,
+      })),
+    [interviews],
+  );
 
   return (
     <div className={styles.shell}>
       <ProjectHeader
         activeView="coding"
+        viewAccessory={
+          <SearchableSelect
+            value={selectedInterview ? String(selectedInterview.id) : ""}
+            options={interviewOptions}
+            variant="header"
+            placeholder={t("workspace.selectInterview", {
+              defaultValue: "Select an interview to view its transcript.",
+            })}
+            searchPlaceholder={t("workspace.interviewSearch", {
+              defaultValue: "Filter interviews",
+            })}
+            emptyText={t("workspace.noMatchingInterviews", {
+              defaultValue: "No interviews found",
+            })}
+            onChange={(value) => setSelectedInterviewId(Number(value))}
+          />
+        }
         leftActions={
           <>
             <Button
@@ -195,22 +223,7 @@ export const Workspace = () => {
         }
       />
       <div className={styles.layout} data-mobile-pane={mobilePane}>
-        <div className={styles.panesToolbar}>
-          <Button
-            onClick={() => setMobilePane("left")}
-            className={`${styles.paneSwitchButton} ${mobilePane === "left" ? styles.paneSwitchButtonActive : ""}`.trim()}
-          >
-            {t("workspace.interviews")}
-          </Button>
-          <Button
-            onClick={focusEditsPane}
-            className={`${styles.paneSwitchButton} ${mobilePane === "edits" ? styles.paneSwitchButtonActive : ""}`.trim()}
-          >
-            {t("workspace.edits", { defaultValue: "Edits" })}
-          </Button>
-        </div>
         <div className={styles.panes}>
-          <LeftPane />
           <CenterPane />
           <RightPane />
         </div>

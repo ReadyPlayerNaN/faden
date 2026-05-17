@@ -38,9 +38,10 @@ import type { Interview } from "../../../ipc/interview";
 
 type InterviewListProps = {
   onAddInterview: () => void;
+  onSelectInterview?: (interview: Interview) => void;
 };
 
-export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
+export const InterviewList = ({ onAddInterview, onSelectInterview }: InterviewListProps) => {
   const { t } = useTranslation();
   const [list, setList] = useAtom(interviewListAtom);
   const [selected, setSelected] = useAtom(selectedInterviewIdAtom);
@@ -182,6 +183,10 @@ export const InterviewList = ({ onAddInterview }: InterviewListProps) => {
               iv={i}
               selected={selected === i.id}
               onSelect={() => setSelected(i.id)}
+              onActivate={() => {
+                setSelected(i.id);
+                onSelectInterview?.(i);
+              }}
               onDeriveCodebook={() => void onInterviewAiAction(i, "codebook_gen")}
               onPretag={() => void onInterviewAiAction(i, "pretag")}
               progress={runs[i.id]}
@@ -207,6 +212,7 @@ type RowProps = {
   iv: Interview;
   selected: boolean;
   onSelect: () => void;
+  onActivate: () => void;
   onDeriveCodebook: () => void;
   onPretag: () => void;
   progress?: import("../../../state/transcription").RunSnapshot;
@@ -218,6 +224,7 @@ const InterviewRow = ({
   iv,
   selected,
   onSelect,
+  onActivate,
   onDeriveCodebook,
   onPretag,
   progress,
@@ -358,7 +365,7 @@ const InterviewRow = ({
       {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <div
         className={`${styles.item} ${selected ? styles.selected : ""}`}
-        onClick={onSelect}
+        onClick={onActivate}
         onContextMenu={(e) => {
           e.preventDefault();
           onSelect();
@@ -366,7 +373,7 @@ const InterviewRow = ({
         }}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onActivate(); }}
       >
         <span className={styles.rowLeft}>{iv.name}</span>
         {renderRight()}

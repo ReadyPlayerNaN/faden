@@ -20,6 +20,17 @@
   position: relative;
 }
 
+.viewAccessory {
+  width: fit-content;
+  max-width: min(22rem, 40vw);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.viewAccessory :global(button) {
+  min-height: 2.25rem;
+}
+
 .projectMenuTrigger,
 .viewMenuTrigger {
   font-size: 0.9rem;
@@ -89,4 +100,10 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+@media (max-width: 760px) {
+  .viewAccessory {
+    max-width: min(14rem, 50vw);
+  }
 }

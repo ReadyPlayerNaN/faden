@@ -17,6 +17,7 @@ type Props = {
   searchPlaceholder?: string;
   emptyText?: string;
   disabled?: boolean;
+  variant?: "default" | "header";
   onChange: (value: string) => void;
 };
 
@@ -29,6 +30,7 @@ export const SearchableSelect = ({
   searchPlaceholder,
   emptyText,
   disabled = false,
+  variant = "default",
   onChange,
 }: Props) => {
   const [open, setOpen] = useState(false);
@@ -46,10 +48,7 @@ export const SearchableSelect = ({
     }
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (
-        !rootRef.current?.contains(target) &&
-        !dropdownRef.current?.contains(target)
-      ) {
+      if (!rootRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -61,11 +60,19 @@ export const SearchableSelect = ({
     const updatePosition = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setDropdownStyle({
-        top: rect.bottom + 6,
-        left: rect.left,
-        width: rect.width,
-      });
+      setDropdownStyle(
+        variant === "header"
+          ? {
+              top: rect.bottom + 6,
+              left: rect.left,
+              minWidth: rect.width,
+            }
+          : {
+              top: rect.bottom + 6,
+              left: rect.left,
+              width: rect.width,
+            },
+      );
     };
     updatePosition();
     document.addEventListener("mousedown", onMouseDown);
@@ -92,12 +99,12 @@ export const SearchableSelect = ({
   const selected = options.find((option) => option.value === value) ?? null;
 
   return (
-    <div className={styles.wrap} ref={rootRef}>
+    <div className={`${styles.wrap} ${variant === "header" ? styles.wrapHeader : ""}`.trim()} ref={rootRef}>
       {label ? <span className={styles.label}>{label}</span> : null}
       <button
         ref={triggerRef}
         type="button"
-        className={styles.trigger}
+        className={`${styles.trigger} ${variant === "header" ? styles.triggerHeader : ""}`.trim()}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => !disabled && setOpen((v) => !v)}
@@ -108,39 +115,44 @@ export const SearchableSelect = ({
         </span>
         <span aria-hidden="true">▾</span>
       </button>
-      {open && createPortal(
-        <div ref={dropdownRef} className={styles.dropdown} style={dropdownStyle}>
-          <input
-            ref={inputRef}
-            className={styles.search}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-          />
-          {filtered.length > 0 ? (
-            <ul className={styles.list} role="listbox">
-              {filtered.map((option) => (
-                <li key={option.value}>
-                  <button
-                    type="button"
-                    className={styles.option}
-                    aria-selected={option.value === value}
-                    onClick={() => {
-                      onChange(option.value);
-                      setOpen(false);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className={styles.empty}>{emptyText}</div>
-          )}
-        </div>,
-        document.body,
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className={`${styles.dropdown} ${variant === "header" ? styles.dropdownHeader : ""}`.trim()}
+            style={dropdownStyle}
+          >
+            <input
+              ref={inputRef}
+              className={styles.search}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={searchPlaceholder}
+            />
+            {filtered.length > 0 ? (
+              <ul className={styles.list} role="listbox">
+                {filtered.map((option) => (
+                  <li key={option.value}>
+                    <button
+                      type="button"
+                      className={`${styles.option} ${variant === "header" ? styles.optionHeader : ""}`.trim()}
+                      aria-selected={option.value === value}
+                      onClick={() => {
+                        onChange(option.value);
+                        setOpen(false);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.empty}>{emptyText}</div>
+            )}
+          </div>,
+          document.body,
+        )}
       {helpText ? <span className={styles.help}>{helpText}</span> : null}
     </div>
   );
