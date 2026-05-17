@@ -8,11 +8,12 @@ import { AnalysisDataProvider } from "./AnalysisData";
 import { CooccurrenceView } from "./CooccurrenceView";
 import { EvidenceBrowserContent } from "./EvidenceBrowserView";
 import { MemoLayerView } from "./MemoLayerView";
+import { PeopleLensView } from "./PeopleLensView";
 import { ThemeMapView } from "./ThemeMapView";
 import { type AnalysisSearch } from "./analysisSearch";
 import styles from "./AnalysisView.module.css";
 
-type Section = "theme-map" | "evidence" | "cooccurrence" | "memos";
+type Section = "theme-map" | "people" | "evidence" | "cooccurrence" | "memos";
 
 type Props = {
   section: Section;
@@ -33,6 +34,11 @@ export const AnalysisView = ({ section }: Props) => {
         key: "theme-map" as const,
         label: t("analysis.themeMap.title", { defaultValue: "Theme map" }),
         to: "/workspace/$projectPath/analysis" as const,
+      },
+      {
+        key: "people" as const,
+        label: t("analysis.peopleLens.title", { defaultValue: "People lens" }),
+        to: "/workspace/$projectPath/analysis/people" as const,
       },
       {
         key: "evidence" as const,
@@ -127,6 +133,8 @@ export const AnalysisView = ({ section }: Props) => {
         <AnalysisDataProvider>
           {section === "theme-map" ? (
             <ThemeMapView />
+          ) : section === "people" ? (
+            <PeopleLensView />
           ) : section === "evidence" ? (
             <EvidenceBrowserContent />
           ) : section === "cooccurrence" ? (

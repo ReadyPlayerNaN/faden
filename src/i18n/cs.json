@@ -428,6 +428,10 @@
   },
   "analysis": {
     "title": "Analýza",
+    "filters": {
+      "activeScope": "Aktivní rozsah",
+      "clearFilter": "Vymazat filtr {{label}}"
+    },
     "themeMap": {
       "title": "Mapa témat",
       "subtitle": "Zobrazte aktuální analytickou hierarchii od clusterů přes kategorie až po štítky. Počty vycházejí z aktuálně okódovaného materiálu.",

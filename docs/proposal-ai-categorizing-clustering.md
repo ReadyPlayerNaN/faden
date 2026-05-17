@@ -51,9 +51,10 @@ Within **Analysis**, split into subviews/tabs:
 
 1. **Theme map**
 2. **Prevalence matrix**
-3. **Evidence browser**
-4. **Co-occurrence**
-5. **Memos**
+3. **People lens**
+4. **Evidence browser**
+5. **Co-occurrence**
+6. **Memos**
 
 This keeps the current app simple while giving qualitative analysis its own home.
 
@@ -226,7 +227,37 @@ Why it matters:
 
 - analysts often need to see whether themes are concentrated, widespread, or group-specific.
 
-## 3. Evidence browser
+## 3. People lens
+
+**Purpose:** make the analysis participant-centered rather than only theme-centered.
+
+Structure:
+
+- one row/card per participant
+- participant attributes visible at a glance
+- theme/category summaries per participant
+- optional notable quotes and memo highlights
+
+Possible views:
+
+- participant profile cards
+- sortable participant table
+- grouped comparison by attributes such as role, cohort, region, or segment
+
+Controls:
+
+- switch between cluster/category/tag granularity
+- choose attributes to group by
+- sort by salience, coverage, or contrast
+- click a participant to open filtered evidence and memos
+
+Why it matters:
+
+- analysts often need to understand not just whether a theme exists, but **who** it is concentrated around,
+- it supports persona-like synthesis, deviant-case analysis, and subgroup comparison,
+- it creates a natural bridge between the existing **People** area and higher-level **Analysis**.
+
+## 4. Evidence browser
 
 **Purpose:** verify that themes are grounded in actual data.
 
@@ -253,7 +284,7 @@ Why it matters:
 - every structural claim needs evidence checking,
 - this is the validation bridge between abstract themes and raw material.
 
-## 4. Co-occurrence view
+## 5. Co-occurrence view
 
 **Purpose:** surface relationships between codes/themes.
 
@@ -281,7 +312,7 @@ Why it matters:
 - helps discover patterned relationships,
 - supports interpretation such as tensions, mechanisms, or sequences.
 
-## 5. Memo / interpretation layer
+## 6. Memo / interpretation layer
 
 **Purpose:** turn coding structure into analytic argument.
 
@@ -319,6 +350,7 @@ Instead of one monolithic Analysis screen, use this progression:
 
 - **Evidence browser**
 - **Prevalence matrix**
+- **People lens**
 - **Co-occurrence**
 
 ### C. Interpretation

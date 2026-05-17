@@ -429,6 +429,10 @@
   },
   "analysis": {
     "title": "Analysis",
+    "filters": {
+      "activeScope": "Active scope",
+      "clearFilter": "Clear filter {{label}}"
+    },
     "themeMap": {
       "title": "Theme map",
       "subtitle": "Read the current analytic hierarchy from clusters to categories to tags. Counts reflect currently coded material.",

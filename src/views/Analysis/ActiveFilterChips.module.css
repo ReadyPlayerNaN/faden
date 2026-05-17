@@ -1,0 +1,34 @@
+.wrap {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.label {
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-muted);
+  color: var(--fg);
+  font: inherit;
+}
+
+.clearMark {
+  opacity: 0.75;
+  font-weight: 700;
+}

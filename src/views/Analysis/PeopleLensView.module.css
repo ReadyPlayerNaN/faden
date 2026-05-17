@@ -1,0 +1,158 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summaryCard,
+.explainerCard,
+.controlsCard,
+.participantsCard,
+.detailCard,
+.groupSection,
+.participantCard {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-muted);
+}
+
+.summaryCard,
+.explainerCard,
+.controlsCard,
+.participantsCard,
+.detailCard,
+.groupSection {
+  padding: 1rem;
+}
+
+.explainerText,
+.participantMeta,
+.detailSubtitle,
+.evidenceMeta,
+.contactMeta,
+.noThemes,
+.empty {
+  color: rgba(244, 244, 244, 0.72);
+}
+
+.metrics,
+.detailStats,
+.metricRow,
+.interviewList,
+.evidenceThemes,
+.detailThemeList,
+.themeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metricRow {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.controlsHeader,
+.cardHeader,
+.detailHeader,
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.controlsGrid,
+.cardGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.controlsGrid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field select {
+  width: 100%;
+}
+
+.groupTitle,
+.sectionTitle,
+.detailTitle,
+.participantName {
+  margin: 0;
+}
+
+.groupCount,
+.quotePill,
+.themeChip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+  background: color-mix(in srgb, var(--bg-muted) 85%, transparent);
+}
+
+.participantCard {
+  padding: 0.85rem;
+  cursor: pointer;
+}
+
+.participantCardActive {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.detailSection {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.detailSectionTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.detailThemeRow,
+.evidenceItem {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+
+.evidenceList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.quote {
+  margin: 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+}
+
+.memo {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.noThemes,
+.empty {
+  margin: 0;
+}
+
+@media (min-width: 1100px) {
+  .cardGrid {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}

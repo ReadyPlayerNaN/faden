@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { ActiveFilterChips } from "./ActiveFilterChips";
 import { useAnalysisData } from "./AnalysisData";
 import { useAnalysisHierarchyFilters } from "./analysisFilters";
 import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
@@ -52,6 +53,43 @@ export const MemoLayerView = () => {
   const visibleMemos = useMemo(() => visibleItems, [visibleItems]);
   const categorySelectDisabled = filteredCategoryOptions.length === 0;
   const tagSelectDisabled = filteredTagOptions.length === 0;
+
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
+    const cluster = codebook?.clusters.find((item) => item.id === clusterFilter);
+    if (cluster) {
+      chips.push({
+        key: `cluster-${cluster.id}`,
+        label: `${t("analysis.memos.cluster", { defaultValue: "Cluster" })}: ${cluster.name}`,
+        onClear: () => setSearchFilters({ clusterId: undefined, categoryId: undefined, tagId: undefined }),
+      });
+    }
+    const categoryOption = filteredCategoryOptions.find(({ category }) => category.id === categoryFilter);
+    if (categoryOption) {
+      chips.push({
+        key: `category-${categoryOption.category.id}`,
+        label: `${t("analysis.memos.category", { defaultValue: "Category" })}: ${categoryOption.category.name}`,
+        onClear: () => setSearchFilters({ categoryId: undefined, tagId: undefined }),
+      });
+    }
+    const tagOption = filteredTagOptions.find((meta) => meta.tag.id === tagFilter);
+    if (tagOption) {
+      chips.push({
+        key: `tag-${tagOption.tag.id}`,
+        label: `${t("analysis.memos.tag", { defaultValue: "Tag" })}: ${tagOption.tag.name}`,
+        onClear: () => setSearchFilters({ tagId: undefined }),
+      });
+    }
+    const interview = interviewOptions.find((item) => item.id === interviewFilter);
+    if (interview) {
+      chips.push({
+        key: `interview-${interview.id}`,
+        label: `${t("analysis.memos.interview", { defaultValue: "Interview" })}: ${interview.name}`,
+        onClear: () => setSearchFilters({ interviewId: undefined }),
+      });
+    }
+    return chips;
+  }, [clusterFilter, codebook?.clusters, categoryFilter, filteredCategoryOptions, tagFilter, filteredTagOptions, interviewFilter, interviewOptions, t]);
 
   const categoryPlaceholder = categorySelectDisabled
     ? clusterFilter !== null
@@ -178,6 +216,7 @@ export const MemoLayerView = () => {
             </select>
           </label>
         </div>
+        <ActiveFilterChips items={activeFilterChips} />
       </section>
 
       <section className={styles.resultsCard}>

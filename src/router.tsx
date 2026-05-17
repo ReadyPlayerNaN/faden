@@ -126,6 +126,13 @@ const analysisRoute = createRoute({
 	component: () => <AnalysisView section="theme-map" />,
 });
 
+const analysisPeopleRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/analysis/people",
+	validateSearch: (search) => normalizeAnalysisSearch(search as Record<string, unknown>),
+	component: () => <AnalysisView section="people" />,
+});
+
 const analysisEvidenceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/analysis/evidence",
@@ -161,6 +168,7 @@ const routeTree = rootRoute.addChildren([
 	peopleProjectRoute,
 	exportRoute,
 	analysisRoute,
+	analysisPeopleRoute,
 	analysisEvidenceRoute,
 	analysisCooccurrenceRoute,
 	analysisMemosRoute,
