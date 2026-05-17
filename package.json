@@ -1,7 +1,7 @@
 {
   "name": "faden",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "homepage": "https://faden.space",
   "license": "MIT",
   "type": "module",
@@ -9,7 +9,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "bump-version": "./scripts/bump-version.sh"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.169.2",
