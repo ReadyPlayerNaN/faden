@@ -130,6 +130,18 @@ const analysisEvidenceRoute = createRoute({
 	component: () => <AnalysisView section="evidence" />,
 });
 
+const analysisCooccurrenceRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/analysis/cooccurrence",
+	component: () => <AnalysisView section="cooccurrence" />,
+});
+
+const analysisMemosRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/analysis/memos",
+	component: () => <AnalysisView section="memos" />,
+});
+
 const routeTree = rootRoute.addChildren([
 	pickerRoute,
 	workspaceRoute,
@@ -145,6 +157,8 @@ const routeTree = rootRoute.addChildren([
 	exportRoute,
 	analysisRoute,
 	analysisEvidenceRoute,
+	analysisCooccurrenceRoute,
+	analysisMemosRoute,
 ]);
 
 export const router = createRouter({ routeTree });

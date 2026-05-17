@@ -1,0 +1,97 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: rgba(244, 244, 244, 0.72);
+  max-width: 60rem;
+}
+
+.summaryCard,
+.explainerCard,
+.tableCard {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-muted);
+  padding: 1rem;
+}
+
+.summaryCard {
+  min-width: 12rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.summaryCard strong {
+  font-size: 1.6rem;
+}
+
+.explainerText {
+  margin: 0;
+  color: rgba(244, 244, 244, 0.72);
+}
+
+.empty {
+  margin: 0;
+  color: rgba(244, 244, 244, 0.72);
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+
+.table thead th {
+  color: rgba(244, 244, 244, 0.72);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.rankCell,
+.countCell {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.countCell {
+  font-weight: 700;
+}
+
+.tagName {
+  font-weight: 600;
+}
+
+.context {
+  margin-top: 0.25rem;
+  color: rgba(244, 244, 244, 0.72);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 900px) {
+  .table {
+    min-width: 620px;
+  }
+}

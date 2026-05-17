@@ -1,0 +1,172 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: rgba(244, 244, 244, 0.72);
+  max-width: 60rem;
+}
+
+.summaryCard,
+.filtersCard,
+.resultsCard,
+.memoCard {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-muted);
+}
+
+.summaryCard,
+.filtersCard,
+.resultsCard {
+  padding: 1rem;
+}
+
+.summaryCard {
+  min-width: 12rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.summaryCard strong {
+  font-size: 1.6rem;
+}
+
+.filtersHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+
+.filterField {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.filterField span {
+  color: rgba(244, 244, 244, 0.82);
+}
+
+.filterField select {
+  width: 100%;
+}
+
+.empty {
+  margin: 0;
+  color: rgba(244, 244, 244, 0.72);
+}
+
+.resultsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.memoCard {
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.memoMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  color: rgba(244, 244, 244, 0.72);
+  font-size: 0.95rem;
+}
+
+.interviewName {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.metaDivider {
+  color: rgba(244, 244, 244, 0.45);
+}
+
+.memoBody {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.memoTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(244, 244, 244, 0.72);
+}
+
+.memoText {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.quote {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  color: rgba(244, 244, 244, 0.92);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.tagChipWrap {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tagChip {
+  font-weight: 600;
+}
+
+.tagContext {
+  color: rgba(244, 244, 244, 0.72);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .filtersHeader {
+    align-items: stretch;
+  }
+}

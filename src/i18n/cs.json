@@ -445,7 +445,16 @@
       "categorySummary": "Štítky: {{tags}} · Okódované odkazy: {{references}}",
       "emptyCluster": "V tomto clusteru zatím nejsou žádné kategorie.",
       "emptyCategory": "V této kategorii zatím nejsou žádné štítky.",
-      "tagCount": "Odkazy: {{count}}"
+      "tagCount": "Odkazy: {{count}}",
+      "matrixTitle": "Matice prevalence témat",
+      "matrixSubtitle": "Řádky jsou rozhovory a sloupce clustery. Každá buňka ukazuje počet různých okódovaných úseků v daném rozhovoru pro daný cluster. Počty v matici jsou deduplikované uvnitř clusteru a mohou se lišit od počtů odkazů v hierarchii výše.",
+      "matrixLoading": "Načítání matice prevalence…",
+      "matrixEmptyClusters": "Pro zobrazení matice prevalence nejprve vytvořte clustery ve Štítcích.",
+      "matrixEmptyInterviews": "Zatím nejsou žádné rozhovory. Přidejte rozhovory a pak můžete porovnat prevalenci témat.",
+      "matrixEmptyData": "Zatím nejsou žádné okódované odkazy uvnitř clusterů. Označte úseky štítky uvnitř clusterů a matice se naplní.",
+      "matrixInterview": "Rozhovor",
+      "matrixTotal": "Různý součet",
+      "matrixColumnTotals": "Součty clusterů"
     },
     "evidence": {
       "title": "Prohlížeč evidence",
@@ -468,6 +477,40 @@
       "hasMemo": "Připojeno memo",
       "noCluster": "Bez clusteru",
       "noCategory": "Bez kategorie"
+    },
+    "memos": {
+      "title": "Mema",
+      "subtitle": "Procházejte interpretační poznámky připojené k okódovaným úsekům a držte je v kontaktu s původní evidencí.",
+      "resultsSummary": "{{shown}} z {{total}} mem",
+      "filters": "Filtry",
+      "clearFilters": "Vymazat filtry",
+      "cluster": "Cluster",
+      "category": "Kategorie",
+      "tag": "Štítek",
+      "interview": "Rozhovor",
+      "allClusters": "Všechny clustery",
+      "allCategories": "Všechny kategorie",
+      "allTags": "Všechny štítky",
+      "allInterviews": "Všechny rozhovory",
+      "loading": "Načítání mem…",
+      "emptyProject": "Zatím tu nejsou žádné okódované úseky s memem. Přidejte k okódovaným citacím memo a pak je zde můžete procházet.",
+      "emptyFiltered": "Aktuálním filtrům neodpovídají žádná mema.",
+      "segmentRef": "Segment {{id}}",
+      "memoLabel": "Memo",
+      "noCluster": "Bez clusteru",
+      "noCategory": "Bez kategorie"
+    },
+    "cooccurrence": {
+      "title": "Kookurence",
+      "subtitle": "Zobrazte dvojice štítků, které se nejčastěji objevují společně na stejném okódovaném úseku. Pořadí ve dvojici nehraje roli a každá dvojice se v jednom úseku počítá jen jednou.",
+      "summary": "{{total}} dvojic · nejvyšší počet {{strongest}}",
+      "readOnlyHint": "Toto zobrazení je jen pro čtení. Pro změnu vztahů upravte kódování přepisu nebo strukturu ve Štítcích a pak se sem vraťte.",
+      "loading": "Načítání kookurence…",
+      "empty": "Zatím tu nejsou žádné spoluvýskyty dvojic štítků. Pro naplnění tohoto zobrazení přiřaďte stejnému okódovanému úseku alespoň dva štítky.",
+      "rank": "#",
+      "tagA": "Štítek A",
+      "tagB": "Štítek B",
+      "count": "Počet"
     }
   },
   "export": {

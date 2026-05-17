@@ -19,6 +19,7 @@
 .summaryCard,
 .explainerCard,
 .mapCard,
+.matrixCard,
 .branchCard,
 .categoryCard {
   background: var(--bg);
@@ -70,6 +71,85 @@
 
 .mapCard {
   padding: 0.75rem;
+}
+
+.matrixCard {
+  padding: 1rem;
+}
+
+.matrixHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sectionSubtitle {
+  margin: 0.35rem 0 0;
+  color: var(--fg-muted);
+  max-width: 52rem;
+}
+
+.matrixWrap {
+  overflow: auto;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.matrixTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+  background: var(--bg);
+}
+
+.matrixTable th,
+.matrixTable td {
+  padding: 0.7rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.matrixTable th:first-child,
+.matrixTable tbody th {
+  text-align: left;
+}
+
+.matrixTable thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-muted);
+  z-index: 1;
+}
+
+.matrixTable tbody td[data-has-value="true"],
+.matrixTable tfoot td[data-has-value="true"] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  font-weight: 600;
+}
+
+.matrixTable tfoot th,
+.matrixTable tfoot td {
+  background: var(--bg-muted);
+  font-weight: 600;
+}
+
+.matrixTable th:last-child,
+.matrixTable td:last-child {
+  border-right: none;
+}
+
+.matrixTable tr:last-child th,
+.matrixTable tr:last-child td {
+  border-bottom: none;
 }
 
 .branchList {

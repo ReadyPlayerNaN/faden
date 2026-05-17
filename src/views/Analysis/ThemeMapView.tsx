@@ -9,8 +9,11 @@ import {
   type CodebookTree,
   type TagNode,
 } from "../../ipc/codebook";
+import { interviewList as fetchInterviews, type Interview } from "../../ipc/interview";
 import { projectOpen } from "../../ipc/project";
+import { spanListForInterview } from "../../ipc/tagging";
 import { codebookTreeAtom } from "../../state/codebook";
+import { interviewListAtom } from "../../state/interview";
 import { currentProjectAtom } from "../../state/project";
 import { useParams } from "@tanstack/react-router";
 import styles from "./ThemeMapView.module.css";
@@ -19,13 +22,22 @@ type ThemeBranch =
   | { kind: "cluster"; cluster: ClusterNode }
   | { kind: "category"; category: CategoryNode };
 
+type MatrixRow = {
+  interview: Interview;
+  countsByClusterId: Map<number, number>;
+  total: number;
+};
+
 export const ThemeMapView = () => {
   const { t } = useTranslation();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
   const decodedProjectPath = decodeURIComponent(projectPath);
   const [project, setProject] = useAtom(currentProjectAtom);
   const setCodebook = useSetAtom(codebookTreeAtom);
+  const setInterviewList = useSetAtom(interviewListAtom);
   const [tree, setTree] = useState<CodebookTree | null>(null);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,11 +57,62 @@ export const ThemeMapView = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void fetchCodebookTree()
-      .then((nextTree) => {
+    void Promise.all([fetchCodebookTree(), fetchInterviews()])
+      .then(async ([nextTree, nextInterviews]) => {
+        const tagClusterByTagId = new Map<number, number>();
+        for (const cluster of nextTree.clusters) {
+          for (const category of cluster.categories) {
+            for (const tag of category.tags) {
+              tagClusterByTagId.set(tag.id, cluster.id);
+            }
+          }
+        }
+
+        const spanGroups = await Promise.all(
+          nextInterviews.map(async (interview) => ({
+            interview,
+            spans: await spanListForInterview(interview.id),
+          })),
+        );
+
         if (cancelled) return;
+
+        const nextRows = spanGroups.map(({ interview, spans }) => {
+          const spanIdsByClusterId = new Map<number, Set<number>>();
+          const totalSpanIds = new Set<number>();
+          for (const span of spans) {
+            const clusterIds = new Set<number>();
+            for (const tag of span.tags) {
+              const clusterId = tagClusterByTagId.get(tag.tagId);
+              if (clusterId !== undefined) clusterIds.add(clusterId);
+            }
+            if (clusterIds.size > 0) {
+              totalSpanIds.add(span.id);
+            }
+            for (const clusterId of clusterIds) {
+              const spanIds = spanIdsByClusterId.get(clusterId) ?? new Set<number>();
+              spanIds.add(span.id);
+              spanIdsByClusterId.set(clusterId, spanIds);
+            }
+          }
+
+          const countsByClusterId = new Map<number, number>();
+          for (const cluster of nextTree.clusters) {
+            countsByClusterId.set(cluster.id, spanIdsByClusterId.get(cluster.id)?.size ?? 0);
+          }
+
+          return {
+            interview,
+            countsByClusterId,
+            total: totalSpanIds.size,
+          };
+        });
+
         setTree(nextTree);
         setCodebook(nextTree);
+        setInterviews(nextInterviews);
+        setInterviewList(nextInterviews);
+        setMatrixRows(nextRows);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -61,7 +124,7 @@ export const ThemeMapView = () => {
     return () => {
       cancelled = true;
     };
-  }, [decodedProjectPath, project, setCodebook]);
+  }, [decodedProjectPath, project, setCodebook, setInterviewList]);
 
   const branches = useMemo<ThemeBranch[]>(() => {
     if (!tree) return [];
@@ -91,6 +154,23 @@ export const ThemeMapView = () => {
       codedReferences: allTags.reduce((sum, tag) => sum + tag.count, 0),
     };
   }, [tree]);
+
+  const matrixHasData = useMemo(
+    () => matrixRows.some((row) => Array.from(row.countsByClusterId.values()).some((count) => count > 0)),
+    [matrixRows],
+  );
+
+  const matrixColumnTotals = useMemo(() => {
+    if (!tree) return new Map<number, number>();
+    const totals = new Map<number, number>();
+    for (const cluster of tree.clusters) {
+      totals.set(
+        cluster.id,
+        matrixRows.reduce((sum, row) => sum + (row.countsByClusterId.get(cluster.id) ?? 0), 0),
+      );
+    }
+    return totals;
+  }, [matrixRows, tree]);
 
   return (
     <>
@@ -189,6 +269,87 @@ export const ThemeMapView = () => {
                 </ul>
               </section>
             ) : null}
+          </div>
+        )}
+      </section>
+
+      <section className={styles.matrixCard}>
+        <div className={styles.matrixHeader}>
+          <div>
+            <h2 className={styles.sectionTitle}>
+              {t("analysis.themeMap.matrixTitle", { defaultValue: "Theme prevalence matrix" })}
+            </h2>
+            <p className={styles.sectionSubtitle}>
+              {t("analysis.themeMap.matrixSubtitle", {
+                defaultValue:
+                  "Rows are interviews and columns are clusters. Each cell counts distinct coded spans in that interview for that cluster. These matrix counts are deduplicated within each cluster and may differ from hierarchy reference counts above.",
+              })}
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className={styles.empty}>{t("analysis.themeMap.matrixLoading", { defaultValue: "Loading prevalence matrix…" })}</p>
+        ) : !tree || tree.clusters.length === 0 ? (
+          <p className={styles.empty}>
+            {t("analysis.themeMap.matrixEmptyClusters", {
+              defaultValue: "Add clusters in Labels to see the prevalence matrix.",
+            })}
+          </p>
+        ) : interviews.length === 0 ? (
+          <p className={styles.empty}>
+            {t("analysis.themeMap.matrixEmptyInterviews", {
+              defaultValue: "No interviews yet. Add interviews to compare theme prevalence.",
+            })}
+          </p>
+        ) : !matrixHasData ? (
+          <p className={styles.empty}>
+            {t("analysis.themeMap.matrixEmptyData", {
+              defaultValue: "No clustered coded references yet. Tag transcript spans with tags inside clusters to populate the matrix.",
+            })}
+          </p>
+        ) : (
+          <div className={styles.matrixWrap}>
+            <table className={styles.matrixTable}>
+              <thead>
+                <tr>
+                  <th>{t("analysis.themeMap.matrixInterview", { defaultValue: "Interview" })}</th>
+                  {tree.clusters.map((cluster) => (
+                    <th key={cluster.id}>{cluster.name}</th>
+                  ))}
+                  <th>{t("analysis.themeMap.matrixTotal", { defaultValue: "Distinct total" })}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matrixRows.map((row) => (
+                  <tr key={row.interview.id}>
+                    <th>{row.interview.name}</th>
+                    {tree.clusters.map((cluster) => {
+                      const value = row.countsByClusterId.get(cluster.id) ?? 0;
+                      return (
+                        <td key={cluster.id} data-has-value={value > 0 ? "true" : "false"}>
+                          {value}
+                        </td>
+                      );
+                    })}
+                    <td data-has-value={row.total > 0 ? "true" : "false"}>{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th>{t("analysis.themeMap.matrixColumnTotals", { defaultValue: "Cluster totals" })}</th>
+                  {tree.clusters.map((cluster) => (
+                    <td key={cluster.id} data-has-value={(matrixColumnTotals.get(cluster.id) ?? 0) > 0 ? "true" : "false"}>
+                      {matrixColumnTotals.get(cluster.id) ?? 0}
+                    </td>
+                  ))}
+                  <td>
+                    {matrixRows.reduce((sum, row) => sum + row.total, 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </section>

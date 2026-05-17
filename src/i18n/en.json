@@ -446,7 +446,16 @@
       "categorySummary": "Tags: {{tags}} · Coded references: {{references}}",
       "emptyCluster": "No categories in this cluster yet.",
       "emptyCategory": "No tags in this category yet.",
-      "tagCount": "Refs: {{count}}"
+      "tagCount": "Refs: {{count}}",
+      "matrixTitle": "Theme prevalence matrix",
+      "matrixSubtitle": "Rows are interviews and columns are clusters. Each cell counts distinct coded spans in that interview for that cluster. These matrix counts are deduplicated within each cluster and may differ from hierarchy reference counts above.",
+      "matrixLoading": "Loading prevalence matrix…",
+      "matrixEmptyClusters": "Add clusters in Labels to see the prevalence matrix.",
+      "matrixEmptyInterviews": "No interviews yet. Add interviews to compare theme prevalence.",
+      "matrixEmptyData": "No clustered coded references yet. Tag transcript spans with tags inside clusters to populate the matrix.",
+      "matrixInterview": "Interview",
+      "matrixTotal": "Distinct total",
+      "matrixColumnTotals": "Cluster totals"
     },
     "evidence": {
       "title": "Evidence browser",
@@ -469,6 +478,40 @@
       "hasMemo": "Memo attached",
       "noCluster": "No cluster",
       "noCategory": "No category"
+    },
+    "memos": {
+      "title": "Memos",
+      "subtitle": "Review interpretation notes attached to coded spans and keep them grounded in the underlying evidence.",
+      "resultsSummary": "{{shown}} of {{total}} memos",
+      "filters": "Filters",
+      "clearFilters": "Clear filters",
+      "cluster": "Cluster",
+      "category": "Category",
+      "tag": "Tag",
+      "interview": "Interview",
+      "allClusters": "All clusters",
+      "allCategories": "All categories",
+      "allTags": "All tags",
+      "allInterviews": "All interviews",
+      "loading": "Loading memos…",
+      "emptyProject": "No memo-backed coded spans yet. Add memos to coded quotes to review them here.",
+      "emptyFiltered": "No memos match the current filters.",
+      "segmentRef": "Segment {{id}}",
+      "memoLabel": "Memo",
+      "noCluster": "No cluster",
+      "noCategory": "No category"
+    },
+    "cooccurrence": {
+      "title": "Co-occurrence",
+      "subtitle": "See which tag pairs most often appear together on the same coded span. Counts are unordered and each pair is counted once per span.",
+      "summary": "{{total}} pairs · top count {{strongest}}",
+      "readOnlyHint": "This view is read-only. Use transcript coding and Labels to change the underlying structure, then return here to inspect relationships.",
+      "loading": "Loading co-occurrence…",
+      "empty": "No co-occurring tag pairs yet. Apply at least two tags to the same coded span to populate this view.",
+      "rank": "#",
+      "tagA": "Tag A",
+      "tagB": "Tag B",
+      "count": "Count"
     }
   },
   "export": {

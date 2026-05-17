@@ -4,11 +4,13 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { CooccurrenceView } from "./CooccurrenceView";
 import { EvidenceBrowserContent } from "./EvidenceBrowserView";
+import { MemoLayerView } from "./MemoLayerView";
 import { ThemeMapView } from "./ThemeMapView";
 import styles from "./AnalysisView.module.css";
 
-type Section = "theme-map" | "evidence";
+type Section = "theme-map" | "evidence" | "cooccurrence" | "memos";
 
 type Props = {
   section: Section;
@@ -30,6 +32,16 @@ export const AnalysisView = ({ section }: Props) => {
         key: "evidence" as const,
         label: t("analysis.evidence.title", { defaultValue: "Evidence browser" }),
         to: "/workspace/$projectPath/analysis/evidence" as const,
+      },
+      {
+        key: "cooccurrence" as const,
+        label: t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" }),
+        to: "/workspace/$projectPath/analysis/cooccurrence" as const,
+      },
+      {
+        key: "memos" as const,
+        label: t("analysis.memos.title", { defaultValue: "Memos" }),
+        to: "/workspace/$projectPath/analysis/memos" as const,
       },
     ],
     [t],
@@ -64,7 +76,15 @@ export const AnalysisView = ({ section }: Props) => {
       />
 
       <PageContainer className={styles.wrap} size="xwide">
-        {section === "theme-map" ? <ThemeMapView /> : <EvidenceBrowserContent />}
+        {section === "theme-map" ? (
+          <ThemeMapView />
+        ) : section === "evidence" ? (
+          <EvidenceBrowserContent />
+        ) : section === "cooccurrence" ? (
+          <CooccurrenceView />
+        ) : (
+          <MemoLayerView />
+        )}
       </PageContainer>
     </div>
   );
