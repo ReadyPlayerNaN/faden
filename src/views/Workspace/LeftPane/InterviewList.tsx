@@ -16,6 +16,8 @@ import {
   interviewList as fetchList,
   interviewSetAudio,
 } from "../../../ipc/interview";
+import { speakerListForInterview } from "../../../ipc/speaker";
+import { spanListForInterview } from "../../../ipc/tagging";
 import { transcribeCancel } from "../../../ipc/transcribe";
 import {
   activeAiOperationsAtom,
@@ -35,6 +37,39 @@ import { CostPreviewModal } from "../AI/CostPreviewModal";
 import { EditInterviewModal } from "./EditInterviewModal";
 import styles from "./InterviewList.module.css";
 import type { Interview } from "../../../ipc/interview";
+
+const PersonIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={styles.metaIcon}
+    aria-hidden="true"
+  >
+    <path d="M16 20a4 4 0 0 0-8 0" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const TagIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={styles.metaIcon}
+    aria-hidden="true"
+  >
+    <path d="M20 10 10 20l-6-6V4h10z" />
+    <circle cx="14.5" cy="9.5" r="1.1" fill="currentColor" stroke="none" />
+    <path d="M12 6h6a2 2 0 0 1 2 2v6" />
+  </svg>
+);
 
 type InterviewListProps = {
   onAddInterview: () => void;
@@ -59,11 +94,61 @@ export const InterviewList = ({ onAddInterview, onSelectInterview }: InterviewLi
   } | null>(null);
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [speakerNamesByInterviewId, setSpeakerNamesByInterviewId] = useState<Record<number, string>>({});
+  const [taggedSegmentCountByInterviewId, setTaggedSegmentCountByInterviewId] = useState<Record<number, number>>({});
 
   useEffect(() => {
     void fetchList().then(setList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (list.length === 0) {
+      setSpeakerNamesByInterviewId({});
+      setTaggedSegmentCountByInterviewId({});
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all(
+      list.map(async (interview) => {
+        const [speakers, spans] = await Promise.all([
+          speakerListForInterview(interview.id),
+          spanListForInterview(interview.id),
+        ]);
+        const names = Array.from(
+          new Set(
+            speakers
+              .map((speaker) => speaker.effectiveName.trim())
+              .filter(Boolean),
+          ),
+        );
+        return {
+          interviewId: interview.id,
+          speakerNames: names.join(", "),
+          taggedSegmentCount: spans.length,
+        };
+      }),
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setSpeakerNamesByInterviewId(
+          Object.fromEntries(entries.map(({ interviewId, speakerNames }) => [interviewId, speakerNames])),
+        );
+        setTaggedSegmentCountByInterviewId(
+          Object.fromEntries(entries.map(({ interviewId, taggedSegmentCount }) => [interviewId, taggedSegmentCount])),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSpeakerNamesByInterviewId({});
+        setTaggedSegmentCountByInterviewId({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [list]);
 
   const refreshProposals = async () => setProposals(await aiProposalList());
   const refreshRuns = async () => setAiRuns(await aiRunList());
@@ -192,6 +277,8 @@ export const InterviewList = ({ onAddInterview, onSelectInterview }: InterviewLi
               progress={runs[i.id]}
               activeOps={activeOps}
               aiRuns={aiRuns}
+              speakerNames={speakerNamesByInterviewId[i.id] ?? ""}
+              taggedSegmentCount={taggedSegmentCountByInterviewId[i.id] ?? 0}
             />
           ))}
         </ul>
@@ -218,6 +305,8 @@ type RowProps = {
   progress?: import("../../../state/transcription").RunSnapshot;
   activeOps: import("../../../state/ai").LocalAiOperation[];
   aiRuns: Awaited<ReturnType<typeof aiRunList>>;
+  speakerNames: string;
+  taggedSegmentCount: number;
 };
 
 const InterviewRow = ({
@@ -230,6 +319,8 @@ const InterviewRow = ({
   progress,
   activeOps,
   aiRuns,
+  speakerNames,
+  taggedSegmentCount,
 }: RowProps) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
@@ -263,6 +354,9 @@ const InterviewRow = ({
 
   const isCodebookRunning = isAiActionRunning("codebook_gen");
   const isPretagRunning = isAiActionRunning("pretag");
+  const taggedSegmentsLabel = t("interview.taggedSegments", {
+    defaultValue: "Tagged segments",
+  });
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -365,17 +459,44 @@ const InterviewRow = ({
       {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <div
         className={`${styles.item} ${selected ? styles.selected : ""}`}
-        onClick={onActivate}
+        onClick={onSelect}
         onContextMenu={(e) => {
           e.preventDefault();
           onSelect();
           setMenuOpen(true);
         }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onActivate(); }}
       >
-        <span className={styles.rowLeft}>{iv.name}</span>
+        <span className={styles.rowLeft}>
+          <button
+            type="button"
+            className={styles.titleButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              onActivate();
+            }}
+          >
+            <span className={styles.rowTitle}>{iv.name}</span>
+          </button>
+          {speakerNames || taggedSegmentCount >= 0 ? (
+            <span className={styles.rowSubtitle}>
+              {speakerNames ? (
+                <span className={styles.speakerNames}>
+                  <PersonIcon />
+                  <span>{speakerNames}</span>
+                </span>
+              ) : null}
+              {speakerNames ? <span aria-hidden="true"> · </span> : null}
+              <span
+                className={styles.taggedCount}
+                title={taggedSegmentsLabel}
+                aria-label={`${taggedSegmentsLabel}: ${taggedSegmentCount}`}
+              >
+                <TagIcon />
+                <span>{taggedSegmentCount}</span>
+              </span>
+            </span>
+          ) : null}
+        </span>
         {renderRight()}
         <span className={styles.menuWrap} ref={menuWrapRef}>
           <button
