@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue } from "jotai";
 import { Button } from "../../../components/Button/Button";
+import { ViewModeLabel } from "../../../components/ViewModeIcon/ViewModeIcon";
 import { interviewListAtom } from "../../../state/interview";
 import { AddInterviewModal } from "./AddInterviewModal";
 import { InterviewList } from "./InterviewList";
@@ -44,7 +45,7 @@ export const LeftPane = () => {
               className={styles.titleButton}
             >
               <span className={styles.titleButtonContent}>
-                <span>{t("workspace.interviews")}</span>
+                <ViewModeLabel view="interviews">{t("workspace.interviews")}</ViewModeLabel>
                 <span aria-hidden="true">▾</span>
               </span>
             </Button>

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { useAnalysisData } from "./AnalysisData";
 import { useAnalysisHierarchyFilters } from "./analysisFilters";
 import styles from "./MemoLayerView.module.css";
@@ -38,7 +39,7 @@ export const MemoLayerView = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            {t("analysis.memos.title", { defaultValue: "Memos" })}
+            <ViewModeLabel view="analysis">{t("analysis.memos.title", { defaultValue: "Memos" })}</ViewModeLabel>
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.memos.subtitle", {

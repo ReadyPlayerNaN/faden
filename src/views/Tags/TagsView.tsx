@@ -14,6 +14,7 @@ import {
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import {
   codebookTree as fetchTree,
   clusterDelete,
@@ -341,7 +342,9 @@ export const TagsView = () => {
       <ProjectHeader activeView="labels" />
 
       <div className={styles.wrap}>
-        <h1 className={styles.title}>{t("tags.title", { defaultValue: "Tags" })}</h1>
+        <h1 className={styles.title}>
+          <ViewModeLabel view="labels">{t("tags.title", { defaultValue: "Tags" })}</ViewModeLabel>
+        </h1>
 
         {error && <div className={styles.error}>{error}</div>}
         {findMoreStatus && <div className={styles.notice}>{findMoreStatus}</div>}

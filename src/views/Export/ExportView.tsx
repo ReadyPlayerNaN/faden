@@ -6,6 +6,7 @@ import { useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { codebookTree as fetchCodebookTree } from "../../ipc/codebook";
 import {
   exportCodebook,
@@ -138,7 +139,9 @@ export const ExportView = () => {
       <PageContainer className={styles.wrap}>
         <div className={styles.headerRow}>
           <div>
-            <h1 className={styles.title}>{t("export.title", { defaultValue: "Export" })}</h1>
+            <h1 className={styles.title}>
+              <ViewModeLabel view="export">{t("export.title", { defaultValue: "Export" })}</ViewModeLabel>
+            </h1>
             <p className={styles.subtitle}>
               {t("export.subtitle", {
                 defaultValue:

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import {
   type CategoryNode,
   type ClusterNode,
@@ -117,7 +118,7 @@ export const ThemeMapView = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            {t("analysis.themeMap.title", { defaultValue: "Theme map" })}
+            <ViewModeLabel view="analysis">{t("analysis.themeMap.title", { defaultValue: "Theme map" })}</ViewModeLabel>
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.themeMap.subtitle", {

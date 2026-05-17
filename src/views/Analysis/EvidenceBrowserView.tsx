@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { useAnalysisData } from "./AnalysisData";
 import { useAnalysisHierarchyFilters } from "./analysisFilters";
 import styles from "./EvidenceBrowserView.module.css";
@@ -39,7 +40,7 @@ export const EvidenceBrowserContent = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            {t("analysis.evidence.title", { defaultValue: "Evidence browser" })}
+            <ViewModeLabel view="analysis">{t("analysis.evidence.title", { defaultValue: "Evidence browser" })}</ViewModeLabel>
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.evidence.subtitle", {

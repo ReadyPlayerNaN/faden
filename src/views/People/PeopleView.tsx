@@ -7,6 +7,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { TextField } from "../../components/TextField/TextField";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { projectOpen } from "../../ipc/project";
 import {
 	personCreate,
@@ -165,7 +166,7 @@ export const PeopleView = () => {
 				<div className={styles.headerRow}>
 					<div>
 						<h1 className={styles.title}>
-							{t("people.title", { defaultValue: "People" })}
+							<ViewModeLabel view="people">{t("people.title", { defaultValue: "People" })}</ViewModeLabel>
 						</h1>
 						<p className={styles.subtitle}>
 							{t("people.subtitle", {

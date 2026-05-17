@@ -1,0 +1,11 @@
+.icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}

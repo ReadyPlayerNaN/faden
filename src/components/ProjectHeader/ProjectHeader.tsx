@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "../Button/Button";
+import { ViewModeLabel, type ViewMode } from "../ViewModeIcon/ViewModeIcon";
 import { projectUpdate } from "../../ipc/project";
 import { settingsRecentRename } from "../../ipc/settings";
 import { currentProjectAtom } from "../../state/project";
@@ -10,10 +11,28 @@ import { EditProjectModal } from "../../views/Workspace/EditProjectModal";
 import styles from "./ProjectHeader.module.css";
 
 type ProjectHeaderProps = {
-	activeView?: "coding" | "interviews" | "labels" | "people" | "analysis" | "export" | null;
+	activeView?: ViewMode | null;
 	viewAccessory?: ReactNode;
 	leftActions?: ReactNode;
 	actions?: ReactNode;
+};
+
+const getViewLabel = (t: ReturnType<typeof useTranslation>["t"], activeView: ViewMode | null) => {
+	switch (activeView) {
+		case "interviews":
+			return t("workspace.interviews", { defaultValue: "Interviews" });
+		case "labels":
+			return t("tags.title", { defaultValue: "Labels" });
+		case "people":
+			return t("people.title", { defaultValue: "People" });
+		case "analysis":
+			return t("analysis.title", { defaultValue: "Analysis" });
+		case "export":
+			return t("export.title", { defaultValue: "Export" });
+		case "coding":
+		default:
+			return t("workspace.coding", { defaultValue: "Coding" });
+	}
 };
 
 export const ProjectHeader = ({
@@ -139,19 +158,9 @@ export const ProjectHeader = ({
 							className={styles.viewMenuTrigger}
 						>
 							<span className={styles.projectMenuTriggerContent}>
-								<span className={styles.title}>
-									{activeView === "interviews"
-										? t("workspace.interviews", { defaultValue: "Interviews" })
-										: activeView === "labels"
-											? t("tags.title", { defaultValue: "Labels" })
-											: activeView === "people"
-												? t("people.title", { defaultValue: "People" })
-												: activeView === "analysis"
-													? t("analysis.title", { defaultValue: "Analysis" })
-													: activeView === "export"
-														? t("export.title", { defaultValue: "Export" })
-														: t("workspace.coding", { defaultValue: "Coding" })}
-								</span>
+								<ViewModeLabel view={activeView ?? "coding"} className={styles.viewLabelWrap}>
+									<span className={styles.title}>{getViewLabel(t, activeView)}</span>
+								</ViewModeLabel>
 								<span aria-hidden="true">▾</span>
 							</span>
 						</Button>
@@ -172,7 +181,9 @@ export const ProjectHeader = ({
 											});
 										}}
 									>
-										{t("workspace.interviews", { defaultValue: "Interviews" })}
+										<ViewModeLabel view="interviews" className={styles.viewMenuItemContent}>
+											{t("workspace.interviews", { defaultValue: "Interviews" })}
+										</ViewModeLabel>
 									</button>
 								)}
 								{activeView !== "coding" && (
@@ -194,7 +205,9 @@ export const ProjectHeader = ({
 											);
 										}}
 									>
-										{t("workspace.coding", { defaultValue: "Coding" })}
+										<ViewModeLabel view="coding" className={styles.viewMenuItemContent}>
+											{t("workspace.coding", { defaultValue: "Coding" })}
+										</ViewModeLabel>
 									</button>
 								)}
 								{activeView !== "labels" && (
@@ -207,7 +220,9 @@ export const ProjectHeader = ({
 											void navigate({ to: "/tags" });
 										}}
 									>
-										{t("tags.title", { defaultValue: "Labels" })}
+										<ViewModeLabel view="labels" className={styles.viewMenuItemContent}>
+											{t("tags.title", { defaultValue: "Labels" })}
+										</ViewModeLabel>
 									</button>
 								)}
 								{activeView !== "people" && (
@@ -229,7 +244,9 @@ export const ProjectHeader = ({
 											);
 										}}
 									>
-										{t("people.title", { defaultValue: "People" })}
+										<ViewModeLabel view="people" className={styles.viewMenuItemContent}>
+											{t("people.title", { defaultValue: "People" })}
+										</ViewModeLabel>
 									</button>
 								)}
 								{activeView !== "analysis" && project && (
@@ -247,7 +264,9 @@ export const ProjectHeader = ({
 											});
 										}}
 									>
-										{t("analysis.title", { defaultValue: "Analysis" })}
+										<ViewModeLabel view="analysis" className={styles.viewMenuItemContent}>
+											{t("analysis.title", { defaultValue: "Analysis" })}
+										</ViewModeLabel>
 									</button>
 								)}
 								{activeView !== "export" && project && (
@@ -265,7 +284,9 @@ export const ProjectHeader = ({
 											});
 										}}
 									>
-										{t("export.title", { defaultValue: "Export" })}
+										<ViewModeLabel view="export" className={styles.viewMenuItemContent}>
+											{t("export.title", { defaultValue: "Export" })}
+										</ViewModeLabel>
 									</button>
 								)}
 							</div>

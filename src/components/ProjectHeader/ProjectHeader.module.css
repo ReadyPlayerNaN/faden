@@ -57,6 +57,19 @@
   font-weight: 600;
 }
 
+.viewLabelWrap,
+.viewMenuItemContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.viewIcon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
 .projectMenuDropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -79,6 +92,10 @@
   border: 0;
   color: var(--fg);
   font: inherit;
+}
+
+.viewMenuItemContent {
+  width: 100%;
 }
 
 .projectMenuItem:hover {

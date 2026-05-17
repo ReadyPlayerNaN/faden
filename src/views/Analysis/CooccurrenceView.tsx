@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import type { TagMeta } from "../../ipc/codebook";
 import { useAnalysisData } from "./AnalysisData";
 import styles from "./CooccurrenceView.module.css";
@@ -67,7 +68,7 @@ export const CooccurrenceView = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            {t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}
+            <ViewModeLabel view="analysis">{t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}</ViewModeLabel>
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.cooccurrence.subtitle", {
