@@ -49,6 +49,7 @@ export const ProjectHeader = ({
 	const [editProjectOpen, setEditProjectOpen] = useState(false);
 	const projectMenuRef = useRef<HTMLDivElement | null>(null);
 	const viewMenuRef = useRef<HTMLDivElement | null>(null);
+	const resolvedActiveView = activeView ?? "coding";
 
 	useEffect(() => {
 		if (!projectMenuOpen && !viewMenuOpen) return;
@@ -81,6 +82,100 @@ export const ProjectHeader = ({
 		await settingsRecentRename(project.path, name).catch(() => undefined);
 		setProject(updated);
 	};
+
+	const viewOptions: Array<{
+		view: ViewMode;
+		label: string;
+		onClick: () => void;
+	}> = [
+		...(project
+			? [
+					{
+						view: "interviews" as const,
+						label: t("workspace.interviews", { defaultValue: "Interviews" }),
+						onClick: () => {
+							void navigate({
+								to: "/workspace/$projectPath/interviews",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+							});
+						},
+					},
+			  ]
+			: []),
+		{
+			view: "coding",
+			label: t("workspace.coding", { defaultValue: "Coding" }),
+			onClick: () => {
+				void navigate(
+					project
+						? {
+								to: "/workspace/$projectPath",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+						  }
+						: { to: "/" },
+				);
+			},
+		},
+		{
+			view: "labels",
+			label: t("tags.title", { defaultValue: "Labels" }),
+			onClick: () => {
+				void navigate({ to: "/tags" });
+			},
+		},
+		{
+			view: "people",
+			label: t("people.title", { defaultValue: "People" }),
+			onClick: () => {
+				void navigate(
+					project
+						? {
+								to: "/workspace/$projectPath/people",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+						  }
+						: { to: "/people" },
+				);
+			},
+		},
+		...(project
+			? [
+					{
+						view: "analysis" as const,
+						label: t("analysis.title", { defaultValue: "Analysis" }),
+						onClick: () => {
+							void navigate({
+								to: "/workspace/$projectPath/analysis",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+							});
+						},
+					},
+			  ]
+			: []),
+		...(project
+			? [
+					{
+						view: "export" as const,
+						label: t("export.title", { defaultValue: "Export" }),
+						onClick: () => {
+							void navigate({
+								to: "/workspace/$projectPath/export",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+							});
+						},
+					},
+			  ]
+			: []),
+	];
 
 	return (
 		<>
@@ -158,7 +253,7 @@ export const ProjectHeader = ({
 							className={styles.viewMenuTrigger}
 						>
 							<span className={styles.projectMenuTriggerContent}>
-								<ViewModeLabel view={activeView ?? "coding"} className={styles.viewLabelWrap}>
+								<ViewModeLabel view={resolvedActiveView} className={styles.viewLabelWrap}>
 									<span className={styles.title}>{getViewLabel(t, activeView)}</span>
 								</ViewModeLabel>
 								<span aria-hidden="true">▾</span>
@@ -166,129 +261,26 @@ export const ProjectHeader = ({
 						</Button>
 						{viewMenuOpen && (
 							<div className={styles.projectMenuDropdown} role="menu">
-								{activeView !== "interviews" && project && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({
-												to: "/workspace/$projectPath/interviews",
-												params: {
-													projectPath: encodeURIComponent(project.path),
-												},
-											});
-										}}
-									>
-										<ViewModeLabel view="interviews" className={styles.viewMenuItemContent}>
-											{t("workspace.interviews", { defaultValue: "Interviews" })}
-										</ViewModeLabel>
-									</button>
-								)}
-								{activeView !== "coding" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate(
-												project
-													? {
-															to: "/workspace/$projectPath",
-															params: {
-																projectPath: encodeURIComponent(project.path),
-															},
-														}
-													: { to: "/" },
-											);
-										}}
-									>
-										<ViewModeLabel view="coding" className={styles.viewMenuItemContent}>
-											{t("workspace.coding", { defaultValue: "Coding" })}
-										</ViewModeLabel>
-									</button>
-								)}
-								{activeView !== "labels" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({ to: "/tags" });
-										}}
-									>
-										<ViewModeLabel view="labels" className={styles.viewMenuItemContent}>
-											{t("tags.title", { defaultValue: "Labels" })}
-										</ViewModeLabel>
-									</button>
-								)}
-								{activeView !== "people" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate(
-												project
-													? {
-															to: "/workspace/$projectPath/people",
-															params: {
-																projectPath: encodeURIComponent(project.path),
-															},
-														}
-													: { to: "/people" },
-											);
-										}}
-									>
-										<ViewModeLabel view="people" className={styles.viewMenuItemContent}>
-											{t("people.title", { defaultValue: "People" })}
-										</ViewModeLabel>
-									</button>
-								)}
-								{activeView !== "analysis" && project && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({
-												to: "/workspace/$projectPath/analysis",
-												params: {
-													projectPath: encodeURIComponent(project.path),
-												},
-											});
-										}}
-									>
-										<ViewModeLabel view="analysis" className={styles.viewMenuItemContent}>
-											{t("analysis.title", { defaultValue: "Analysis" })}
-										</ViewModeLabel>
-									</button>
-								)}
-								{activeView !== "export" && project && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({
-												to: "/workspace/$projectPath/export",
-												params: {
-													projectPath: encodeURIComponent(project.path),
-												},
-											});
-										}}
-									>
-										<ViewModeLabel view="export" className={styles.viewMenuItemContent}>
-											{t("export.title", { defaultValue: "Export" })}
-										</ViewModeLabel>
-									</button>
-								)}
+								{viewOptions.map(({ view, label, onClick }) => {
+									const isActive = resolvedActiveView === view;
+									return (
+										<button
+											key={view}
+											type="button"
+											role="menuitemradio"
+											aria-checked={isActive}
+											className={`${styles.projectMenuItem} ${isActive ? styles.projectMenuItemActive : ""}`}
+											onClick={() => {
+												setViewMenuOpen(false);
+												onClick();
+											}}
+										>
+											<ViewModeLabel view={view} className={styles.viewMenuItemContent}>
+												{label}
+											</ViewModeLabel>
+										</button>
+									);
+								})}
 							</div>
 						)}
 					</div>

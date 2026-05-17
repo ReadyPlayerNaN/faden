@@ -98,7 +98,8 @@
   width: 100%;
 }
 
-.projectMenuItem:hover {
+.projectMenuItem:hover,
+.projectMenuItemActive {
   background: var(--bg-muted);
 }
 
