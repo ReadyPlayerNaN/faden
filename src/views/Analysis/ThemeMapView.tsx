@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import {
   type CategoryNode,
   type ClusterNode,
   type TagNode,
 } from "../../ipc/codebook";
 import { useAnalysisData } from "./AnalysisData";
+import { mergeAnalysisSearch } from "./analysisSearch";
 import styles from "./ThemeMapView.module.css";
 
 type ThemeBranch =
@@ -23,7 +24,30 @@ type MatrixRow = {
 
 export const ThemeMapView = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
   const { codebook: tree, interviews, spanGroups, loading, error } = useAnalysisData();
+
+  const openEvidence = (filters: { clusterId?: number; interviewId?: number }) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/evidence",
+      params: { projectPath },
+      search: mergeAnalysisSearch({}, {
+        clusterId: filters.clusterId,
+        interviewId: filters.interviewId,
+        categoryId: undefined,
+        tagId: undefined,
+      }),
+    });
+  };
+
+  const openMemos = (filters: { clusterId?: number; categoryId?: number; tagId?: number; interviewId?: number }) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/memos",
+      params: { projectPath },
+      search: mergeAnalysisSearch({}, filters),
+    });
+  };
 
   const matrixRows = useMemo<MatrixRow[]>(() => {
     if (!tree) return [];
@@ -118,7 +142,7 @@ export const ThemeMapView = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            <ViewModeLabel view="analysis">{t("analysis.themeMap.title", { defaultValue: "Theme map" })}</ViewModeLabel>
+            {t("analysis.themeMap.title", { defaultValue: "Theme map" })}
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.themeMap.subtitle", {
@@ -184,9 +208,20 @@ export const ThemeMapView = () => {
           <div className={styles.branchList}>
             {branches.map((branch) =>
               branch.kind === "cluster" ? (
-                <ClusterSection key={`cluster-${branch.cluster.id}`} cluster={branch.cluster} />
+                <ClusterSection
+                  key={`cluster-${branch.cluster.id}`}
+                  cluster={branch.cluster}
+                  onOpenClusterMemos={() => openMemos({ clusterId: branch.cluster.id })}
+                  onOpenCategoryMemos={(categoryId) => openMemos({ categoryId })}
+                  onOpenTagMemos={(tagId) => openMemos({ tagId })}
+                />
               ) : (
-                <StandaloneCategorySection key={`category-${branch.category.id}`} category={branch.category} />
+                <StandaloneCategorySection
+                  key={`category-${branch.category.id}`}
+                  category={branch.category}
+                  onOpenCategoryMemos={() => openMemos({ categoryId: branch.category.id })}
+                  onOpenTagMemos={(tagId) => openMemos({ tagId })}
+                />
               ),
             )}
             {tree.standaloneTags.length > 0 ? (
@@ -205,7 +240,7 @@ export const ThemeMapView = () => {
                 </div>
                 <ul className={styles.tagList}>
                   {tree.standaloneTags.map((tag) => (
-                    <TagRow key={tag.id} tag={tag} />
+                    <TagRow key={tag.id} tag={tag} onOpenMemos={() => openMemos({ tagId: tag.id })} />
                   ))}
                 </ul>
               </section>
@@ -256,7 +291,19 @@ export const ThemeMapView = () => {
                 <tr>
                   <th>{t("analysis.themeMap.matrixInterview", { defaultValue: "Interview" })}</th>
                   {tree.clusters.map((cluster) => (
-                    <th key={cluster.id}>{cluster.name}</th>
+                    <th key={cluster.id}>
+                      <button
+                        type="button"
+                        className={styles.matrixLinkButton}
+                        onClick={() => openEvidence({ clusterId: cluster.id })}
+                        title={t("analysis.themeMap.openEvidenceForCluster", {
+                          name: cluster.name,
+                          defaultValue: "Open evidence for {{name}}",
+                        })}
+                      >
+                        {cluster.name}
+                      </button>
+                    </th>
                   ))}
                   <th>{t("analysis.themeMap.matrixTotal", { defaultValue: "Distinct total" })}</th>
                 </tr>
@@ -264,12 +311,39 @@ export const ThemeMapView = () => {
               <tbody>
                 {matrixRows.map((row) => (
                   <tr key={row.interviewId}>
-                    <th>{row.interviewName}</th>
+                    <th>
+                      <button
+                        type="button"
+                        className={styles.matrixLinkButton}
+                        onClick={() => openEvidence({ interviewId: row.interviewId })}
+                        title={t("analysis.themeMap.openEvidenceForInterview", {
+                          name: row.interviewName,
+                          defaultValue: "Open evidence for {{name}}",
+                        })}
+                      >
+                        {row.interviewName}
+                      </button>
+                    </th>
                     {tree.clusters.map((cluster) => {
                       const value = row.countsByClusterId.get(cluster.id) ?? 0;
                       return (
                         <td key={cluster.id} data-has-value={value > 0 ? "true" : "false"}>
-                          {value}
+                          {value > 0 ? (
+                            <button
+                              type="button"
+                              className={styles.matrixValueButton}
+                              onClick={() => openEvidence({ interviewId: row.interviewId, clusterId: cluster.id })}
+                              title={t("analysis.themeMap.openEvidenceForCell", {
+                                interview: row.interviewName,
+                                cluster: cluster.name,
+                                defaultValue: "Open evidence for {{interview}} in {{cluster}}",
+                              })}
+                            >
+                              {value}
+                            </button>
+                          ) : (
+                            value
+                          )}
                         </td>
                       );
                     })}
@@ -296,7 +370,17 @@ export const ThemeMapView = () => {
   );
 };
 
-const ClusterSection = ({ cluster }: { cluster: ClusterNode }) => {
+const ClusterSection = ({
+  cluster,
+  onOpenClusterMemos,
+  onOpenCategoryMemos,
+  onOpenTagMemos,
+}: {
+  cluster: ClusterNode;
+  onOpenClusterMemos: () => void;
+  onOpenCategoryMemos: (categoryId: number) => void;
+  onOpenTagMemos: (tagId: number) => void;
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -312,7 +396,11 @@ const ClusterSection = ({ cluster }: { cluster: ClusterNode }) => {
             })}
           </p>
         </div>
-        <CountPill count={cluster.count} />
+        <CountPill
+          count={cluster.count}
+          onClick={onOpenClusterMemos}
+          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+        />
       </div>
       {cluster.description ? <p className={styles.description}>{cluster.description}</p> : null}
       {cluster.categories.length === 0 ? (
@@ -324,7 +412,12 @@ const ClusterSection = ({ cluster }: { cluster: ClusterNode }) => {
       ) : (
         <div className={styles.categoryList}>
           {cluster.categories.map((category) => (
-            <CategoryCard key={category.id} category={category} />
+            <CategoryCard
+              key={category.id}
+              category={category}
+              onOpenMemos={() => onOpenCategoryMemos(category.id)}
+              onOpenTagMemos={onOpenTagMemos}
+            />
           ))}
         </div>
       )}
@@ -332,7 +425,15 @@ const ClusterSection = ({ cluster }: { cluster: ClusterNode }) => {
   );
 };
 
-const StandaloneCategorySection = ({ category }: { category: CategoryNode }) => {
+const StandaloneCategorySection = ({
+  category,
+  onOpenCategoryMemos,
+  onOpenTagMemos,
+}: {
+  category: CategoryNode;
+  onOpenCategoryMemos: () => void;
+  onOpenTagMemos: (tagId: number) => void;
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -346,7 +447,11 @@ const StandaloneCategorySection = ({ category }: { category: CategoryNode }) => 
             })}
           </p>
         </div>
-        <CountPill count={category.count} />
+        <CountPill
+          count={category.count}
+          onClick={onOpenCategoryMemos}
+          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+        />
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
       {category.tags.length === 0 ? (
@@ -358,7 +463,7 @@ const StandaloneCategorySection = ({ category }: { category: CategoryNode }) => 
       ) : (
         <ul className={styles.tagList}>
           {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} />
+            <TagRow key={tag.id} tag={tag} onOpenMemos={() => onOpenTagMemos(tag.id)} />
           ))}
         </ul>
       )}
@@ -366,7 +471,15 @@ const StandaloneCategorySection = ({ category }: { category: CategoryNode }) => 
   );
 };
 
-const CategoryCard = ({ category }: { category: CategoryNode }) => {
+const CategoryCard = ({
+  category,
+  onOpenMemos,
+  onOpenTagMemos,
+}: {
+  category: CategoryNode;
+  onOpenMemos: () => void;
+  onOpenTagMemos: (tagId: number) => void;
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -382,7 +495,11 @@ const CategoryCard = ({ category }: { category: CategoryNode }) => {
             })}
           </p>
         </div>
-        <CountPill count={category.count} />
+        <CountPill
+          count={category.count}
+          onClick={onOpenMemos}
+          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+        />
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
       {category.tags.length === 0 ? (
@@ -394,7 +511,7 @@ const CategoryCard = ({ category }: { category: CategoryNode }) => {
       ) : (
         <ul className={styles.tagList}>
           {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} />
+            <TagRow key={tag.id} tag={tag} onOpenMemos={() => onOpenTagMemos(tag.id)} />
           ))}
         </ul>
       )}
@@ -402,7 +519,7 @@ const CategoryCard = ({ category }: { category: CategoryNode }) => {
   );
 };
 
-const TagRow = ({ tag }: { tag: TagNode }) => {
+const TagRow = ({ tag, onOpenMemos }: { tag: TagNode; onOpenMemos?: () => void }) => {
   const { t } = useTranslation();
 
   return (
@@ -411,14 +528,28 @@ const TagRow = ({ tag }: { tag: TagNode }) => {
         <div className={styles.tagName}>{tag.name}</div>
         {tag.description ? <p className={styles.tagDescription}>{tag.description}</p> : null}
       </div>
-      <span className={styles.tagCount}>
-        {t("analysis.themeMap.tagCount", {
-          count: tag.count,
-          defaultValue: "Refs: {{count}}",
-        })}
-      </span>
+      <CountPill
+        count={tag.count}
+        onClick={onOpenMemos}
+        label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+      />
     </li>
   );
 };
 
-const CountPill = ({ count }: { count: number }) => <span className={styles.countPill}>{count}</span>;
+const CountPill = ({
+  count,
+  onClick,
+  label,
+}: {
+  count: number;
+  onClick?: () => void;
+  label?: string;
+}) =>
+  onClick ? (
+    <button type="button" className={`${styles.countPill} ${styles.countPillButton}`.trim()} onClick={onClick} title={label}>
+      {count}
+    </button>
+  ) : (
+    <span className={styles.countPill}>{count}</span>
+  );

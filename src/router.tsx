@@ -17,6 +17,7 @@ import { AiOpDetailView } from "./views/AI/AiOpDetailView";
 import { SuggestionsView } from "./views/AI/SuggestionsView";
 import { ExportView } from "./views/Export/ExportView";
 import { AnalysisView } from "./views/Analysis/AnalysisView";
+import { normalizeAnalysisSearch } from "./views/Analysis/analysisSearch";
 import { AudioPlayer } from "./views/Workspace/AudioPlayer/AudioPlayer";
 import { currentProjectAtom } from "./state/project";
 
@@ -121,24 +122,28 @@ const exportRoute = createRoute({
 const analysisRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/analysis",
+	validateSearch: (search) => normalizeAnalysisSearch(search as Record<string, unknown>),
 	component: () => <AnalysisView section="theme-map" />,
 });
 
 const analysisEvidenceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/analysis/evidence",
+	validateSearch: (search) => normalizeAnalysisSearch(search as Record<string, unknown>),
 	component: () => <AnalysisView section="evidence" />,
 });
 
 const analysisCooccurrenceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/analysis/cooccurrence",
+	validateSearch: (search) => normalizeAnalysisSearch(search as Record<string, unknown>),
 	component: () => <AnalysisView section="cooccurrence" />,
 });
 
 const analysisMemosRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/workspace/$projectPath/analysis/memos",
+	validateSearch: (search) => normalizeAnalysisSearch(search as Record<string, unknown>),
 	component: () => <AnalysisView section="memos" />,
 });
 

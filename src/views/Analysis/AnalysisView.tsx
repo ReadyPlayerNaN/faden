@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
@@ -9,6 +9,7 @@ import { CooccurrenceView } from "./CooccurrenceView";
 import { EvidenceBrowserContent } from "./EvidenceBrowserView";
 import { MemoLayerView } from "./MemoLayerView";
 import { ThemeMapView } from "./ThemeMapView";
+import { type AnalysisSearch } from "./analysisSearch";
 import styles from "./AnalysisView.module.css";
 
 type Section = "theme-map" | "evidence" | "cooccurrence" | "memos";
@@ -21,6 +22,7 @@ export const AnalysisView = ({ section }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
+  const search = useSearch({ strict: false }) as AnalysisSearch;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +108,7 @@ export const AnalysisView = ({ section }: Props) => {
                         void navigate({
                           to: tab.to,
                           params: { projectPath },
+                          search: (prev) => ({ ...prev, ...search }),
                         });
                       }}
                     >

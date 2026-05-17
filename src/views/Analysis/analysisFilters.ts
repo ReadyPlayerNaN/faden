@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import type { CategoryNode, ClusterNode, TagMeta } from "../../ipc/codebook";
 import type { Interview } from "../../ipc/interview";
 import type { AnalysisItem } from "./AnalysisData";
@@ -13,6 +13,14 @@ type FiltersArgs<T extends AnalysisItem> = {
   standaloneCategories: CategoryNode[];
   interviews: Interview[];
   items: T[];
+  clusterFilter: number | null;
+  setClusterFilter: (value: number | null) => void;
+  categoryFilter: number | null;
+  setCategoryFilter: (value: number | null) => void;
+  tagFilter: number | null;
+  setTagFilter: (value: number | null) => void;
+  interviewFilter: number | null;
+  setInterviewFilter: (value: number | null) => void;
 };
 
 const compareByName = <T extends { name: string }>(a: T, b: T) =>
@@ -29,11 +37,15 @@ export const useAnalysisHierarchyFilters = <T extends AnalysisItem>({
   standaloneCategories,
   interviews,
   items,
+  clusterFilter,
+  setClusterFilter,
+  categoryFilter,
+  setCategoryFilter,
+  tagFilter,
+  setTagFilter,
+  interviewFilter,
+  setInterviewFilter,
 }: FiltersArgs<T>) => {
-  const [clusterFilter, setClusterFilter] = useState<number | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
-  const [tagFilter, setTagFilter] = useState<number | null>(null);
-  const [interviewFilter, setInterviewFilter] = useState<number | null>(null);
 
   const categoryOptions = useMemo<CategoryOption[]>(() => {
     return [

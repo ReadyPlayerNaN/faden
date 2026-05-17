@@ -1,15 +1,25 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { ViewModeLabel } from "../../components/ViewModeIcon/ViewModeIcon";
 import { useAnalysisData } from "./AnalysisData";
 import { useAnalysisHierarchyFilters } from "./analysisFilters";
+import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
 import styles from "./MemoLayerView.module.css";
 
 export const MemoLayerView = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as AnalysisSearch;
   const { codebook, interviews, memoItems, loading, error } = useAnalysisData();
+
+  const setSearchFilters = (patch: Partial<Record<keyof AnalysisSearch, number | null | undefined>>) => {
+    void navigate({
+      search: mergeAnalysisSearch(search, patch) as never,
+      replace: true,
+    });
+  };
 
   const {
     clusterFilter,
@@ -24,12 +34,19 @@ export const MemoLayerView = () => {
     filteredTagOptions,
     interviewOptions,
     visibleItems,
-    clearFilters,
   } = useAnalysisHierarchyFilters({
     codebookClusters: codebook?.clusters ?? [],
     standaloneCategories: codebook?.standaloneCategories ?? [],
     interviews,
     items: memoItems,
+    clusterFilter: search.clusterId ?? null,
+    setClusterFilter: (value) => setSearchFilters({ clusterId: value, categoryId: undefined, tagId: undefined }),
+    categoryFilter: search.categoryId ?? null,
+    setCategoryFilter: (value) => setSearchFilters({ categoryId: value, tagId: undefined }),
+    tagFilter: search.tagId ?? null,
+    setTagFilter: (value) => setSearchFilters({ tagId: value }),
+    interviewFilter: search.interviewId ?? null,
+    setInterviewFilter: (value) => setSearchFilters({ interviewId: value }),
   });
 
   const visibleMemos = useMemo(() => visibleItems, [visibleItems]);
@@ -39,7 +56,7 @@ export const MemoLayerView = () => {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>
-            <ViewModeLabel view="analysis">{t("analysis.memos.title", { defaultValue: "Memos" })}</ViewModeLabel>
+            {t("analysis.memos.title", { defaultValue: "Memos" })}
           </h1>
           <p className={styles.subtitle}>
             {t("analysis.memos.subtitle", {
@@ -68,7 +85,9 @@ export const MemoLayerView = () => {
             {t("analysis.memos.filters", { defaultValue: "Filters" })}
           </h2>
           <Button
-            onClick={clearFilters}
+            onClick={() => {
+              setSearchFilters({ clusterId: undefined, categoryId: undefined, tagId: undefined, interviewId: undefined });
+            }}
             disabled={
               clusterFilter === null &&
               categoryFilter === null &&
