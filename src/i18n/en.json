@@ -42,7 +42,9 @@
     "editProject": "Edit project",
     "settings": "Settings",
     "openAnotherProject": "Open another project",
-    "coding": "Coding"
+    "coding": "Coding",
+    "rightPaneResizeHandle": "Resize details panel",
+    "rightPaneResizeHandleHint": "Drag to resize the details panel. Use Left/Right arrows to adjust, Home for wider, End for narrower. Double-click to reset."
   },
   "codebook": {
     "addCluster": "+ Cluster",

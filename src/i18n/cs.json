@@ -41,7 +41,9 @@
     "editProject": "Upravit projekt",
     "settings": "Nastavení",
     "openAnotherProject": "Otevřít jiný projekt",
-    "coding": "Kódování"
+    "coding": "Kódování",
+    "rightPaneResizeHandle": "Změnit šířku panelu detailu",
+    "rightPaneResizeHandleHint": "Tažením změňte šířku panelu detailu. Šipky vlevo/vpravo upravují šířku, Home panel rozšíří, End zúží. Dvojklik obnoví výchozí šířku."
   },
   "codebook": {
     "addCluster": "+ Cluster",

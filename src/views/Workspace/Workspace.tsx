@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "@tanstack/react-router";
@@ -26,6 +34,30 @@ import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
 import styles from "./Workspace.module.css";
 
+const RIGHT_PANE_WIDTH_STORAGE_KEY = "faden.workspace-right-pane-width";
+const DEFAULT_RIGHT_PANE_WIDTH = 320;
+const MIN_RIGHT_PANE_WIDTH = 240;
+const MAX_RIGHT_PANE_WIDTH = 520;
+const MIN_CENTER_PANE_WIDTH = 320;
+const KEYBOARD_RESIZE_STEP = 24;
+
+const clampRightPaneWidth = (width: number, containerWidth: number) => {
+  if (!Number.isFinite(width)) return DEFAULT_RIGHT_PANE_WIDTH;
+  const maxWidth = Math.min(
+    MAX_RIGHT_PANE_WIDTH,
+    Math.max(MIN_RIGHT_PANE_WIDTH, containerWidth - MIN_CENTER_PANE_WIDTH),
+  );
+  return Math.min(Math.max(width, MIN_RIGHT_PANE_WIDTH), maxWidth);
+};
+
+const readStoredRightPaneWidth = () => {
+  if (typeof window === "undefined") return DEFAULT_RIGHT_PANE_WIDTH;
+  const raw = window.localStorage.getItem(RIGHT_PANE_WIDTH_STORAGE_KEY);
+  if (raw === null) return DEFAULT_RIGHT_PANE_WIDTH;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : DEFAULT_RIGHT_PANE_WIDTH;
+};
+
 export const Workspace = () => {
   const { t } = useTranslation();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
@@ -42,6 +74,9 @@ export const Workspace = () => {
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
   const [mobilePane, setMobilePane] = useState<"edits" | "right">("edits");
+  const [rightPaneWidth, setRightPaneWidth] = useState(readStoredRightPaneWidth);
+  const [isResizingRightPane, setIsResizingRightPane] = useState(false);
+  const panesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -168,6 +203,22 @@ export const Workspace = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
 
+  useEffect(() => {
+    window.localStorage.setItem(RIGHT_PANE_WIDTH_STORAGE_KEY, String(rightPaneWidth));
+  }, [rightPaneWidth]);
+
+  useEffect(() => {
+    const syncRightPaneWidth = () => {
+      const containerWidth = panesRef.current?.getBoundingClientRect().width;
+      if (!containerWidth) return;
+      setRightPaneWidth((current) => clampRightPaneWidth(current, containerWidth));
+    };
+
+    syncRightPaneWidth();
+    window.addEventListener("resize", syncRightPaneWidth);
+    return () => window.removeEventListener("resize", syncRightPaneWidth);
+  }, []);
+
   const interviewOptions = useMemo(
     () =>
       interviews.map((interview) => ({
@@ -178,8 +229,77 @@ export const Workspace = () => {
     [interviews],
   );
 
+  const applyRightPaneWidth = (nextWidth: number) => {
+    const containerWidth = panesRef.current?.getBoundingClientRect().width;
+    if (!containerWidth) return;
+    setRightPaneWidth(clampRightPaneWidth(nextWidth, containerWidth));
+  };
+
+  const onRightPaneResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (window.matchMedia("(max-width: 760px)").matches) return;
+
+    event.preventDefault();
+    const pointerId = event.pointerId;
+    const handle = event.currentTarget;
+    handle.setPointerCapture(pointerId);
+    setIsResizingRightPane(true);
+
+    const updateWidthFromPointer = (clientX: number) => {
+      const rect = panesRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      applyRightPaneWidth(rect.right - clientX);
+    };
+
+    updateWidthFromPointer(event.clientX);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      updateWidthFromPointer(moveEvent.clientX);
+    };
+
+    const finishResize = () => {
+      setIsResizingRightPane(false);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      if (handle.hasPointerCapture(pointerId)) {
+        handle.releasePointerCapture(pointerId);
+      }
+    };
+
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      finishResize();
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  };
+
+  const onRightPaneResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const containerWidth = panesRef.current?.getBoundingClientRect().width;
+    if (!containerWidth) return;
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      setRightPaneWidth((current) => clampRightPaneWidth(current + KEYBOARD_RESIZE_STEP, containerWidth));
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      setRightPaneWidth((current) => clampRightPaneWidth(current - KEYBOARD_RESIZE_STEP, containerWidth));
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setRightPaneWidth(clampRightPaneWidth(MAX_RIGHT_PANE_WIDTH, containerWidth));
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setRightPaneWidth(clampRightPaneWidth(MIN_RIGHT_PANE_WIDTH, containerWidth));
+    }
+  };
+
+  const resetRightPaneWidth = () => applyRightPaneWidth(DEFAULT_RIGHT_PANE_WIDTH);
+
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-resizing={isResizingRightPane ? "true" : undefined}>
       <ProjectHeader
         activeView="coding"
         viewAccessory={
@@ -223,8 +343,33 @@ export const Workspace = () => {
         }
       />
       <div className={styles.layout} data-mobile-pane={mobilePane}>
-        <div className={styles.panes}>
+        <div
+          ref={panesRef}
+          className={styles.panes}
+          style={{
+            "--workspace-right-pane-width": `${rightPaneWidth}px`,
+          } as CSSProperties}
+        >
           <CenterPane />
+          <div
+            className={styles.resizer}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("workspace.rightPaneResizeHandle", {
+              defaultValue: "Resize details panel",
+            })}
+            aria-valuemin={MIN_RIGHT_PANE_WIDTH}
+            aria-valuemax={MAX_RIGHT_PANE_WIDTH}
+            aria-valuenow={Math.round(rightPaneWidth)}
+            tabIndex={0}
+            title={t("workspace.rightPaneResizeHandleHint", {
+              defaultValue:
+                "Drag to resize the details panel. Use Left/Right arrows to adjust, Home for wider, End for narrower.",
+            })}
+            onPointerDown={onRightPaneResizePointerDown}
+            onKeyDown={onRightPaneResizeKeyDown}
+            onDoubleClick={resetRightPaneWidth}
+          />
           <RightPane />
         </div>
       </div>

@@ -1,9 +1,15 @@
 .shell {
   --workspace-right-pane-width: 320px;
+  --workspace-resizer-width: 0.875rem;
 
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.shell[data-resizing="true"] {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .iconButton {
@@ -23,9 +29,60 @@
 
 .panes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--workspace-right-pane-width);
+  grid-template-columns:
+    minmax(0, 1fr)
+    var(--workspace-resizer-width)
+    var(--workspace-right-pane-width);
   flex: 1;
   min-height: 0;
+}
+
+.resizer {
+  position: relative;
+  min-width: var(--workspace-resizer-width);
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.resizer::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  transition: background 120ms ease;
+}
+
+.resizer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.3rem;
+  height: 3rem;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--bg-muted) 65%, var(--accent));
+  opacity: 0.7;
+  transition: opacity 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.resizer:hover::before,
+.resizer:focus-visible::before,
+.shell[data-resizing="true"] .resizer::before {
+  background: color-mix(in srgb, var(--accent) 75%, var(--border));
+}
+
+.resizer:hover::after,
+.resizer:focus-visible::after,
+.shell[data-resizing="true"] .resizer::after {
+  opacity: 1;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 @media (max-width: 1280px) {
@@ -43,6 +100,10 @@
     display: block;
   }
 
+  .resizer {
+    display: none;
+  }
+
   .panes > * {
     display: none;
     height: 100%;
@@ -50,7 +111,7 @@
   }
 
   .layout[data-mobile-pane="edits"] .panes > :first-child,
-  .layout[data-mobile-pane="right"] .panes > :nth-child(2) {
+  .layout[data-mobile-pane="right"] .panes > :nth-child(3) {
     display: flex;
   }
 
