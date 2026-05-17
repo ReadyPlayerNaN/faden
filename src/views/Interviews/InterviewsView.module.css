@@ -34,7 +34,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-muted);
-  overflow: hidden;
+  overflow: visible;
 }
 
 @media (max-width: 760px) {
