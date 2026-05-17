@@ -178,7 +178,7 @@
     "createNewTag": "Nový štítek…",
     "search": "Hledat štítky…",
     "noResults": "Žádný štítek nevyhovuje",
-    "tags": "Štítky",
+    "tags": "Značky",
     "memo": "Poznámka",
     "memoPlaceholder": "Volitelné poznámky k citaci",
     "deleteSpan": "Smazat výběr",
@@ -188,7 +188,7 @@
     "standalone": "Samostatný (bez kategorie)"
   },
   "tags": {
-    "title": "Štítky",
+    "title": "Značky",
     "addCluster": "Přidat klastr",
     "addCategory": "Přidat kategorii",
     "addTag": "Přidat štítek",
