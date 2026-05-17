@@ -11,19 +11,73 @@
   padding-block: 1rem 1.5rem;
 }
 
-.tabBar {
+.subviewMenuWrap {
+  position: relative;
+}
+
+.subviewMenuTrigger {
+  min-height: 2.25rem;
+  padding-inline: 0.5rem;
+  border-color: transparent;
+  font-size: 0.9rem;
+}
+
+.subviewMenuTrigger:hover,
+.subviewMenuTrigger:active,
+.subviewMenuTrigger[aria-expanded="true"] {
+  border-color: var(--border);
+}
+
+.subviewMenuTriggerContent {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
-.tabButton {
-  min-height: 2.25rem;
+.subviewMenuLabel {
+  font-weight: 600;
 }
 
-.tabButtonActive {
-  background: var(--accent);
-  color: var(--accent-contrast, white);
-  border-color: var(--accent);
+.subviewMenuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 14rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.35rem 0;
+  z-index: 20;
+}
+
+.subviewMenuItem {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border: 0;
+  color: var(--fg);
+  font: inherit;
+}
+
+.subviewMenuItem:hover {
+  background: var(--bg-muted);
+}
+
+.subviewMenuItem:active {
+  background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
+}
+
+.subviewMenuItemActive {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.subviewMenuItemMark {
+  font-weight: 700;
 }

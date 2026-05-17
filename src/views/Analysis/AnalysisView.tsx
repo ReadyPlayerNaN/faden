@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
@@ -21,6 +21,9 @@ export const AnalysisView = ({ section }: Props) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const tabs = useMemo(
     () => [
@@ -48,30 +51,71 @@ export const AnalysisView = ({ section }: Props) => {
     [t],
   );
 
+  const activeTab = tabs.find((tab) => tab.key === section) ?? tabs[0];
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onMouseDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
     <div className={styles.shell}>
       <ProjectHeader
         activeView="analysis"
         viewAccessory={
-          <div className={styles.tabBar} role="tablist" aria-label={t("analysis.title", { defaultValue: "Analysis" })}>
-            {tabs.map((tab) => {
-              const active = tab.key === section;
-              return (
-                <Button
-                  key={tab.key}
-                  onClick={() =>
-                    void navigate({
-                      to: tab.to,
-                      params: { projectPath },
-                    })
-                  }
-                  className={`${styles.tabButton} ${active ? styles.tabButtonActive : ""}`.trim()}
-                  aria-pressed={active}
-                >
-                  {tab.label}
-                </Button>
-              );
-            })}
+          <div className={styles.subviewMenuWrap} ref={menuRef}>
+            <Button
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className={styles.subviewMenuTrigger}
+            >
+              <span className={styles.subviewMenuTriggerContent}>
+                <span className={styles.subviewMenuLabel}>{activeTab.label}</span>
+                <span aria-hidden="true">▾</span>
+              </span>
+            </Button>
+            {menuOpen && (
+              <div className={styles.subviewMenuDropdown} role="menu" aria-label={t("analysis.title", { defaultValue: "Analysis" })}>
+                {tabs.map((tab) => {
+                  const active = tab.key === section;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      aria-current={active ? "page" : undefined}
+                      className={`${styles.subviewMenuItem} ${active ? styles.subviewMenuItemActive : ""}`.trim()}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        if (active) return;
+                        void navigate({
+                          to: tab.to,
+                          params: { projectPath },
+                        });
+                      }}
+                    >
+                      <span>{tab.label}</span>
+                      {active ? <span className={styles.subviewMenuItemMark} aria-hidden="true">✓</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         }
       />
