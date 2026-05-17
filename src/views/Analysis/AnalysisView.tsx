@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { AnalysisDataProvider } from "./AnalysisData";
 import { CooccurrenceView } from "./CooccurrenceView";
 import { EvidenceBrowserContent } from "./EvidenceBrowserView";
 import { MemoLayerView } from "./MemoLayerView";
@@ -76,15 +77,17 @@ export const AnalysisView = ({ section }: Props) => {
       />
 
       <PageContainer className={styles.wrap} size="xwide">
-        {section === "theme-map" ? (
-          <ThemeMapView />
-        ) : section === "evidence" ? (
-          <EvidenceBrowserContent />
-        ) : section === "cooccurrence" ? (
-          <CooccurrenceView />
-        ) : (
-          <MemoLayerView />
-        )}
+        <AnalysisDataProvider>
+          {section === "theme-map" ? (
+            <ThemeMapView />
+          ) : section === "evidence" ? (
+            <EvidenceBrowserContent />
+          ) : section === "cooccurrence" ? (
+            <CooccurrenceView />
+          ) : (
+            <MemoLayerView />
+          )}
+        </AnalysisDataProvider>
       </PageContainer>
     </div>
   );

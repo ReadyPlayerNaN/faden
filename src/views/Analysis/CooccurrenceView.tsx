@@ -1,19 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useSetAtom } from "jotai";
-import { useParams } from "@tanstack/react-router";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import {
-  buildTagMetaMap,
-  codebookTree as fetchCodebookTree,
-  type TagMeta,
-} from "../../ipc/codebook";
-import { interviewList as fetchInterviews } from "../../ipc/interview";
-import { projectOpen } from "../../ipc/project";
-import { spanListForInterview } from "../../ipc/tagging";
-import { codebookTreeAtom } from "../../state/codebook";
-import { interviewListAtom } from "../../state/interview";
-import { currentProjectAtom } from "../../state/project";
+import type { TagMeta } from "../../ipc/codebook";
+import { useAnalysisData } from "./AnalysisData";
 import styles from "./CooccurrenceView.module.css";
 
 type PairRow = {
@@ -34,84 +23,38 @@ const tagContext = (meta: TagMeta, t: ReturnType<typeof useTranslation>["t"]) =>
 
 export const CooccurrenceView = () => {
   const { t } = useTranslation();
-  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
-  const decodedProjectPath = decodeURIComponent(projectPath);
-  const [project, setProject] = useAtom(currentProjectAtom);
-  const setCodebook = useSetAtom(codebookTreeAtom);
-  const setInterviews = useSetAtom(interviewListAtom);
-  const [rows, setRows] = useState<PairRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { evidenceItems, loading, error } = useAnalysisData();
 
-  useEffect(() => {
-    if (!project || project.path !== decodedProjectPath) {
-      void projectOpen(decodedProjectPath)
-        .then(setProject)
-        .catch((err: unknown) => {
-          setError(err instanceof Error ? err.message : String(err));
-          setLoading(false);
-        });
-    }
-  }, [decodedProjectPath, project, setProject]);
+  const rows = useMemo<PairRow[]>(() => {
+    const pairCounts = new Map<string, number>();
+    const tagMetaById = new Map<number, TagMeta>();
 
-  useEffect(() => {
-    if (!project || project.path !== decodedProjectPath) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-
-    void Promise.all([fetchCodebookTree(), fetchInterviews()])
-      .then(async ([nextCodebook, nextInterviews]) => {
-        const tagMetaById = buildTagMetaMap(nextCodebook);
-        const spanGroups = await Promise.all(
-          nextInterviews.map(async (interview) => spanListForInterview(interview.id)),
-        );
-        if (cancelled) return;
-
-        const pairCounts = new Map<string, number>();
-        for (const spans of spanGroups) {
-          for (const span of spans) {
-            const uniqueTags = Array.from(new Set(span.tags.map((tagRef) => tagRef.tagId)))
-              .map((tagId) => tagMetaById.get(tagId))
-              .filter((meta): meta is TagMeta => meta !== undefined)
-              .sort(compareTagNames);
-            if (uniqueTags.length < 2) continue;
-            for (let i = 0; i < uniqueTags.length - 1; i += 1) {
-              for (let j = i + 1; j < uniqueTags.length; j += 1) {
-                const key = `${uniqueTags[i].tag.id}:${uniqueTags[j].tag.id}`;
-                pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
-              }
-            }
-          }
+    for (const item of evidenceItems) {
+      item.tagMetas.forEach((meta) => tagMetaById.set(meta.tag.id, meta));
+      const uniqueTags = Array.from(new Set(item.tagMetas.map((meta) => meta.tag.id)))
+        .map((tagId) => tagMetaById.get(tagId))
+        .filter((meta): meta is TagMeta => meta !== undefined)
+        .sort(compareTagNames);
+      if (uniqueTags.length < 2) continue;
+      for (let i = 0; i < uniqueTags.length - 1; i += 1) {
+        for (let j = i + 1; j < uniqueTags.length; j += 1) {
+          const key = `${uniqueTags[i].tag.id}:${uniqueTags[j].tag.id}`;
+          pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
         }
+      }
+    }
 
-        const nextRows = Array.from(pairCounts.entries())
-          .map(([key, count]) => {
-            const [firstId, secondId] = key.split(":").map(Number);
-            const tagA = tagMetaById.get(firstId);
-            const tagB = tagMetaById.get(secondId);
-            if (!tagA || !tagB) return null;
-            return { key, tagA, tagB, count } satisfies PairRow;
-          })
-          .filter((row): row is PairRow => row !== null)
-          .sort((a, b) => b.count - a.count || compareTagNames(a.tagA, b.tagA) || compareTagNames(a.tagB, b.tagB));
-
-        setCodebook(nextCodebook);
-        setInterviews(nextInterviews);
-        setRows(nextRows);
+    return Array.from(pairCounts.entries())
+      .map(([key, count]) => {
+        const [firstId, secondId] = key.split(":").map(Number);
+        const tagA = tagMetaById.get(firstId);
+        const tagB = tagMetaById.get(secondId);
+        if (!tagA || !tagB) return null;
+        return { key, tagA, tagB, count } satisfies PairRow;
       })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [decodedProjectPath, project, setCodebook, setInterviews]);
+      .filter((row): row is PairRow => row !== null)
+      .sort((a, b) => b.count - a.count || compareTagNames(a.tagA, b.tagA) || compareTagNames(a.tagB, b.tagB));
+  }, [evidenceItems]);
 
   const summary = useMemo(() => {
     const totalPairs = rows.length;
@@ -145,7 +88,7 @@ export const CooccurrenceView = () => {
         </div>
       </header>
 
-      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
+      {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 
       <section className={styles.explainerCard}>
         <p className={styles.explainerText}>

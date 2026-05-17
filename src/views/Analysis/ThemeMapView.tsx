@@ -1,21 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom, useSetAtom } from "jotai";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import {
-  codebookTree as fetchCodebookTree,
   type CategoryNode,
   type ClusterNode,
-  type CodebookTree,
   type TagNode,
 } from "../../ipc/codebook";
-import { interviewList as fetchInterviews, type Interview } from "../../ipc/interview";
-import { projectOpen } from "../../ipc/project";
-import { spanListForInterview } from "../../ipc/tagging";
-import { codebookTreeAtom } from "../../state/codebook";
-import { interviewListAtom } from "../../state/interview";
-import { currentProjectAtom } from "../../state/project";
-import { useParams } from "@tanstack/react-router";
+import { useAnalysisData } from "./AnalysisData";
 import styles from "./ThemeMapView.module.css";
 
 type ThemeBranch =
@@ -23,108 +14,57 @@ type ThemeBranch =
   | { kind: "category"; category: CategoryNode };
 
 type MatrixRow = {
-  interview: Interview;
+  interviewId: number;
+  interviewName: string;
   countsByClusterId: Map<number, number>;
   total: number;
 };
 
 export const ThemeMapView = () => {
   const { t } = useTranslation();
-  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
-  const decodedProjectPath = decodeURIComponent(projectPath);
-  const [project, setProject] = useAtom(currentProjectAtom);
-  const setCodebook = useSetAtom(codebookTreeAtom);
-  const setInterviewList = useSetAtom(interviewListAtom);
-  const [tree, setTree] = useState<CodebookTree | null>(null);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { codebook: tree, interviews, spanGroups, loading, error } = useAnalysisData();
 
-  useEffect(() => {
-    if (!project || project.path !== decodedProjectPath) {
-      void projectOpen(decodedProjectPath)
-        .then(setProject)
-        .catch((err: unknown) => {
-          setError(err instanceof Error ? err.message : String(err));
-          setLoading(false);
-        });
-    }
-  }, [decodedProjectPath, project, setProject]);
-
-  useEffect(() => {
-    if (!project || project.path !== decodedProjectPath) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void Promise.all([fetchCodebookTree(), fetchInterviews()])
-      .then(async ([nextTree, nextInterviews]) => {
-        const tagClusterByTagId = new Map<number, number>();
-        for (const cluster of nextTree.clusters) {
-          for (const category of cluster.categories) {
-            for (const tag of category.tags) {
-              tagClusterByTagId.set(tag.id, cluster.id);
-            }
-          }
+  const matrixRows = useMemo<MatrixRow[]>(() => {
+    if (!tree) return [];
+    const tagClusterByTagId = new Map<number, number>();
+    for (const cluster of tree.clusters) {
+      for (const category of cluster.categories) {
+        for (const tag of category.tags) {
+          tagClusterByTagId.set(tag.id, cluster.id);
         }
+      }
+    }
 
-        const spanGroups = await Promise.all(
-          nextInterviews.map(async (interview) => ({
-            interview,
-            spans: await spanListForInterview(interview.id),
-          })),
-        );
+    return spanGroups.map(({ interview, spans }) => {
+      const spanIdsByClusterId = new Map<number, Set<number>>();
+      const totalSpanIds = new Set<number>();
+      for (const span of spans) {
+        const clusterIds = new Set<number>();
+        for (const tag of span.tags) {
+          const clusterId = tagClusterByTagId.get(tag.tagId);
+          if (clusterId !== undefined) clusterIds.add(clusterId);
+        }
+        if (clusterIds.size > 0) totalSpanIds.add(span.id);
+        for (const clusterId of clusterIds) {
+          const spanIds = spanIdsByClusterId.get(clusterId) ?? new Set<number>();
+          spanIds.add(span.id);
+          spanIdsByClusterId.set(clusterId, spanIds);
+        }
+      }
 
-        if (cancelled) return;
+      const countsByClusterId = new Map<number, number>();
+      for (const cluster of tree.clusters) {
+        countsByClusterId.set(cluster.id, spanIdsByClusterId.get(cluster.id)?.size ?? 0);
+      }
 
-        const nextRows = spanGroups.map(({ interview, spans }) => {
-          const spanIdsByClusterId = new Map<number, Set<number>>();
-          const totalSpanIds = new Set<number>();
-          for (const span of spans) {
-            const clusterIds = new Set<number>();
-            for (const tag of span.tags) {
-              const clusterId = tagClusterByTagId.get(tag.tagId);
-              if (clusterId !== undefined) clusterIds.add(clusterId);
-            }
-            if (clusterIds.size > 0) {
-              totalSpanIds.add(span.id);
-            }
-            for (const clusterId of clusterIds) {
-              const spanIds = spanIdsByClusterId.get(clusterId) ?? new Set<number>();
-              spanIds.add(span.id);
-              spanIdsByClusterId.set(clusterId, spanIds);
-            }
-          }
-
-          const countsByClusterId = new Map<number, number>();
-          for (const cluster of nextTree.clusters) {
-            countsByClusterId.set(cluster.id, spanIdsByClusterId.get(cluster.id)?.size ?? 0);
-          }
-
-          return {
-            interview,
-            countsByClusterId,
-            total: totalSpanIds.size,
-          };
-        });
-
-        setTree(nextTree);
-        setCodebook(nextTree);
-        setInterviews(nextInterviews);
-        setInterviewList(nextInterviews);
-        setMatrixRows(nextRows);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [decodedProjectPath, project, setCodebook, setInterviewList]);
+      return {
+        interviewId: interview.id,
+        interviewName: interview.name,
+        countsByClusterId,
+        total: totalSpanIds.size,
+      };
+    });
+  }, [spanGroups, tree]);
 
   const branches = useMemo<ThemeBranch[]>(() => {
     if (!tree) return [];
@@ -199,7 +139,7 @@ export const ThemeMapView = () => {
         </div>
       </header>
 
-      {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
+      {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 
       <section className={styles.explainerCard}>
         <p className={styles.explainerText}>
@@ -322,8 +262,8 @@ export const ThemeMapView = () => {
               </thead>
               <tbody>
                 {matrixRows.map((row) => (
-                  <tr key={row.interview.id}>
-                    <th>{row.interview.name}</th>
+                  <tr key={row.interviewId}>
+                    <th>{row.interviewName}</th>
                     {tree.clusters.map((cluster) => {
                       const value = row.countsByClusterId.get(cluster.id) ?? 0;
                       return (
@@ -344,9 +284,7 @@ export const ThemeMapView = () => {
                       {matrixColumnTotals.get(cluster.id) ?? 0}
                     </td>
                   ))}
-                  <td>
-                    {matrixRows.reduce((sum, row) => sum + row.total, 0)}
-                  </td>
+                  <td>{matrixRows.reduce((sum, row) => sum + row.total, 0)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -482,6 +420,4 @@ const TagRow = ({ tag }: { tag: TagNode }) => {
   );
 };
 
-const CountPill = ({ count }: { count: number }) => (
-  <span className={styles.countPill}>{count}</span>
-);
+const CountPill = ({ count }: { count: number }) => <span className={styles.countPill}>{count}</span>;

@@ -1,5 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const emitHistoryChanged = () => {
+  window.dispatchEvent(new Event("stt:history-changed"));
+};
+
+const withHistoryChanged = async <T,>(promise: Promise<T>): Promise<T> => {
+  const result = await promise;
+  emitHistoryChanged();
+  return result;
+};
+
 export type Cluster = {
   id: number;
   name: string;
@@ -187,26 +197,28 @@ export const clusterCreate = async (
   color?: string | null,
 ): Promise<Cluster> =>
   clusterFromRaw(
-    await invoke<RawCluster>("cluster_create", {
-      name,
-      description: description ?? null,
-      color: color ?? null,
-    }),
+    await withHistoryChanged(
+      invoke<RawCluster>("cluster_create", {
+        name,
+        description: description ?? null,
+        color: color ?? null,
+      }),
+    ),
   );
 export const clusterRename = (id: number, name: string): Promise<void> =>
-  invoke("cluster_rename", { id, name });
+  withHistoryChanged(invoke("cluster_rename", { id, name }));
 export const clusterSetDescription = (
   id: number,
   description: string | null,
-): Promise<void> => invoke("cluster_set_description", { id, description });
+): Promise<void> => withHistoryChanged(invoke("cluster_set_description", { id, description }));
 export const clusterSetColor = (
   id: number,
   color: string | null,
-): Promise<void> => invoke("cluster_set_color", { id, color });
+): Promise<void> => withHistoryChanged(invoke("cluster_set_color", { id, color }));
 export const clusterDelete = (id: number): Promise<void> =>
-  invoke("cluster_delete", { id });
+  withHistoryChanged(invoke("cluster_delete", { id }));
 export const clusterReorder = (ids: number[]): Promise<void> =>
-  invoke("cluster_reorder", { ids });
+  withHistoryChanged(invoke("cluster_reorder", { ids }));
 
 export const categoryCreate = async (
   clusterId: number | null,
@@ -215,33 +227,35 @@ export const categoryCreate = async (
   color?: string | null,
 ): Promise<Category> =>
   categoryFromRaw(
-    await invoke<RawCategory>("category_create", {
-      clusterId,
-      name,
-      description: description ?? null,
-      color: color ?? null,
-    }),
+    await withHistoryChanged(
+      invoke<RawCategory>("category_create", {
+        clusterId,
+        name,
+        description: description ?? null,
+        color: color ?? null,
+      }),
+    ),
   );
 export const categoryRename = (id: number, name: string): Promise<void> =>
-  invoke("category_rename", { id, name });
+  withHistoryChanged(invoke("category_rename", { id, name }));
 export const categorySetDescription = (
   id: number,
   description: string | null,
-): Promise<void> => invoke("category_set_description", { id, description });
+): Promise<void> => withHistoryChanged(invoke("category_set_description", { id, description }));
 export const categorySetColor = (
   id: number,
   color: string | null,
-): Promise<void> => invoke("category_set_color", { id, color });
+): Promise<void> => withHistoryChanged(invoke("category_set_color", { id, color }));
 export const categoryDelete = (id: number): Promise<void> =>
-  invoke("category_delete", { id });
+  withHistoryChanged(invoke("category_delete", { id }));
 export const categoryReorder = (
   clusterId: number | null,
   ids: number[],
-): Promise<void> => invoke("category_reorder", { clusterId, ids });
+): Promise<void> => withHistoryChanged(invoke("category_reorder", { clusterId, ids }));
 export const categoryMoveToCluster = (
   id: number,
   newClusterId: number | null,
-): Promise<void> => invoke("category_move_to_cluster", { id, newClusterId });
+): Promise<void> => withHistoryChanged(invoke("category_move_to_cluster", { id, newClusterId }));
 
 export const tagCreate = async (
   categoryId: number | null,
@@ -250,28 +264,30 @@ export const tagCreate = async (
   color?: string | null,
 ): Promise<Tag> =>
   tagFromRaw(
-    await invoke<RawTag>("tag_create", {
-      categoryId,
-      name,
-      description: description ?? null,
-      color: color ?? null,
-    }),
+    await withHistoryChanged(
+      invoke<RawTag>("tag_create", {
+        categoryId,
+        name,
+        description: description ?? null,
+        color: color ?? null,
+      }),
+    ),
   );
 export const tagRename = (id: number, name: string): Promise<void> =>
-  invoke("tag_rename", { id, name });
+  withHistoryChanged(invoke("tag_rename", { id, name }));
 export const tagSetDescription = (
   id: number,
   description: string | null,
-): Promise<void> => invoke("tag_set_description", { id, description });
+): Promise<void> => withHistoryChanged(invoke("tag_set_description", { id, description }));
 export const tagSetColor = (id: number, color: string | null): Promise<void> =>
-  invoke("tag_set_color", { id, color });
+  withHistoryChanged(invoke("tag_set_color", { id, color }));
 export const tagDelete = (id: number): Promise<void> =>
-  invoke("tag_delete", { id });
+  withHistoryChanged(invoke("tag_delete", { id }));
 export const tagReorder = (
   categoryId: number,
   ids: number[],
-): Promise<void> => invoke("tag_reorder", { categoryId, ids });
+): Promise<void> => withHistoryChanged(invoke("tag_reorder", { categoryId, ids }));
 export const tagMoveToCategory = (
   id: number,
   newCategoryId: number | null,
-): Promise<void> => invoke("tag_move_to_category", { id, newCategoryId });
+): Promise<void> => withHistoryChanged(invoke("tag_move_to_category", { id, newCategoryId }));
