@@ -52,6 +52,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   const timeRef = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState<number>(1.0);
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
@@ -105,6 +106,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
     setPlaybackError(null);
     setPlaying(false);
     setTime(0);
+    setScrubTime(null);
     setDuration(0);
     setSegmentPlaybackRequest(null);
     setSegmentPlaybackState({
@@ -266,8 +268,11 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
 
   const seekTo = (target: number) => {
     if (!audioEl) return;
+    const nextTime = Math.max(0, Math.min(target, audioEl.duration || 0));
     pendingAutoplayRef.current = false;
     pendingSeekRef.current = null;
+    setScrubTime(null);
+    setTime(nextTime);
     setSegmentPlaybackRequest(null);
     setSegmentPlaybackState((prev) => ({
       ...prev,
@@ -275,10 +280,10 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
       startSec: null,
       endSec: null,
       loop: false,
-      currentTime: Math.max(0, Math.min(target, audioEl.duration || 0)),
+      currentTime: nextTime,
       playing: false,
     }));
-    audioEl.currentTime = Math.max(0, Math.min(target, audioEl.duration || 0));
+    audioEl.currentTime = nextTime;
     setPlaybackError(null);
   };
 
@@ -342,6 +347,8 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
     };
   }, [speedMenuOpen]);
 
+  const displayTime = scrubTime ?? time;
+
   if (!showAudioControls) {
     return (
       <div className={styles.bar}>
@@ -380,15 +387,36 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
         >
           {playing ? "⏸" : "▶"}
         </button>
-        <span className={styles.time}>{formatTime(time)}</span>
+        <span className={styles.time}>{formatTime(displayTime)}</span>
         <input
           className={styles.scrub}
           type="range"
           min={0}
           max={duration || 0}
           step={0.1}
-          value={time}
-          onChange={(e) => seekTo(Number(e.target.value))}
+          value={scrubTime ?? time}
+          onPointerDown={(e) => {
+            setScrubTime(Number((e.currentTarget as HTMLInputElement).value));
+          }}
+          onInput={(e) => {
+            setScrubTime(Number((e.target as HTMLInputElement).value));
+          }}
+          onPointerUp={(e) => {
+            seekTo(Number((e.currentTarget as HTMLInputElement).value));
+          }}
+          onPointerCancel={(e) => {
+            seekTo(Number((e.currentTarget as HTMLInputElement).value));
+          }}
+          onBlur={(e) => {
+            if (scrubTime !== null) {
+              seekTo(Number((e.currentTarget as HTMLInputElement).value));
+            }
+          }}
+          onChange={(e) => {
+            if (scrubTime === null) {
+              seekTo(Number(e.target.value));
+            }
+          }}
         />
         <span className={`${styles.time} ${styles.totalTime}`}>{formatTime(duration)}</span>
         <div className={styles.menuRoot} ref={speedMenuRef}>
