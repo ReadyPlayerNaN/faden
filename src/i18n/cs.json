@@ -278,6 +278,7 @@
     "generateCodebook": "Odvodit číselník",
     "preTag": "Doplnit štítky",
     "findMore": "Najít další",
+    "findMoreOccurrences": "Najít další výskyty",
     "useExistingCodebook": "Rozšířit stávající číselník",
     "selectInterviews": "Vyberte rozhovory",
     "selectTag": "Nejprve vyberte štítek v číselníku",
@@ -390,6 +391,7 @@
   },
   "export": {
     "title": "Export",
+    "subtitle": "Exportujte aktuální rozhovor, celý projekt nebo podmnožinu filtrovanou podle štítků do formátů vhodných pro další výzkum.",
     "scope": "Rozsah",
     "scopeCurrent": "Aktuální rozhovor",
     "scopeAll": "Celý projekt",
@@ -403,6 +405,7 @@
     "codebook": "Pouze číselník",
     "codebookFormat": "Formát číselníku",
     "directory": "Výstupní složka",
+    "noDirectorySelected": "Zatím není vybrána žádná výstupní složka.",
     "pickDirectory": "Vybrat…",
     "run": "Exportovat",
     "success": "Exportováno {{count}} souborů",

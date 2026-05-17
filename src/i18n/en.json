@@ -279,6 +279,7 @@
     "generateCodebook": "Derive codebook",
     "preTag": "Supplement tags",
     "findMore": "Find more",
+    "findMoreOccurrences": "Find more occurrences",
     "useExistingCodebook": "Extend existing codebook",
     "selectInterviews": "Pick interviews",
     "selectTag": "Select a tag in the codebook first",
@@ -391,6 +392,7 @@
   },
   "export": {
     "title": "Export",
+    "subtitle": "Export the current interview, the full project, or a tag-filtered subset into research-friendly formats.",
     "scope": "Scope",
     "scopeCurrent": "Current interview",
     "scopeAll": "Whole project",
@@ -404,6 +406,7 @@
     "codebook": "Codebook only",
     "codebookFormat": "Codebook format",
     "directory": "Output directory",
+    "noDirectorySelected": "No output directory selected yet.",
     "pickDirectory": "Browse…",
     "run": "Export",
     "success": "Exported {{count}} files",

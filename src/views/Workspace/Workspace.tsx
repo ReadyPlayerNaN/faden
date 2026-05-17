@@ -23,7 +23,6 @@ import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { LeftPane } from "./LeftPane/LeftPane";
 import { CenterPane } from "./CenterPane/CenterPane";
 import { RightPane } from "./RightPane/RightPane";
-import { ExportMenu } from "./Export/ExportMenu";
 import styles from "./Workspace.module.css";
 
 export const Workspace = () => {
@@ -38,7 +37,6 @@ export const Workspace = () => {
   const bumpInterviewContentVersion = useSetAtom(interviewContentVersionAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
-  const [exportOpen, setExportOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<"left" | "edits" | "right">("edits");
 
   useEffect(() => {
@@ -195,7 +193,6 @@ export const Workspace = () => {
             </Button>
           </>
         }
-        actions={<Button onClick={() => setExportOpen(true)}>{t("export.title")}</Button>}
       />
       <div className={styles.layout} data-mobile-pane={mobilePane}>
         <div className={styles.panesToolbar}>
@@ -218,12 +215,6 @@ export const Workspace = () => {
           <RightPane />
         </div>
       </div>
-      {exportOpen && project && (
-        <ExportMenu
-          projectName={project.name}
-          onClose={() => setExportOpen(false)}
-        />
-      )}
     </div>
   );
 };

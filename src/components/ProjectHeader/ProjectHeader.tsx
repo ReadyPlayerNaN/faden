@@ -10,7 +10,7 @@ import { EditProjectModal } from "../../views/Workspace/EditProjectModal";
 import styles from "./ProjectHeader.module.css";
 
 type ProjectHeaderProps = {
-	activeView?: "coding" | "labels" | "people" | null;
+	activeView?: "coding" | "labels" | "people" | "export" | null;
 	leftActions?: ReactNode;
 	actions?: ReactNode;
 };
@@ -142,7 +142,9 @@ export const ProjectHeader = ({
 										? t("tags.title", { defaultValue: "Labels" })
 										: activeView === "people"
 											? t("people.title", { defaultValue: "People" })
-											: t("workspace.coding", { defaultValue: "Coding" })}
+											: activeView === "export"
+												? t("export.title", { defaultValue: "Export" })
+												: t("workspace.coding", { defaultValue: "Coding" })}
 								</span>
 								<span aria-hidden="true">▾</span>
 							</span>
@@ -204,6 +206,24 @@ export const ProjectHeader = ({
 										}}
 									>
 										{t("people.title", { defaultValue: "People" })}
+									</button>
+								)}
+								{activeView !== "export" && project && (
+									<button
+										type="button"
+										role="menuitem"
+										className={styles.projectMenuItem}
+										onClick={() => {
+											setViewMenuOpen(false);
+											void navigate({
+												to: "/workspace/$projectPath/export",
+												params: {
+													projectPath: encodeURIComponent(project.path),
+												},
+											});
+										}}
+									>
+										{t("export.title", { defaultValue: "Export" })}
 									</button>
 								)}
 							</div>

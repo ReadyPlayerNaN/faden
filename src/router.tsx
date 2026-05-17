@@ -14,6 +14,7 @@ import { PeopleView } from "./views/People/PeopleView";
 import { AiOpsView } from "./views/AI/AiOpsView";
 import { AiOpDetailView } from "./views/AI/AiOpDetailView";
 import { SuggestionsView } from "./views/AI/SuggestionsView";
+import { ExportView } from "./views/Export/ExportView";
 import { AudioPlayer } from "./views/Workspace/AudioPlayer/AudioPlayer";
 import { currentProjectAtom } from "./state/project";
 
@@ -103,6 +104,12 @@ const peopleProjectRoute = createRoute({
 	component: PeopleView,
 });
 
+const exportRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/workspace/$projectPath/export",
+	component: ExportView,
+});
+
 const routeTree = rootRoute.addChildren([
 	pickerRoute,
 	workspaceRoute,
@@ -114,6 +121,7 @@ const routeTree = rootRoute.addChildren([
 	tagsRoute,
 	peopleRoute,
 	peopleProjectRoute,
+	exportRoute,
 ]);
 
 export const router = createRouter({ routeTree });
