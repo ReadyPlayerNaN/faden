@@ -32,10 +32,23 @@ type SpeakerGroup = {
   speakers: Speaker[];
 };
 
+export type ParticipantRef = {
+  key: string;
+  name: string;
+  kind: "person" | "speaker" | "unknown";
+  linked: boolean;
+  person: Person | null;
+  speakerId: number | null;
+  interviewId: number;
+  hasContact: boolean;
+};
+
 export type AnalysisItem = {
   span: SpanDTO;
   interview: Interview;
   tagMetas: TagMeta[];
+  memo: string | null;
+  participant: ParticipantRef;
 };
 
 export type MemoItem = AnalysisItem & {
@@ -65,10 +78,88 @@ const analysisRefreshInFlight = new Map<string, Promise<void>>();
 
 const AnalysisDataContext = createContext<AnalysisDataValue | null>(null);
 
-const buildDerivedItems = (codebook: CodebookTree, spanGroups: SpanGroup[]) => {
+const buildSegmentLookup = (segmentGroups: SegmentGroup[]) =>
+  new Map(
+    segmentGroups.map(({ interview, segments }) => [
+      interview.id,
+      new Map(segments.map((segment) => [segment.id, segment])),
+    ]),
+  );
+
+const buildSpeakerLookup = (speakerGroups: SpeakerGroup[]) =>
+  new Map(
+    speakerGroups.map(({ interview, speakers }) => [
+      interview.id,
+      new Map(speakers.map((speaker) => [speaker.id, speaker])),
+    ]),
+  );
+
+const buildParticipantRef = (args: {
+  interview: Interview;
+  span: SpanDTO;
+  segmentsByInterview: Map<number, Map<number, SegmentDTO>>;
+  speakersByInterview: Map<number, Map<number, Speaker>>;
+  peopleById: Map<number, Person>;
+}): ParticipantRef => {
+  const segment = args.segmentsByInterview.get(args.interview.id)?.get(args.span.segmentId) ?? null;
+  const speaker = segment?.speakerId
+    ? (args.speakersByInterview.get(args.interview.id)?.get(segment.speakerId) ?? null)
+    : null;
+  const person = speaker?.personId ? (args.peopleById.get(speaker.personId) ?? null) : null;
+
+  const fallbackSpeakerName =
+    speaker?.effectiveName?.trim() ||
+    segment?.speakerDisplayName?.trim() ||
+    segment?.speakerLabelRaw?.trim() ||
+    "Unknown speaker";
+
+  return person
+    ? {
+        key: `person:${person.id}`,
+        name: person.name,
+        kind: "person",
+        linked: true,
+        person,
+        speakerId: speaker?.id ?? null,
+        interviewId: args.interview.id,
+        hasContact: Boolean(person.email || person.phone),
+      }
+    : speaker
+      ? {
+          key: `speaker:${args.interview.id}:${speaker.id}`,
+          name: fallbackSpeakerName,
+          kind: "speaker",
+          linked: false,
+          person: null,
+          speakerId: speaker.id,
+          interviewId: args.interview.id,
+          hasContact: false,
+        }
+      : {
+          key: `unknown:${args.interview.id}:${fallbackSpeakerName}`,
+          name: fallbackSpeakerName,
+          kind: "unknown",
+          linked: false,
+          person: null,
+          speakerId: null,
+          interviewId: args.interview.id,
+          hasContact: false,
+        };
+};
+
+const buildDerivedItems = (
+  codebook: CodebookTree,
+  spanGroups: SpanGroup[],
+  segmentGroups: SegmentGroup[],
+  speakerGroups: SpeakerGroup[],
+  people: Person[],
+) => {
   const tagMetaById = buildTagMetaMap(codebook);
   const evidenceItems: AnalysisItem[] = [];
   const memoItems: MemoItem[] = [];
+  const segmentsByInterview = buildSegmentLookup(segmentGroups);
+  const speakersByInterview = buildSpeakerLookup(speakerGroups);
+  const peopleById = new Map(people.map((person) => [person.id, person]));
 
   for (const { interview, spans } of spanGroups) {
     for (const span of spans) {
@@ -76,9 +167,16 @@ const buildDerivedItems = (codebook: CodebookTree, spanGroups: SpanGroup[]) => {
         .map((tagRef) => tagMetaById.get(tagRef.tagId))
         .filter((meta): meta is TagMeta => meta !== undefined);
       if (tagMetas.length === 0) continue;
-      const item = { span, interview, tagMetas } satisfies AnalysisItem;
+      const memo = span.memo?.trim() || null;
+      const participant = buildParticipantRef({
+        interview,
+        span,
+        segmentsByInterview,
+        speakersByInterview,
+        peopleById,
+      });
+      const item = { span, interview, tagMetas, memo, participant } satisfies AnalysisItem;
       evidenceItems.push(item);
-      const memo = span.memo?.trim();
       if (memo) {
         memoItems.push({ ...item, memo });
       }
@@ -96,7 +194,7 @@ const snapshotToCache = (
   segmentGroups: SegmentGroup[],
   speakerGroups: SpeakerGroup[],
 ): CacheEntry => {
-  const derived = buildDerivedItems(codebook, spanGroups);
+  const derived = buildDerivedItems(codebook, spanGroups, segmentGroups, speakerGroups, people);
   return {
     codebook,
     interviews,
@@ -108,22 +206,6 @@ const snapshotToCache = (
     memoItems: derived.memoItems,
   };
 };
-
-const buildSegmentLookup = (segmentGroups: SegmentGroup[]) =>
-  new Map(
-    segmentGroups.map(({ interview, segments }) => [
-      interview.id,
-      new Map(segments.map((segment) => [segment.id, segment])),
-    ]),
-  );
-
-const buildSpeakerLookup = (speakerGroups: SpeakerGroup[]) =>
-  new Map(
-    speakerGroups.map(({ interview, speakers }) => [
-      interview.id,
-      new Map(speakers.map((speaker) => [speaker.id, speaker])),
-    ]),
-  );
 
 const warnOptionalAnalysisLoad = (label: string, err: unknown) => {
   console.warn(`[analysis] optional ${label} load failed`, err);

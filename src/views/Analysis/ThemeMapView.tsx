@@ -1,15 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import {
   type CategoryNode,
   type ClusterNode,
   type TagNode,
 } from "../../ipc/codebook";
 import { useAnalysisData } from "./AnalysisData";
-import { mergeAnalysisSearch } from "./analysisSearch";
+import { filterAnalysisItems } from "./analysisFilters";
+import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
 import styles from "./ThemeMapView.module.css";
 
 type ThemeBranch =
@@ -23,79 +23,83 @@ type MatrixRow = {
   total: number;
 };
 
+type CountMaps = {
+  clusterCounts: Map<number, number>;
+  categoryCounts: Map<number, number>;
+  tagCounts: Map<number, number>;
+  clusterMemoCounts: Map<number, number>;
+  categoryMemoCounts: Map<number, number>;
+  tagMemoCounts: Map<number, number>;
+};
+
+const toggleStoredSet = (set: Set<string>, key: string) => {
+  const next = new Set(set);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next;
+};
+
 export const ThemeMapView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectPath } = useParams({ strict: false }) as { projectPath: string };
-  const { codebook: tree, interviews, spanGroups, loading, error } = useAnalysisData();
+  const search = useSearch({ strict: false }) as AnalysisSearch;
+  const { codebook: tree, interviews, evidenceItems, loading, error } = useAnalysisData();
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
+  const collapseStorageKey = `faden.analysis.theme-map.collapsed:${decodeURIComponent(projectPath)}`;
 
-  const openEvidence = (filters: { clusterId?: number; interviewId?: number }) => {
-    void navigate({
-      to: "/workspace/$projectPath/analysis/evidence",
-      params: { projectPath },
-      search: mergeAnalysisSearch({}, {
-        clusterId: filters.clusterId,
-        interviewId: filters.interviewId,
-        categoryId: undefined,
-        tagId: undefined,
-      }),
-    });
-  };
+  useEffect(() => {
+    const raw = window.localStorage.getItem(collapseStorageKey);
+    if (!raw) {
+      setCollapsedKeys(new Set());
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      setCollapsedKeys(Array.isArray(parsed) ? new Set(parsed.filter((item) => typeof item === "string")) : new Set());
+    } catch {
+      setCollapsedKeys(new Set());
+    }
+  }, [collapseStorageKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(collapseStorageKey, JSON.stringify(Array.from(collapsedKeys)));
+  }, [collapseStorageKey, collapsedKeys]);
 
   const openEvidenceForHierarchy = (filters: {
     clusterId?: number;
     categoryId?: number;
     tagId?: number;
     interviewId?: number;
+    memoOnly?: boolean;
   }) => {
     void navigate({
       to: "/workspace/$projectPath/analysis/evidence",
       params: { projectPath },
-      search: mergeAnalysisSearch({}, filters),
+      search: mergeAnalysisSearch(search, {
+        clusterId: filters.clusterId,
+        categoryId: filters.categoryId,
+        tagId: filters.tagId,
+        interviewId: filters.interviewId,
+        memoOnly: filters.memoOnly,
+      }) as never,
     });
   };
 
-  const matrixRows = useMemo<MatrixRow[]>(() => {
-    if (!tree) return [];
-    const tagClusterByTagId = new Map<number, number>();
-    for (const cluster of tree.clusters) {
-      for (const category of cluster.categories) {
-        for (const tag of category.tags) {
-          tagClusterByTagId.set(tag.id, cluster.id);
-        }
-      }
-    }
-
-    return spanGroups.map(({ interview, spans }) => {
-      const spanIdsByClusterId = new Map<number, Set<number>>();
-      const totalSpanIds = new Set<number>();
-      for (const span of spans) {
-        const clusterIds = new Set<number>();
-        for (const tag of span.tags) {
-          const clusterId = tagClusterByTagId.get(tag.tagId);
-          if (clusterId !== undefined) clusterIds.add(clusterId);
-        }
-        if (clusterIds.size > 0) totalSpanIds.add(span.id);
-        for (const clusterId of clusterIds) {
-          const spanIds = spanIdsByClusterId.get(clusterId) ?? new Set<number>();
-          spanIds.add(span.id);
-          spanIdsByClusterId.set(clusterId, spanIds);
-        }
-      }
-
-      const countsByClusterId = new Map<number, number>();
-      for (const cluster of tree.clusters) {
-        countsByClusterId.set(cluster.id, spanIdsByClusterId.get(cluster.id)?.size ?? 0);
-      }
-
-      return {
-        interviewId: interview.id,
-        interviewName: interview.name,
-        countsByClusterId,
-        total: totalSpanIds.size,
-      };
+  const openMemosForHierarchy = (filters: {
+    clusterId?: number;
+    categoryId?: number;
+    tagId?: number;
+  }) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/memos",
+      params: { projectPath },
+      search: mergeAnalysisSearch(search, {
+        ...filters,
+        memoOnly: true,
+      }) as never,
     });
-  }, [spanGroups, tree]);
+  };
 
   const branches = useMemo<ThemeBranch[]>(() => {
     if (!tree) return [];
@@ -126,6 +130,96 @@ export const ThemeMapView = () => {
     };
   }, [tree]);
 
+  const scopedEvidenceItems = useMemo(
+    () => filterAnalysisItems(evidenceItems, search),
+    [evidenceItems, search],
+  );
+
+  const scopedCounts = useMemo<CountMaps>(() => {
+    const clusterCounts = new Map<number, Set<number>>();
+    const categoryCounts = new Map<number, Set<number>>();
+    const tagCounts = new Map<number, Set<number>>();
+    const clusterMemoCounts = new Map<number, Set<number>>();
+    const categoryMemoCounts = new Map<number, Set<number>>();
+    const tagMemoCounts = new Map<number, Set<number>>();
+
+    for (const item of scopedEvidenceItems) {
+      const hasMemo = Boolean(item.memo);
+      const seenClusters = new Set<number>();
+      const seenCategories = new Set<number>();
+      const seenTags = new Set<number>();
+      for (const meta of item.tagMetas) {
+        if (!seenTags.has(meta.tag.id)) {
+          (tagCounts.get(meta.tag.id) ?? tagCounts.set(meta.tag.id, new Set()).get(meta.tag.id))?.add(item.span.id);
+          if (hasMemo) (tagMemoCounts.get(meta.tag.id) ?? tagMemoCounts.set(meta.tag.id, new Set()).get(meta.tag.id))?.add(item.span.id);
+          seenTags.add(meta.tag.id);
+        }
+        if (meta.category && !seenCategories.has(meta.category.id)) {
+          (categoryCounts.get(meta.category.id) ?? categoryCounts.set(meta.category.id, new Set()).get(meta.category.id))?.add(item.span.id);
+          if (hasMemo) (categoryMemoCounts.get(meta.category.id) ?? categoryMemoCounts.set(meta.category.id, new Set()).get(meta.category.id))?.add(item.span.id);
+          seenCategories.add(meta.category.id);
+        }
+        if (meta.cluster && !seenClusters.has(meta.cluster.id)) {
+          (clusterCounts.get(meta.cluster.id) ?? clusterCounts.set(meta.cluster.id, new Set()).get(meta.cluster.id))?.add(item.span.id);
+          if (hasMemo) (clusterMemoCounts.get(meta.cluster.id) ?? clusterMemoCounts.set(meta.cluster.id, new Set()).get(meta.cluster.id))?.add(item.span.id);
+          seenClusters.add(meta.cluster.id);
+        }
+      }
+    }
+
+    return {
+      clusterCounts: new Map(Array.from(clusterCounts, ([key, value]) => [key, value.size])),
+      categoryCounts: new Map(Array.from(categoryCounts, ([key, value]) => [key, value.size])),
+      tagCounts: new Map(Array.from(tagCounts, ([key, value]) => [key, value.size])),
+      clusterMemoCounts: new Map(Array.from(clusterMemoCounts, ([key, value]) => [key, value.size])),
+      categoryMemoCounts: new Map(Array.from(categoryMemoCounts, ([key, value]) => [key, value.size])),
+      tagMemoCounts: new Map(Array.from(tagMemoCounts, ([key, value]) => [key, value.size])),
+    };
+  }, [scopedEvidenceItems]);
+
+  const matrixRows = useMemo<MatrixRow[]>(() => {
+    if (!tree) return [];
+    const tagClusterByTagId = new Map<number, number>();
+    for (const cluster of tree.clusters) {
+      for (const category of cluster.categories) {
+        for (const tag of category.tags) {
+          tagClusterByTagId.set(tag.id, cluster.id);
+        }
+      }
+    }
+
+    return interviews.map((interview) => {
+      const spans = scopedEvidenceItems.filter((item) => item.interview.id === interview.id);
+      const spanIdsByClusterId = new Map<number, Set<number>>();
+      const totalSpanIds = new Set<number>();
+      for (const item of spans) {
+        const clusterIds = new Set<number>();
+        for (const meta of item.tagMetas) {
+          const clusterId = tagClusterByTagId.get(meta.tag.id);
+          if (clusterId !== undefined) clusterIds.add(clusterId);
+        }
+        if (clusterIds.size > 0) totalSpanIds.add(item.span.id);
+        for (const clusterId of clusterIds) {
+          const spanIds = spanIdsByClusterId.get(clusterId) ?? new Set<number>();
+          spanIds.add(item.span.id);
+          spanIdsByClusterId.set(clusterId, spanIds);
+        }
+      }
+
+      const countsByClusterId = new Map<number, number>();
+      for (const cluster of tree.clusters) {
+        countsByClusterId.set(cluster.id, spanIdsByClusterId.get(cluster.id)?.size ?? 0);
+      }
+
+      return {
+        interviewId: interview.id,
+        interviewName: interview.name,
+        countsByClusterId,
+        total: totalSpanIds.size,
+      };
+    });
+  }, [interviews, scopedEvidenceItems, tree]);
+
   const matrixHasData = useMemo(
     () => matrixRows.some((row) => Array.from(row.countsByClusterId.values()).some((count) => count > 0)),
     [matrixRows],
@@ -143,16 +237,21 @@ export const ThemeMapView = () => {
     return totals;
   }, [matrixRows, tree]);
 
+  const inScopeMemoCount = scopedEvidenceItems.filter((item) => item.memo).length;
+
   return (
     <>
-      <PageViewHeader
-        view="analysis"
-        title={t("analysis.themeMap.title", { defaultValue: "Theme map" })}
-        subtitle={t("analysis.themeMap.subtitle", {
-          defaultValue:
-            "Read the current analytic hierarchy from clusters to categories to tags. Counts reflect currently coded material.",
-        })}
-        aside={
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>{t("analysis.themeMap.title", { defaultValue: "Theme map" })}</h1>
+          <p className={styles.subtitle}>
+            {t("analysis.themeMap.subtitle", {
+              defaultValue:
+                "Read the current analytic hierarchy from clusters to categories to tags. Counts reflect currently coded material.",
+            })}
+          </p>
+        </div>
+        <div className={styles.summaryGrid}>
           <div className={styles.summaryCard}>
             <strong>{summary.clusters}</strong>
             <span>
@@ -164,8 +263,18 @@ export const ThemeMapView = () => {
               })}
             </span>
           </div>
-        }
-      />
+          <div className={styles.summaryCard}>
+            <strong>{scopedEvidenceItems.length}</strong>
+            <span>
+              {t("analysis.themeMap.scopeSummary", {
+                evidence: scopedEvidenceItems.length,
+                memos: inScopeMemoCount,
+                defaultValue: "In scope: {{evidence}} quotes · {{memos}} memo-backed",
+              })}
+            </span>
+          </div>
+        </div>
+      </header>
 
       {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 
@@ -214,22 +323,45 @@ export const ThemeMapView = () => {
                 <ClusterSection
                   key={`cluster-${branch.cluster.id}`}
                   cluster={branch.cluster}
+                  collapsed={collapsedKeys.has(`cluster:${branch.cluster.id}`)}
+                  onToggle={() => setCollapsedKeys((current) => toggleStoredSet(current, `cluster:${branch.cluster.id}`))}
+                  count={scopedCounts.clusterCounts.get(branch.cluster.id) ?? 0}
+                  memoCount={scopedCounts.clusterMemoCounts.get(branch.cluster.id) ?? 0}
+                  categoryCounts={scopedCounts.categoryCounts}
+                  categoryMemoCounts={scopedCounts.categoryMemoCounts}
+                  tagCounts={scopedCounts.tagCounts}
+                  tagMemoCounts={scopedCounts.tagMemoCounts}
+                  collapsedKeys={collapsedKeys}
+                  setCollapsedKeys={setCollapsedKeys}
                   onOpenClusterEvidence={() => openEvidenceForHierarchy({ clusterId: branch.cluster.id })}
+                  onOpenClusterMemos={() => openMemosForHierarchy({ clusterId: branch.cluster.id })}
                   onOpenCategoryEvidence={(categoryId) =>
                     openEvidenceForHierarchy({ clusterId: branch.cluster.id, categoryId })
                   }
+                  onOpenCategoryMemos={(categoryId) =>
+                    openMemosForHierarchy({ clusterId: branch.cluster.id, categoryId })
+                  }
                   onOpenTagEvidence={(categoryId, tagId) =>
                     openEvidenceForHierarchy({ clusterId: branch.cluster.id, categoryId, tagId })
+                  }
+                  onOpenTagMemos={(categoryId, tagId) =>
+                    openMemosForHierarchy({ clusterId: branch.cluster.id, categoryId, tagId })
                   }
                 />
               ) : (
                 <StandaloneCategorySection
                   key={`category-${branch.category.id}`}
                   category={branch.category}
+                  collapsed={collapsedKeys.has(`category:${branch.category.id}`)}
+                  onToggle={() => setCollapsedKeys((current) => toggleStoredSet(current, `category:${branch.category.id}`))}
+                  count={scopedCounts.categoryCounts.get(branch.category.id) ?? 0}
+                  memoCount={scopedCounts.categoryMemoCounts.get(branch.category.id) ?? 0}
+                  tagCounts={scopedCounts.tagCounts}
+                  tagMemoCounts={scopedCounts.tagMemoCounts}
                   onOpenCategoryEvidence={() => openEvidenceForHierarchy({ categoryId: branch.category.id })}
-                  onOpenTagEvidence={(tagId) =>
-                    openEvidenceForHierarchy({ categoryId: branch.category.id, tagId })
-                  }
+                  onOpenCategoryMemos={() => openMemosForHierarchy({ categoryId: branch.category.id })}
+                  onOpenTagEvidence={(tagId) => openEvidenceForHierarchy({ categoryId: branch.category.id, tagId })}
+                  onOpenTagMemos={(tagId) => openMemosForHierarchy({ categoryId: branch.category.id, tagId })}
                 />
               ),
             )}
@@ -249,7 +381,14 @@ export const ThemeMapView = () => {
                 </div>
                 <ul className={styles.tagList}>
                   {tree.standaloneTags.map((tag) => (
-                    <TagRow key={tag.id} tag={tag} onOpenEvidence={() => openEvidenceForHierarchy({ tagId: tag.id })} />
+                    <TagRow
+                      key={tag.id}
+                      tag={tag}
+                      count={scopedCounts.tagCounts.get(tag.id) ?? 0}
+                      memoCount={scopedCounts.tagMemoCounts.get(tag.id) ?? 0}
+                      onOpenEvidence={() => openEvidenceForHierarchy({ tagId: tag.id })}
+                      onOpenMemos={() => openMemosForHierarchy({ tagId: tag.id })}
+                    />
                   ))}
                 </ul>
               </section>
@@ -304,11 +443,7 @@ export const ThemeMapView = () => {
                       <button
                         type="button"
                         className={styles.matrixLinkButton}
-                        onClick={() => openEvidence({ clusterId: cluster.id })}
-                        title={t("analysis.themeMap.openEvidenceForCluster", {
-                          name: cluster.name,
-                          defaultValue: "Open evidence for {{name}}",
-                        })}
+                        onClick={() => openEvidenceForHierarchy({ clusterId: cluster.id })}
                       >
                         {cluster.name}
                       </button>
@@ -324,11 +459,7 @@ export const ThemeMapView = () => {
                       <button
                         type="button"
                         className={styles.matrixLinkButton}
-                        onClick={() => openEvidence({ interviewId: row.interviewId })}
-                        title={t("analysis.themeMap.openEvidenceForInterview", {
-                          name: row.interviewName,
-                          defaultValue: "Open evidence for {{name}}",
-                        })}
+                        onClick={() => openEvidenceForHierarchy({ interviewId: row.interviewId })}
                       >
                         {row.interviewName}
                       </button>
@@ -341,12 +472,7 @@ export const ThemeMapView = () => {
                             <button
                               type="button"
                               className={styles.matrixValueButton}
-                              onClick={() => openEvidence({ interviewId: row.interviewId, clusterId: cluster.id })}
-                              title={t("analysis.themeMap.openEvidenceForCell", {
-                                interview: row.interviewName,
-                                cluster: cluster.name,
-                                defaultValue: "Open evidence for {{interview}} in {{cluster}}",
-                              })}
+                              onClick={() => openEvidenceForHierarchy({ interviewId: row.interviewId, clusterId: cluster.id })}
                             >
                               {value}
                             </button>
@@ -381,14 +507,40 @@ export const ThemeMapView = () => {
 
 const ClusterSection = ({
   cluster,
+  collapsed,
+  onToggle,
+  count,
+  memoCount,
+  categoryCounts,
+  categoryMemoCounts,
+  tagCounts,
+  tagMemoCounts,
+  collapsedKeys,
+  setCollapsedKeys,
   onOpenClusterEvidence,
+  onOpenClusterMemos,
   onOpenCategoryEvidence,
+  onOpenCategoryMemos,
   onOpenTagEvidence,
+  onOpenTagMemos,
 }: {
   cluster: ClusterNode;
+  collapsed: boolean;
+  onToggle: () => void;
+  count: number;
+  memoCount: number;
+  categoryCounts: Map<number, number>;
+  categoryMemoCounts: Map<number, number>;
+  tagCounts: Map<number, number>;
+  tagMemoCounts: Map<number, number>;
+  collapsedKeys: Set<string>;
+  setCollapsedKeys: (value: Set<string> | ((current: Set<string>) => Set<string>)) => void;
   onOpenClusterEvidence: () => void;
+  onOpenClusterMemos: () => void;
   onOpenCategoryEvidence: (categoryId: number) => void;
+  onOpenCategoryMemos: (categoryId: number) => void;
   onOpenTagEvidence: (categoryId: number, tagId: number) => void;
+  onOpenTagMemos: (categoryId: number, tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -396,52 +548,83 @@ const ClusterSection = ({
     <section className={styles.branchCard}>
       <div className={styles.branchHeader}>
         <div>
+          <button type="button" className={styles.expandButton} onClick={onToggle}>
+            {collapsed ? "▸" : "▾"}
+          </button>
           <h2 className={styles.branchTitle}>{cluster.name}</h2>
           <p className={styles.branchMeta}>
             {t("analysis.themeMap.clusterSummary", {
               categories: cluster.categories.length,
-              references: cluster.count,
+              references: count,
               defaultValue: "Categories: {{categories}} · Coded references: {{references}}",
             })}
           </p>
         </div>
-        <CountPill
-          count={cluster.count}
-          onClick={cluster.count > 0 ? onOpenClusterEvidence : undefined}
-          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
-        />
+        <div className={styles.countActions}>
+          <CountPill count={count} onClick={count > 0 ? onOpenClusterEvidence : undefined} label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })} />
+          <CountPill count={memoCount} onClick={memoCount > 0 ? onOpenClusterMemos : undefined} label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })} tone="memo" />
+        </div>
       </div>
       {cluster.description ? <p className={styles.description}>{cluster.description}</p> : null}
-      {cluster.categories.length === 0 ? (
-        <p className={styles.nestedEmpty}>
-          {t("analysis.themeMap.emptyCluster", {
-            defaultValue: "No categories in this cluster yet.",
-          })}
-        </p>
-      ) : (
-        <div className={styles.categoryList}>
-          {cluster.categories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              onOpenEvidence={() => onOpenCategoryEvidence(category.id)}
-              onOpenTagEvidence={(tagId) => onOpenTagEvidence(category.id, tagId)}
-            />
-          ))}
-        </div>
-      )}
+      {!collapsed ? (
+        cluster.categories.length === 0 ? (
+          <p className={styles.nestedEmpty}>
+            {t("analysis.themeMap.emptyCluster", {
+              defaultValue: "No categories in this cluster yet.",
+            })}
+          </p>
+        ) : (
+          <div className={styles.categoryList}>
+            {cluster.categories.map((category) => {
+              const categoryCollapsed = collapsedKeys.has(`category:${category.id}`);
+              return (
+                <CategoryCard
+                  key={category.id}
+                  category={category}
+                  collapsed={categoryCollapsed}
+                  onToggle={() => setCollapsedKeys((current) => toggleStoredSet(current, `category:${category.id}`))}
+                  count={categoryCounts.get(category.id) ?? 0}
+                  memoCount={categoryMemoCounts.get(category.id) ?? 0}
+                  tagCounts={tagCounts}
+                  tagMemoCounts={tagMemoCounts}
+                  onOpenEvidence={() => onOpenCategoryEvidence(category.id)}
+                  onOpenMemos={() => onOpenCategoryMemos(category.id)}
+                  onOpenTagEvidence={(tagId) => onOpenTagEvidence(category.id, tagId)}
+                  onOpenTagMemos={(tagId) => onOpenTagMemos(category.id, tagId)}
+                />
+              );
+            })}
+          </div>
+        )
+      ) : null}
     </section>
   );
 };
 
 const StandaloneCategorySection = ({
   category,
+  collapsed,
+  onToggle,
+  count,
+  memoCount,
+  tagCounts,
+  tagMemoCounts,
   onOpenCategoryEvidence,
+  onOpenCategoryMemos,
   onOpenTagEvidence,
+  onOpenTagMemos,
 }: {
   category: CategoryNode;
+  collapsed: boolean;
+  onToggle: () => void;
+  count: number;
+  memoCount: number;
+  tagCounts: Map<number, number>;
+  tagMemoCounts: Map<number, number>;
   onOpenCategoryEvidence: () => void;
+  onOpenCategoryMemos: () => void;
   onOpenTagEvidence: (tagId: number) => void;
+  onOpenTagMemos: (tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -449,6 +632,9 @@ const StandaloneCategorySection = ({
     <section className={styles.branchCard}>
       <div className={styles.branchHeader}>
         <div>
+          <button type="button" className={styles.expandButton} onClick={onToggle}>
+            {collapsed ? "▸" : "▾"}
+          </button>
           <h2 className={styles.branchTitle}>{category.name}</h2>
           <p className={styles.branchMeta}>
             {t("analysis.themeMap.standaloneCategory", {
@@ -456,38 +642,62 @@ const StandaloneCategorySection = ({
             })}
           </p>
         </div>
-        <CountPill
-          count={category.count}
-          onClick={category.count > 0 ? onOpenCategoryEvidence : undefined}
-          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
-        />
+        <div className={styles.countActions}>
+          <CountPill count={count} onClick={count > 0 ? onOpenCategoryEvidence : undefined} label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })} />
+          <CountPill count={memoCount} onClick={memoCount > 0 ? onOpenCategoryMemos : undefined} label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })} tone="memo" />
+        </div>
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
-      {category.tags.length === 0 ? (
-        <p className={styles.nestedEmpty}>
-          {t("analysis.themeMap.emptyCategory", {
-            defaultValue: "No tags in this category yet.",
-          })}
-        </p>
-      ) : (
-        <ul className={styles.tagList}>
-          {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} onOpenEvidence={() => onOpenTagEvidence(tag.id)} />
-          ))}
-        </ul>
-      )}
+      {!collapsed ? (
+        category.tags.length === 0 ? (
+          <p className={styles.nestedEmpty}>
+            {t("analysis.themeMap.emptyCategory", {
+              defaultValue: "No tags in this category yet.",
+            })}
+          </p>
+        ) : (
+          <ul className={styles.tagList}>
+            {category.tags.map((tag) => (
+              <TagRow
+                key={tag.id}
+                tag={tag}
+                count={tagCounts.get(tag.id) ?? 0}
+                memoCount={tagMemoCounts.get(tag.id) ?? 0}
+                onOpenEvidence={() => onOpenTagEvidence(tag.id)}
+                onOpenMemos={() => onOpenTagMemos(tag.id)}
+              />
+            ))}
+          </ul>
+        )
+      ) : null}
     </section>
   );
 };
 
 const CategoryCard = ({
   category,
+  collapsed,
+  onToggle,
+  count,
+  memoCount,
+  tagCounts,
+  tagMemoCounts,
   onOpenEvidence,
+  onOpenMemos,
   onOpenTagEvidence,
+  onOpenTagMemos,
 }: {
   category: CategoryNode;
+  collapsed: boolean;
+  onToggle: () => void;
+  count: number;
+  memoCount: number;
+  tagCounts: Map<number, number>;
+  tagMemoCounts: Map<number, number>;
   onOpenEvidence: () => void;
+  onOpenMemos: () => void;
   onOpenTagEvidence: (tagId: number) => void;
+  onOpenTagMemos: (tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -495,40 +705,63 @@ const CategoryCard = ({
     <article className={styles.categoryCard}>
       <div className={styles.categoryHeader}>
         <div>
+          <button type="button" className={styles.expandButton} onClick={onToggle}>
+            {collapsed ? "▸" : "▾"}
+          </button>
           <h3 className={styles.categoryTitle}>{category.name}</h3>
           <p className={styles.categoryMeta}>
             {t("analysis.themeMap.categorySummary", {
               tags: category.tags.length,
-              references: category.count,
+              references: count,
               defaultValue: "Tags: {{tags}} · Coded references: {{references}}",
             })}
           </p>
         </div>
-        <CountPill
-          count={category.count}
-          onClick={category.count > 0 ? onOpenEvidence : undefined}
-          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
-        />
+        <div className={styles.countActions}>
+          <CountPill count={count} onClick={count > 0 ? onOpenEvidence : undefined} label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })} />
+          <CountPill count={memoCount} onClick={memoCount > 0 ? onOpenMemos : undefined} label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })} tone="memo" />
+        </div>
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
-      {category.tags.length === 0 ? (
-        <p className={styles.nestedEmpty}>
-          {t("analysis.themeMap.emptyCategory", {
-            defaultValue: "No tags in this category yet.",
-          })}
-        </p>
-      ) : (
-        <ul className={styles.tagList}>
-          {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} onOpenEvidence={() => onOpenTagEvidence(tag.id)} />
-          ))}
-        </ul>
-      )}
+      {!collapsed ? (
+        category.tags.length === 0 ? (
+          <p className={styles.nestedEmpty}>
+            {t("analysis.themeMap.emptyCategory", {
+              defaultValue: "No tags in this category yet.",
+            })}
+          </p>
+        ) : (
+          <ul className={styles.tagList}>
+            {category.tags.map((tag) => (
+              <TagRow
+                key={tag.id}
+                tag={tag}
+                count={tagCounts.get(tag.id) ?? 0}
+                memoCount={tagMemoCounts.get(tag.id) ?? 0}
+                onOpenEvidence={() => onOpenTagEvidence(tag.id)}
+                onOpenMemos={() => onOpenTagMemos(tag.id)}
+              />
+            ))}
+          </ul>
+        )
+      ) : null}
     </article>
   );
 };
 
-const TagRow = ({ tag, onOpenEvidence }: { tag: TagNode; onOpenEvidence?: () => void }) => {
+const TagRow = ({
+  tag,
+  count,
+  memoCount,
+  onOpenEvidence,
+  onOpenMemos,
+}: {
+  tag: TagNode;
+  count: number;
+  memoCount: number;
+  onOpenEvidence?: () => void;
+  onOpenMemos?: () => void;
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -537,11 +770,10 @@ const TagRow = ({ tag, onOpenEvidence }: { tag: TagNode; onOpenEvidence?: () => 
         <div className={styles.tagName}>{tag.name}</div>
         {tag.description ? <p className={styles.tagDescription}>{tag.description}</p> : null}
       </div>
-      <CountPill
-        count={tag.count}
-        onClick={tag.count > 0 ? onOpenEvidence : undefined}
-        label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
-      />
+      <div className={styles.countActions}>
+        <CountPill count={count} onClick={count > 0 ? onOpenEvidence : undefined} label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })} />
+        <CountPill count={memoCount} onClick={memoCount > 0 ? onOpenMemos : undefined} label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })} tone="memo" />
+      </div>
     </li>
   );
 };
@@ -550,15 +782,17 @@ const CountPill = ({
   count,
   onClick,
   label,
+  tone = "default",
 }: {
   count: number;
   onClick?: () => void;
   label?: string;
+  tone?: "default" | "memo";
 }) =>
   onClick ? (
-    <button type="button" className={`${styles.countPill} ${styles.countPillButton}`.trim()} onClick={onClick} title={label}>
+    <button type="button" className={`${styles.countPill} ${styles.countPillButton} ${tone === "memo" ? styles.countPillMemo : ""}`.trim()} onClick={onClick} title={label}>
       {count}
     </button>
   ) : (
-    <span className={styles.countPill}>{count}</span>
+    <span className={`${styles.countPill} ${tone === "memo" ? styles.countPillMemo : ""}`.trim()}>{count}</span>
   );

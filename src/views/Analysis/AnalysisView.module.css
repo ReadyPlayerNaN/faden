@@ -11,6 +11,13 @@
   padding-block: 1rem 1.5rem;
 }
 
+.scopeCard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 0.9rem 1rem;
+}
+
 .subviewMenuWrap {
   position: relative;
 }

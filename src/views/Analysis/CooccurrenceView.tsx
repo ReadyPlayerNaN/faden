@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import type { TagMeta } from "../../ipc/codebook";
 import { useAnalysisData } from "./AnalysisData";
+import { filterAnalysisItems } from "./analysisFilters";
+import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
 import styles from "./CooccurrenceView.module.css";
 
 type PairRow = {
@@ -24,13 +26,21 @@ const tagContext = (meta: TagMeta, t: ReturnType<typeof useTranslation>["t"]) =>
 
 export const CooccurrenceView = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
+  const search = useSearch({ strict: false }) as AnalysisSearch;
   const { evidenceItems, loading, error } = useAnalysisData();
+
+  const baseItems = useMemo(
+    () => filterAnalysisItems(evidenceItems, search, { ignorePair: true }),
+    [evidenceItems, search],
+  );
 
   const rows = useMemo<PairRow[]>(() => {
     const pairCounts = new Map<string, number>();
     const tagMetaById = new Map<number, TagMeta>();
 
-    for (const item of evidenceItems) {
+    for (const item of baseItems) {
       item.tagMetas.forEach((meta) => tagMetaById.set(meta.tag.id, meta));
       const uniqueTags = Array.from(new Set(item.tagMetas.map((meta) => meta.tag.id)))
         .map((tagId) => tagMetaById.get(tagId))
@@ -55,7 +65,7 @@ export const CooccurrenceView = () => {
       })
       .filter((row): row is PairRow => row !== null)
       .sort((a, b) => b.count - a.count || compareTagNames(a.tagA, b.tagA) || compareTagNames(a.tagB, b.tagB));
-  }, [evidenceItems]);
+  }, [baseItems]);
 
   const summary = useMemo(() => {
     const totalPairs = rows.length;
@@ -63,28 +73,41 @@ export const CooccurrenceView = () => {
     return { totalPairs, strongest };
   }, [rows]);
 
+  const openEvidenceForPair = (row: PairRow) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/evidence",
+      params: { projectPath },
+      search: mergeAnalysisSearch(search, {
+        tagId: undefined,
+        pairTagAId: row.tagA.tag.id,
+        pairTagBId: row.tagB.tag.id,
+      }) as never,
+    });
+  };
+
   return (
     <>
-      <PageViewHeader
-        view="analysis"
-        title={t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}
-        subtitle={t("analysis.cooccurrence.subtitle", {
-          defaultValue:
-            "See which tag pairs most often appear together on the same coded span. Counts are unordered and each pair is counted once per span.",
-        })}
-        aside={
-          <div className={styles.summaryCard}>
-            <strong>{summary.totalPairs}</strong>
-            <span>
-              {t("analysis.cooccurrence.summary", {
-                total: summary.totalPairs,
-                strongest: summary.strongest,
-                defaultValue: "{{total}} pairs · top count {{strongest}}",
-              })}
-            </span>
-          </div>
-        }
-      />
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>{t("analysis.cooccurrence.title", { defaultValue: "Co-occurrence" })}</h1>
+          <p className={styles.subtitle}>
+            {t("analysis.cooccurrence.subtitle", {
+              defaultValue:
+                "See which tag pairs most often appear together on the same coded span. Counts are unordered and each pair is counted once per span.",
+            })}
+          </p>
+        </div>
+        <div className={styles.summaryCard}>
+          <strong>{summary.totalPairs}</strong>
+          <span>
+            {t("analysis.cooccurrence.summary", {
+              total: summary.totalPairs,
+              strongest: summary.strongest,
+              defaultValue: "{{total}} pairs · top count {{strongest}}",
+            })}
+          </span>
+        </div>
+      </header>
 
       {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 
@@ -119,20 +142,29 @@ export const CooccurrenceView = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.key}>
-                    <td className={styles.rankCell}>{index + 1}</td>
-                    <td>
-                      <div className={styles.tagName}>{row.tagA.tag.name}</div>
-                      <div className={styles.context}>{tagContext(row.tagA, t)}</div>
-                    </td>
-                    <td>
-                      <div className={styles.tagName}>{row.tagB.tag.name}</div>
-                      <div className={styles.context}>{tagContext(row.tagB, t)}</div>
-                    </td>
-                    <td className={styles.countCell}>{row.count}</td>
-                  </tr>
-                ))}
+                {rows.map((row, index) => {
+                  const active =
+                    search.pairTagAId === row.tagA.tag.id &&
+                    search.pairTagBId === row.tagB.tag.id;
+                  return (
+                    <tr key={row.key} className={active ? styles.activeRow : undefined}>
+                      <td className={styles.rankCell}>{index + 1}</td>
+                      <td>
+                        <div className={styles.tagName}>{row.tagA.tag.name}</div>
+                        <div className={styles.context}>{tagContext(row.tagA, t)}</div>
+                      </td>
+                      <td>
+                        <div className={styles.tagName}>{row.tagB.tag.name}</div>
+                        <div className={styles.context}>{tagContext(row.tagB, t)}</div>
+                      </td>
+                      <td className={styles.countCell}>
+                        <button type="button" className={styles.countButton} onClick={() => openEvidenceForPair(row)}>
+                          {row.count}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

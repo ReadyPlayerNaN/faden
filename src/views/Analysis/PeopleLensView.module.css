@@ -31,7 +31,8 @@
 .evidenceMeta,
 .contactMeta,
 .noThemes,
-.empty {
+.empty,
+.emptyNotice {
   color: rgba(244, 244, 244, 0.72);
 }
 
@@ -41,7 +42,8 @@
 .interviewList,
 .evidenceThemes,
 .detailThemeList,
-.themeList {
+.themeList,
+.cardActions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -90,7 +92,8 @@
 
 .groupCount,
 .quotePill,
-.themeChip {
+.themeChip,
+.statButton {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border);
@@ -103,11 +106,18 @@
 .participantCard {
   padding: 0.85rem;
   cursor: pointer;
+  text-align: left;
+  display: grid;
+  gap: 0.75rem;
 }
 
 .participantCardActive {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.cardActions {
+  justify-content: flex-end;
 }
 
 .detailSection {
@@ -121,13 +131,33 @@
 }
 
 .detailThemeRow,
-.evidenceItem {
+.evidenceItem,
+.statButton {
   display: grid;
   gap: 0.4rem;
   padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg) 30%, transparent);
+}
+
+.detailThemeRow,
+.statButton {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.detailThemeRow {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  text-align: left;
+}
+
+.statButton[disabled] {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .evidenceList {
@@ -147,12 +177,19 @@
 }
 
 .noThemes,
-.empty {
+.empty,
+.emptyNotice {
   margin: 0;
 }
 
 @media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(300px, 1fr) minmax(340px, 0.95fr);
+    display: grid;
+    align-items: start;
+  }
+
   .cardGrid {
-    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
 }

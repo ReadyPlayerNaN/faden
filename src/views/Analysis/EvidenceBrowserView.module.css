@@ -16,6 +16,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .title {
@@ -59,10 +60,29 @@
 
 .filtersHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.filtersActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.sortField {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 11rem;
+}
+
+.sortField span,
+.filterField span {
+  color: var(--fg-muted);
 }
 
 .sectionTitle {
@@ -83,11 +103,8 @@
   font-size: 0.92rem;
 }
 
-.filterField span {
-  color: var(--fg-muted);
-}
-
-.filterField select {
+.filterField select,
+.sortField select {
   min-height: 2.5rem;
   border-radius: 10px;
   border: 1px solid var(--border);
@@ -114,6 +131,8 @@
   border-radius: 10px;
   padding: 0.9rem;
   background: var(--bg-muted);
+  display: grid;
+  gap: 0.8rem;
 }
 
 .resultMeta {
@@ -135,7 +154,7 @@
 }
 
 .quote {
-  margin: 0.8rem 0;
+  margin: 0;
   font-size: 1.05rem;
   line-height: 1.55;
 }
@@ -155,15 +174,25 @@
   padding: 0.45rem 0.75rem;
 }
 
+.tagChipMatch {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
 .tagPath {
   font-size: 0.8rem;
   color: var(--fg-muted);
 }
 
 .memo {
-  margin: 0.75rem 0 0;
+  margin: 0;
   color: var(--fg-muted);
   white-space: pre-wrap;
+}
+
+.cardActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .empty {
@@ -173,15 +202,6 @@
 }
 
 @media (max-width: 980px) {
-  .header {
-    flex-direction: column;
-  }
-
-  .summaryCard {
-    min-width: 0;
-    width: 100%;
-  }
-
   .filtersGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -193,6 +213,11 @@
     align-items: stretch;
   }
 
+  .filtersActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .filtersGrid {
     grid-template-columns: 1fr;
   }
@@ -200,5 +225,9 @@
   .tagChip {
     width: 100%;
     border-radius: 12px;
+  }
+
+  .cardActions {
+    justify-content: stretch;
   }
 }

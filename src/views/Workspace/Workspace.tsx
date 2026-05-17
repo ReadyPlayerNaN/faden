@@ -35,6 +35,7 @@ import { RightPane } from "./RightPane/RightPane";
 import styles from "./Workspace.module.css";
 
 const RIGHT_PANE_WIDTH_STORAGE_KEY = "faden.workspace-right-pane-width";
+const OPEN_SPAN_HANDOFF_STORAGE_KEY = "faden.workspace.open-span";
 const DEFAULT_RIGHT_PANE_WIDTH = 320;
 const MIN_RIGHT_PANE_WIDTH = 240;
 const MAX_RIGHT_PANE_WIDTH = 520;
@@ -88,6 +89,27 @@ export const Workspace = () => {
   useEffect(() => {
     void fetchInterviews().then(setInterviews);
   }, [projectPath, setInterviews]);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const payload = JSON.parse(raw) as {
+        projectPath?: string;
+        interviewId?: number;
+        spanId?: number;
+      };
+      if (payload.projectPath !== decodeURIComponent(projectPath)) return;
+      if (typeof payload.interviewId === "number") setSelectedInterviewId(payload.interviewId);
+      if (typeof payload.spanId === "number") {
+        setSelectedSpan(payload.spanId);
+        window.dispatchEvent(new Event("workspace:open-right-pane"));
+      }
+      window.localStorage.removeItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
+    } catch {
+      window.localStorage.removeItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
+    }
+  }, [projectPath, setSelectedInterviewId, setSelectedSpan, interviews.length]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import type { Person } from "../../ipc/person";
 import { useAnalysisData, type AnalysisItem } from "./AnalysisData";
+import { filterAnalysisItems } from "./analysisFilters";
+import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
 import styles from "./PeopleLensView.module.css";
 
 type Granularity = "cluster" | "category" | "tag";
@@ -14,6 +17,9 @@ type ThemeCount = {
   key: string;
   label: string;
   count: number;
+  clusterId?: number;
+  categoryId?: number;
+  tagId?: number;
 };
 
 type ParticipantSummary = {
@@ -30,6 +36,7 @@ type ParticipantSummary = {
   contrast: number;
   topThemes: ThemeCount[];
   evidenceItems: AnalysisItem[];
+  hasContact: boolean;
 };
 
 type ParticipantBucket = {
@@ -51,6 +58,7 @@ type MutableParticipant = {
   evidenceItems: AnalysisItem[];
   themeCounts: Map<string, ThemeCount>;
   themeMentionTotal: number;
+  hasContact: boolean;
 };
 
 const clampRatio = (value: number) => {
@@ -60,57 +68,35 @@ const clampRatio = (value: number) => {
 };
 
 const compareNames = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
-
 const topThemeLabels = (participant: ParticipantSummary) => participant.topThemes.slice(0, 3);
 
 export const PeopleLensView = () => {
   const { t } = useTranslation();
-  const {
-    interviews,
-    evidenceItems,
-    people,
-    speakersByInterview,
-    segmentsByInterview,
-    loading,
-    error,
-  } = useAnalysisData();
+  const navigate = useNavigate();
+  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
+  const search = useSearch({ strict: false }) as AnalysisSearch;
+  const { evidenceItems, loading, error } = useAnalysisData();
 
   const [granularity, setGranularity] = useState<Granularity>("category");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const [sortBy, setSortBy] = useState<SortBy>("salience");
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(null);
 
+  const scopedEvidenceItems = useMemo(
+    () => filterAnalysisItems(evidenceItems, search),
+    [evidenceItems, search],
+  );
+
   const participantSummaries = useMemo<ParticipantSummary[]>(() => {
-    const interviewNameById = new Map(interviews.map((interview) => [interview.id, interview.name]));
     const mutable = new Map<string, MutableParticipant>();
 
-    for (const item of evidenceItems) {
-      const segment = segmentsByInterview.get(item.interview.id)?.get(item.span.segmentId) ?? null;
-      const speaker = segment?.speakerId
-        ? (speakersByInterview.get(item.interview.id)?.get(segment.speakerId) ?? null)
-        : null;
-      const person = speaker?.personId
-        ? (people.find((entry) => entry.id === speaker.personId) ?? null)
-        : null;
-
-      const fallbackSpeakerName =
-        speaker?.effectiveName?.trim() ||
-        segment?.speakerDisplayName?.trim() ||
-        segment?.speakerLabelRaw?.trim() ||
-        t("analysis.peopleLens.unknownSpeaker", { defaultValue: "Unknown speaker" });
-
-      const participantKey = person
-        ? `person:${person.id}`
-        : speaker
-          ? `speaker:${item.interview.id}:${speaker.id}`
-          : `unknown:${item.interview.id}:${fallbackSpeakerName}`;
-
-      const participant = mutable.get(participantKey) ?? {
-        key: participantKey,
-        name: person?.name ?? fallbackSpeakerName,
-        kind: person ? "person" : speaker ? "speaker" : "unknown",
-        linked: Boolean(person),
-        person,
+    for (const item of scopedEvidenceItems) {
+      const participant = mutable.get(item.participant.key) ?? {
+        key: item.participant.key,
+        name: item.participant.name,
+        kind: item.participant.kind,
+        linked: item.participant.linked,
+        person: item.participant.person,
         interviewIds: new Set<number>(),
         interviewNames: new Set<string>(),
         codedQuotes: 0,
@@ -118,12 +104,13 @@ export const PeopleLensView = () => {
         evidenceItems: [],
         themeCounts: new Map<string, ThemeCount>(),
         themeMentionTotal: 0,
+        hasContact: item.participant.hasContact,
       };
 
       participant.interviewIds.add(item.interview.id);
-      participant.interviewNames.add(interviewNameById.get(item.interview.id) ?? item.interview.name);
+      participant.interviewNames.add(item.interview.name);
       participant.codedQuotes += 1;
-      if (item.span.memo?.trim()) participant.memoCount += 1;
+      if (item.memo) participant.memoCount += 1;
       participant.evidenceItems.push(item);
 
       const themesForSpan = new Map<string, ThemeCount>();
@@ -135,6 +122,7 @@ export const PeopleLensView = () => {
                   key: `cluster:${meta.cluster.id}`,
                   label: meta.cluster.name,
                   count: 0,
+                  clusterId: meta.cluster.id,
                 }
               : {
                   key: "cluster:none",
@@ -145,10 +133,10 @@ export const PeopleLensView = () => {
               ? meta.category
                 ? {
                     key: `category:${meta.category.id}`,
-                    label: meta.cluster
-                      ? `${meta.cluster.name} › ${meta.category.name}`
-                      : meta.category.name,
+                    label: meta.cluster ? `${meta.cluster.name} › ${meta.category.name}` : meta.category.name,
                     count: 0,
+                    clusterId: meta.cluster?.id,
+                    categoryId: meta.category.id,
                   }
                 : {
                     key: "category:none",
@@ -164,6 +152,9 @@ export const PeopleLensView = () => {
                         ? `${meta.category.name} › ${meta.tag.name}`
                         : meta.tag.name,
                   count: 0,
+                  clusterId: meta.cluster?.id,
+                  categoryId: meta.category?.id,
+                  tagId: meta.tag.id,
                 };
         themesForSpan.set(theme.key, theme);
       }
@@ -178,7 +169,7 @@ export const PeopleLensView = () => {
         participant.themeMentionTotal += 1;
       }
 
-      mutable.set(participantKey, participant);
+      mutable.set(item.participant.key, participant);
     }
 
     return Array.from(mutable.values())
@@ -206,6 +197,7 @@ export const PeopleLensView = () => {
           evidenceItems: participant.evidenceItems.sort(
             (a, b) => a.interview.name.localeCompare(b.interview.name) || a.span.segmentId - b.span.segmentId,
           ),
+          hasContact: participant.hasContact,
         };
       })
       .sort((a, b) => {
@@ -217,7 +209,7 @@ export const PeopleLensView = () => {
         }
         return b.codedQuotes - a.codedQuotes || b.coverage - a.coverage || compareNames(a.name, b.name);
       });
-  }, [evidenceItems, granularity, interviews, people, sortBy, speakersByInterview, segmentsByInterview, t]);
+  }, [granularity, scopedEvidenceItems, sortBy, t]);
 
   useEffect(() => {
     if (participantSummaries.length === 0) {
@@ -235,7 +227,9 @@ export const PeopleLensView = () => {
     for (const participant of participantSummaries) {
       const placements =
         groupBy === "interview"
-          ? (participant.interviewNames.length > 0 ? participant.interviewNames : [t("analysis.peopleLens.unknownInterview", { defaultValue: "Unknown interview" })]).map((name) => ({
+          ? (participant.interviewNames.length > 0
+              ? participant.interviewNames
+              : [t("analysis.peopleLens.unknownInterview", { defaultValue: "Unknown interview" })]).map((name) => ({
               key: `interview:${name}`,
               label: name,
             }))
@@ -250,7 +244,7 @@ export const PeopleLensView = () => {
                     label: t("analysis.peopleLens.groupUnlinked", { defaultValue: "Unlinked speakers" }),
                   }]
             : groupBy === "contact"
-              ? [participant.person?.email || participant.person?.phone
+              ? [participant.hasContact
                   ? {
                       key: "contact:yes",
                       label: t("analysis.peopleLens.groupHasContact", { defaultValue: "Has contact details" }),
@@ -282,27 +276,54 @@ export const PeopleLensView = () => {
   const linkedCount = participantSummaries.filter((participant) => participant.linked).length;
   const unlinkedCount = participantSummaries.length - linkedCount;
 
+  const navigateToEvidence = (participant: ParticipantSummary, theme?: ThemeCount) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/evidence",
+      params: { projectPath },
+      search: mergeAnalysisSearch(search, {
+        participantKey: participant.key,
+        clusterId: theme?.clusterId,
+        categoryId: theme?.categoryId,
+        tagId: theme?.tagId,
+      }) as never,
+    });
+  };
+
+  const navigateToMemos = (participant: ParticipantSummary) => {
+    void navigate({
+      to: "/workspace/$projectPath/analysis/memos",
+      params: { projectPath },
+      search: mergeAnalysisSearch(search, {
+        participantKey: participant.key,
+        memoOnly: true,
+      }) as never,
+    });
+  };
+
   return (
     <>
-      <PageViewHeader
-        view="analysis"
-        title={t("analysis.peopleLens.title", { defaultValue: "People lens" })}
-        subtitle={t("analysis.peopleLens.subtitle", {
-          defaultValue:
-            "See the analysis from the participant side: who carries which themes, where evidence clusters, and where memos already exist.",
-        })}
-        aside={
-          <div className={styles.summaryCard}>
-            <strong>{participantSummaries.length}</strong>
-            <span>
-              {t("analysis.peopleLens.summary", {
-                count: participantSummaries.length,
-                defaultValue: "{{count}} participants with coded evidence",
-              })}
-            </span>
-          </div>
-        }
-      />
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>
+            {t("analysis.peopleLens.title", { defaultValue: "People lens" })}
+          </h1>
+          <p className={styles.subtitle}>
+            {t("analysis.peopleLens.subtitle", {
+              defaultValue:
+                "See the analysis from the participant side: who carries which themes, where evidence clusters, and where memos already exist.",
+            })}
+          </p>
+        </div>
+        <div className={styles.summaryCard}>
+          <strong>{participantSummaries.length}</strong>
+          <span>
+            {t("analysis.peopleLens.summary", {
+              count: participantSummaries.length,
+              defaultValue: "{{count}} participants with coded evidence",
+            })}
+          </span>
+        </div>
+      </header>
 
       {error ? <ErrorBanner message={error} onDismiss={() => undefined} /> : null}
 
@@ -328,11 +349,18 @@ export const PeopleLensView = () => {
           </span>
           <span>
             {t("analysis.peopleLens.metricQuotes", {
-              count: evidenceItems.length,
+              count: scopedEvidenceItems.length,
               defaultValue: "Coded quotes: {{count}}",
             })}
           </span>
         </div>
+        {scopedEvidenceItems.length > 0 && linkedCount === 0 ? (
+          <p className={styles.emptyNotice}>
+            {t("analysis.peopleLens.emptyLinkedPeople", {
+              defaultValue: "This project has coded speaker evidence, but no speakers are linked to People yet.",
+            })}
+          </p>
+        ) : null}
       </section>
 
       <section className={styles.controlsCard}>
@@ -378,9 +406,13 @@ export const PeopleLensView = () => {
             <p className={styles.empty}>{t("analysis.peopleLens.loading", { defaultValue: "Loading participant summaries…" })}</p>
           ) : participantSummaries.length === 0 ? (
             <p className={styles.empty}>
-              {t("analysis.peopleLens.empty", {
-                defaultValue: "No coded participant evidence yet. Add speaker assignments and coded transcript spans to populate this view.",
-              })}
+              {evidenceItems.length === 0
+                ? t("analysis.peopleLens.empty", {
+                    defaultValue: "No coded participant evidence yet. Add speaker assignments and coded transcript spans to populate this view.",
+                  })
+                : t("analysis.peopleLens.emptyFiltered", {
+                    defaultValue: "No participants match the current analysis scope.",
+                  })}
             </p>
           ) : (
             groupedParticipants.map((bucket) => (
@@ -398,11 +430,18 @@ export const PeopleLensView = () => {
                   {bucket.participants.map((participant) => {
                     const active = participant.key === selectedParticipantKey;
                     return (
-                      <button
+                      <article
                         key={participant.key}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         className={`${styles.participantCard} ${active ? styles.participantCardActive : ""}`.trim()}
                         onClick={() => setSelectedParticipantKey(participant.key)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedParticipantKey(participant.key);
+                          }
+                        }}
                       >
                         <div className={styles.cardHeader}>
                           <div>
@@ -415,22 +454,14 @@ export const PeopleLensView = () => {
                               </span>
                               <span>•</span>
                               <span>
-                                {t("analysis.peopleLens.interviewsCount", {
-                                  count: participant.interviewIds.length,
-                                  defaultValue: "Interviews: {{count}}",
-                                })}
+                                {participant.hasContact
+                                  ? t("analysis.peopleLens.contactAvailable", { defaultValue: "Contact available" })
+                                  : t("analysis.peopleLens.contactMissing", { defaultValue: "No contact details" })}
                               </span>
                             </div>
                           </div>
                           <div className={styles.quotePill}>{participant.codedQuotes}</div>
                         </div>
-
-                        {participant.person?.email || participant.person?.phone ? (
-                          <div className={styles.contactMeta}>
-                            {participant.person.email ? <span>{participant.person.email}</span> : null}
-                            {participant.person.phone ? <span>{participant.person.phone}</span> : null}
-                          </div>
-                        ) : null}
 
                         <div className={styles.metricRow}>
                           <span>
@@ -468,7 +499,25 @@ export const PeopleLensView = () => {
                             </span>
                           )}
                         </div>
-                      </button>
+
+                        <div className={styles.cardActions}>
+                          <Button onClick={(event) => {
+                            event.stopPropagation();
+                            navigateToEvidence(participant);
+                          }}>
+                            {t("analysis.peopleLens.openEvidence", { defaultValue: "Open evidence" })}
+                          </Button>
+                          <Button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigateToMemos(participant);
+                            }}
+                            disabled={participant.memoCount === 0}
+                          >
+                            {t("analysis.peopleLens.openMemos", { defaultValue: "Open memos" })}
+                          </Button>
+                        </div>
+                      </article>
                     );
                   })}
                 </div>
@@ -488,18 +537,23 @@ export const PeopleLensView = () => {
                   </p>
                 </div>
                 <div className={styles.detailStats}>
-                  <span>
+                  <button type="button" className={styles.statButton} onClick={() => navigateToEvidence(selectedParticipant)}>
                     {t("analysis.peopleLens.detailQuotes", {
                       count: selectedParticipant.codedQuotes,
                       defaultValue: "Quotes: {{count}}",
                     })}
-                  </span>
-                  <span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.statButton}
+                    onClick={() => navigateToMemos(selectedParticipant)}
+                    disabled={selectedParticipant.memoCount === 0}
+                  >
                     {t("analysis.peopleLens.detailMemos", {
                       count: selectedParticipant.memoCount,
                       defaultValue: "Memos: {{count}}",
                     })}
-                  </span>
+                  </button>
                 </div>
               </div>
 
@@ -509,10 +563,15 @@ export const PeopleLensView = () => {
                 </h3>
                 <div className={styles.detailThemeList}>
                   {selectedParticipant.topThemes.slice(0, 8).map((theme) => (
-                    <div key={`${selectedParticipant.key}-${theme.key}`} className={styles.detailThemeRow}>
+                    <button
+                      key={`${selectedParticipant.key}-${theme.key}`}
+                      type="button"
+                      className={styles.detailThemeRow}
+                      onClick={() => navigateToEvidence(selectedParticipant, theme)}
+                    >
                       <span>{theme.label}</span>
                       <strong>{theme.count}</strong>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -529,8 +588,8 @@ export const PeopleLensView = () => {
                         <span>•</span>
                         <span>
                           {t("analysis.peopleLens.segmentRef", {
-                            segmentId: item.span.segmentId,
-                            defaultValue: "Segment {{segmentId}}",
+                            id: item.span.segmentId,
+                            defaultValue: "Segment {{id}}",
                           })}
                         </span>
                       </div>
@@ -544,7 +603,7 @@ export const PeopleLensView = () => {
                           </span>
                         ))}
                       </div>
-                      {item.span.memo?.trim() ? <p className={styles.memo}>{item.span.memo.trim()}</p> : null}
+                      {item.memo ? <p className={styles.memo}>{item.memo}</p> : null}
                     </li>
                   ))}
                 </ul>

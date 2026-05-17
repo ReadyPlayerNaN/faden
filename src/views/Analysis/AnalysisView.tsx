@@ -4,19 +4,65 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
-import { AnalysisDataProvider } from "./AnalysisData";
+import { ActiveFilterChips } from "./ActiveFilterChips";
+import { AnalysisDataProvider, useAnalysisData } from "./AnalysisData";
 import { CooccurrenceView } from "./CooccurrenceView";
 import { EvidenceBrowserContent } from "./EvidenceBrowserView";
 import { MemoLayerView } from "./MemoLayerView";
 import { PeopleLensView } from "./PeopleLensView";
 import { ThemeMapView } from "./ThemeMapView";
-import { type AnalysisSearch } from "./analysisSearch";
+import { mergeAnalysisSearch, type AnalysisSearch } from "./analysisSearch";
+import { useAnalysisScopeChips } from "./analysisFilters";
 import styles from "./AnalysisView.module.css";
 
 type Section = "theme-map" | "people" | "evidence" | "cooccurrence" | "memos";
 
 type Props = {
   section: Section;
+};
+
+const AnalysisContent = ({ section }: Props) => {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as AnalysisSearch;
+  const { codebook, interviews, evidenceItems } = useAnalysisData();
+
+  const setSearchFilters = (patch: Partial<Record<keyof AnalysisSearch, number | string | boolean | null | undefined>>) => {
+    void navigate({
+      search: mergeAnalysisSearch(search, patch) as never,
+      replace: true,
+    });
+  };
+
+  const scopeChips = useAnalysisScopeChips({
+    search,
+    codebookClusters: codebook?.clusters ?? [],
+    standaloneCategories: codebook?.standaloneCategories ?? [],
+    interviews,
+    items: evidenceItems,
+    onClearPatch: setSearchFilters,
+  });
+
+  return (
+    <>
+      {scopeChips.length > 0 ? (
+        <section className={styles.scopeCard}>
+          <ActiveFilterChips items={scopeChips} />
+        </section>
+      ) : null}
+
+      {section === "theme-map" ? (
+        <ThemeMapView />
+      ) : section === "people" ? (
+        <PeopleLensView />
+      ) : section === "evidence" ? (
+        <EvidenceBrowserContent />
+      ) : section === "cooccurrence" ? (
+        <CooccurrenceView />
+      ) : (
+        <MemoLayerView />
+      )}
+    </>
+  );
 };
 
 export const AnalysisView = ({ section }: Props) => {
@@ -114,7 +160,7 @@ export const AnalysisView = ({ section }: Props) => {
                         void navigate({
                           to: tab.to,
                           params: { projectPath },
-                          search: (prev) => ({ ...prev, ...search }),
+                          search: () => ({ ...search }),
                         });
                       }}
                     >
@@ -131,17 +177,7 @@ export const AnalysisView = ({ section }: Props) => {
 
       <PageContainer className={styles.wrap}>
         <AnalysisDataProvider>
-          {section === "theme-map" ? (
-            <ThemeMapView />
-          ) : section === "people" ? (
-            <PeopleLensView />
-          ) : section === "evidence" ? (
-            <EvidenceBrowserContent />
-          ) : section === "cooccurrence" ? (
-            <CooccurrenceView />
-          ) : (
-            <MemoLayerView />
-          )}
+          <AnalysisContent section={section} />
         </AnalysisDataProvider>
       </PageContainer>
     </div>
