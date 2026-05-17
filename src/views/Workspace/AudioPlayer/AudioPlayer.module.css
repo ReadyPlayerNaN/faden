@@ -9,28 +9,34 @@
   width: 100%;
   max-width: var(--app-content-max-width);
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: var(--workspace-left-pane-width, 0px) minmax(0, 1fr) var(--workspace-right-pane-width);
+  display: flex;
   align-items: center;
   gap: 0;
 }
 
 .audioPanel,
 .audioPanelPlaceholder {
-  grid-column: 2;
   min-width: 0;
   padding: 0 1rem;
 }
 
 .audioPanel {
+  flex: 0 1 80ch;
+  max-width: 100%;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.6rem;
 }
 
+.audioPanelPlaceholder {
+  flex: 1 1 auto;
+}
+
 .statusArea {
-  grid-column: 3;
+  flex: 0 0 auto;
   min-width: 0;
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -133,16 +139,7 @@
 
 @media (max-width: 1100px) {
   .barInner {
-    grid-template-columns: minmax(0, 1fr) var(--workspace-right-pane-width);
-  }
-
-  .audioPanel,
-  .audioPanelPlaceholder {
-    grid-column: 1;
-  }
-
-  .statusArea {
-    grid-column: 2;
+    display: flex;
   }
 }
 
