@@ -455,7 +455,8 @@
       "matrixEmptyData": "No clustered coded references yet. Tag transcript spans with tags inside clusters to populate the matrix.",
       "matrixInterview": "Interview",
       "matrixTotal": "Distinct total",
-      "matrixColumnTotals": "Cluster totals"
+      "matrixColumnTotals": "Cluster totals",
+      "viewEvidence": "View evidence"
     },
     "evidence": {
       "title": "Evidence browser",

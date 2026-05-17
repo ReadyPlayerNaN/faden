@@ -5,6 +5,7 @@ import { interviewList as fetchInterviewList } from "../../ipc/interview";
 import {
   aiCategorizeStart,
   aiClusterStart,
+  aiCodebookGenStart,
   aiCostEstimate,
   aiProposalList,
   aiRunList,
@@ -56,8 +57,9 @@ type TagItem = {
   cluster: ClusterNode | null;
 };
 
-type PendingStructureAction = {
-  kind: Extract<ProposalKind, "categorize" | "cluster">;
+type PendingProjectAiAction = {
+  kind: Extract<ProposalKind, "categorize" | "cluster" | "codebook_gen">;
+  interviewIds?: number[];
 };
 
 type SectionMenuItem = ActionMenuItem;
@@ -92,10 +94,12 @@ export const TagsView = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [findMoreTag, setFindMoreTag] = useState<TagNode | null>(null);
   const [selectedInterviewIds, setSelectedInterviewIds] = useState<number[]>([]);
-  const [pendingStructureAction, setPendingStructureAction] = useState<PendingStructureAction | null>(null);
-  const [structureEstimate, setStructureEstimate] = useState<CostEstimate | null>(null);
-  const [structureBusy, setStructureBusy] = useState(false);
-  const [structureStatus, setStructureStatus] = useState<string | null>(null);
+  const [detectTagsInterviewIds, setDetectTagsInterviewIds] = useState<number[]>([]);
+  const [detectTagsModalOpen, setDetectTagsModalOpen] = useState(false);
+  const [pendingProjectAiAction, setPendingProjectAiAction] = useState<PendingProjectAiAction | null>(null);
+  const [projectAiEstimate, setProjectAiEstimate] = useState<CostEstimate | null>(null);
+  const [projectAiBusy, setProjectAiBusy] = useState(false);
+  const [projectAiStatus, setProjectAiStatus] = useState<string | null>(null);
   const {
     busy: findMoreBusy,
     status: findMoreStatus,
@@ -167,13 +171,13 @@ export const TagsView = () => {
 
   const refreshProposals = async () => setPendingProposals(await aiProposalList());
   const refreshRuns = async () => setAiRunHistory(await aiRunList());
-  const structureStatusText = (kind: PendingStructureAction["kind"]) =>
+  const projectAiStatusText = (kind: PendingProjectAiAction["kind"]) =>
     t("ai.startingKind", {
       kind: t(`ai.kinds.${kind}`),
       defaultValue: `Starting ${t(`ai.kinds.${kind}`)}…`,
     });
 
-  const startLocalStructureOperation = (kind: PendingStructureAction["kind"]) => {
+  const startLocalProjectAiOperation = (kind: PendingProjectAiAction["kind"]) => {
     const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setActiveAiOperations((prev) => [
       {
@@ -194,57 +198,62 @@ export const TagsView = () => {
     setActiveAiOperations((prev) => prev.map((op) => (op.id === id ? { ...op, runId } : op)));
   };
 
-  const finishLocalStructureOperation = (id: string) => {
+  const finishLocalProjectAiOperation = (id: string) => {
     setActiveAiOperations((prev) => prev.filter((op) => op.id !== id));
   };
 
-  const actuallyStartStructureAction = async (action: PendingStructureAction) => {
-    const localId = startLocalStructureOperation(action.kind);
-    setStructureBusy(true);
-    setStructureStatus(structureStatusText(action.kind));
+  const actuallyStartProjectAiAction = async (action: PendingProjectAiAction) => {
+    const localId = startLocalProjectAiOperation(action.kind);
+    setProjectAiBusy(true);
+    setProjectAiStatus(projectAiStatusText(action.kind));
     try {
       const runId =
         action.kind === "categorize"
           ? await aiCategorizeStart()
-          : await aiClusterStart();
+          : action.kind === "cluster"
+            ? await aiClusterStart()
+            : await aiCodebookGenStart(action.interviewIds ?? [], true);
       setLocalOperationRunId(localId, runId);
       await Promise.all([refreshProposals(), refreshRuns()]);
-      setStructureStatus(null);
+      setProjectAiStatus(null);
     } catch (e) {
       await refreshRuns().catch(() => undefined);
-      setStructureStatus(errorMessage(e));
+      setProjectAiStatus(errorMessage(e));
     } finally {
-      finishLocalStructureOperation(localId);
-      setStructureBusy(false);
-      setPendingStructureAction(null);
-      setStructureEstimate(null);
+      finishLocalProjectAiOperation(localId);
+      setProjectAiBusy(false);
+      setPendingProjectAiAction(null);
+      setProjectAiEstimate(null);
     }
   };
 
-  const launchStructureAction = async (kind: PendingStructureAction["kind"]) => {
-    const action = { kind };
-    if (skipCostConfirm[kind]) {
-      await actuallyStartStructureAction(action);
+  const launchProjectAiAction = async (action: PendingProjectAiAction, args: unknown = {}) => {
+    if (skipCostConfirm[action.kind]) {
+      await actuallyStartProjectAiAction(action);
       return;
     }
     try {
-      setStructureEstimate(await aiCostEstimate(kind, {}));
-      setPendingStructureAction(action);
-      setStructureStatus(null);
+      setProjectAiEstimate(await aiCostEstimate(action.kind, args));
+      setPendingProjectAiAction(action);
+      setProjectAiStatus(null);
     } catch (e) {
-      setStructureStatus(errorMessage(e));
+      setProjectAiStatus(errorMessage(e));
     }
   };
 
-  const onSendStructureAction = async (dontAsk: boolean) => {
-    const action = pendingStructureAction;
-    setPendingStructureAction(null);
-    setStructureEstimate(null);
+  const launchStructureAction = async (kind: Extract<ProposalKind, "categorize" | "cluster">) => {
+    await launchProjectAiAction({ kind }, {});
+  };
+
+  const onSendProjectAiAction = async (dontAsk: boolean) => {
+    const action = pendingProjectAiAction;
+    setPendingProjectAiAction(null);
+    setProjectAiEstimate(null);
     if (!action) return;
     if (dontAsk) {
       setSkipCostConfirm({ ...skipCostConfirm, [action.kind]: true });
     }
-    await actuallyStartStructureAction(action);
+    await actuallyStartProjectAiAction(action);
   };
 
   const requestDelete = (target: DeleteTarget) => {
@@ -255,6 +264,16 @@ export const TagsView = () => {
   const openFindMoreModal = (tag: TagNode) => {
     setFindMoreTag(tag);
     setSelectedInterviewIds(interviews.map((interview) => interview.id));
+  };
+
+  const openDetectTagsModal = () => {
+    setDetectTagsInterviewIds(interviews.map((interview) => interview.id));
+    setDetectTagsModalOpen(true);
+  };
+
+  const closeDetectTagsModal = () => {
+    setDetectTagsModalOpen(false);
+    setDetectTagsInterviewIds([]);
   };
 
   const closeFindMoreModal = () => {
@@ -276,6 +295,19 @@ export const TagsView = () => {
     const interviewIds = [...selectedInterviewIds];
     closeFindMoreModal();
     await launchFindMoreForInterviews(tagId, interviewIds, findMoreTag.name);
+  };
+
+  const onRunDetectTags = async () => {
+    if (detectTagsInterviewIds.length === 0) return;
+    const interviewIds = [...detectTagsInterviewIds];
+    closeDetectTagsModal();
+    await launchProjectAiAction(
+      { kind: "codebook_gen", interviewIds },
+      {
+        interview_ids: interviewIds,
+        include_existing_codebook: true,
+      },
+    );
   };
 
   const confirmDelete = async () => {
@@ -312,7 +344,7 @@ export const TagsView = () => {
     {
       label: t("ai.cluster", { defaultValue: "Cluster categories" }),
       onSelect: () => void launchStructureAction("cluster"),
-      disabled: structureBusy || categories.length === 0,
+      disabled: projectAiBusy || categories.length === 0,
     },
   ];
 
@@ -324,7 +356,7 @@ export const TagsView = () => {
     {
       label: t("ai.categorize", { defaultValue: "Categorize tags" }),
       onSelect: () => void launchStructureAction("categorize"),
-      disabled: structureBusy || tags.length === 0,
+      disabled: projectAiBusy || tags.length === 0,
     },
   ];
 
@@ -332,6 +364,11 @@ export const TagsView = () => {
     {
       label: t("tags.createTag", { defaultValue: "Create tag" }),
       onSelect: () => setAddTagFor(null),
+    },
+    {
+      label: t("ai.generateCodebook", { defaultValue: "Derive codebook" }),
+      onSelect: openDetectTagsModal,
+      disabled: projectAiBusy || interviews.length === 0,
     },
   ];
 
@@ -351,7 +388,7 @@ export const TagsView = () => {
 
         {error && <div className={styles.error}>{error}</div>}
         {findMoreStatus && <div className={styles.notice}>{findMoreStatus}</div>}
-        {structureStatus && <div className={styles.notice}>{structureStatus}</div>}
+        {projectAiStatus && <div className={styles.notice}>{projectAiStatus}</div>}
 
         <section className={styles.section}>
           <SectionHeader
@@ -498,6 +535,81 @@ export const TagsView = () => {
       )}
 
       <Modal
+        open={detectTagsModalOpen}
+        onClose={closeDetectTagsModal}
+        title={t("tags.detectTagsTargetsTitle", {
+          defaultValue: "Detect tags",
+        })}
+        footer={
+          <>
+            <Button onClick={closeDetectTagsModal} disabled={projectAiBusy}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void onRunDetectTags()}
+              disabled={projectAiBusy || detectTagsInterviewIds.length === 0}
+            >
+              {t("tags.runDetectTags", { defaultValue: "Run detection" })}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.findMoreModal}>
+          <p className={styles.findMoreHelp}>
+            {t("tags.detectTagsTargetsHelp", {
+              defaultValue: "Choose which interviews should be used to detect tags.",
+            })}
+          </p>
+          <div className={styles.findMoreBulkActions}>
+            <button
+              type="button"
+              className={styles.manageBtn}
+              onClick={() => setDetectTagsInterviewIds(interviews.map((interview) => interview.id))}
+            >
+              {t("tags.selectAll", { defaultValue: "Select all" })}
+            </button>
+            <button
+              type="button"
+              className={styles.manageBtn}
+              onClick={() => setDetectTagsInterviewIds([])}
+            >
+              {t("tags.selectNone", { defaultValue: "Select none" })}
+            </button>
+          </div>
+          <div className={styles.findMoreList}>
+            {interviews.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noInterviews", { defaultValue: "No interviews yet" })}</p>
+            ) : (
+              interviews.map((interview) => (
+                <label key={interview.id} className={styles.findMoreRow}>
+                  <input
+                    type="checkbox"
+                    checked={detectTagsInterviewIds.includes(interview.id)}
+                    onChange={() =>
+                      setDetectTagsInterviewIds((prev) =>
+                        prev.includes(interview.id)
+                          ? prev.filter((id) => id !== interview.id)
+                          : [...prev, interview.id],
+                      )
+                    }
+                  />
+                  <span className={styles.findMoreName}>{interview.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+          {detectTagsInterviewIds.length === 0 ? (
+            <p className={styles.findMoreValidation}>
+              {t("ai.selectAtLeastOneInterview", {
+                defaultValue: "Select at least one interview",
+              })}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
+
+      <Modal
         open={findMoreTag !== null}
         onClose={closeFindMoreModal}
         title={t("tags.findMoreTargetsTitle", {
@@ -590,14 +702,14 @@ export const TagsView = () => {
         {deleteError && <div className={styles.modalError}>{deleteError}</div>}
       </Modal>
       {costPreviewModal}
-      {pendingStructureAction && structureEstimate ? (
+      {pendingProjectAiAction && projectAiEstimate ? (
         <CostPreviewModal
-          estimate={structureEstimate}
+          estimate={projectAiEstimate}
           prompt=""
-          onSend={(dontAsk) => void onSendStructureAction(dontAsk)}
+          onSend={(dontAsk) => void onSendProjectAiAction(dontAsk)}
           onCancel={() => {
-            setPendingStructureAction(null);
-            setStructureEstimate(null);
+            setPendingProjectAiAction(null);
+            setProjectAiEstimate(null);
           }}
         />
       ) : null}

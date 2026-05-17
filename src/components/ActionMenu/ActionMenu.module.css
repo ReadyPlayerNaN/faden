@@ -1,0 +1,63 @@
+.wrap {
+  position: relative;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  min-width: 2rem;
+  min-height: 2rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0;
+  border-radius: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.button:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, transparent);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 20;
+  min-width: 12rem;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  padding: 0.25rem;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+}
+
+.item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-muted) 78%, transparent);
+}
+
+.item:disabled {
+  opacity: 0.6;
+}
+
+.destructive {
+  color: var(--danger, #d44);
+}

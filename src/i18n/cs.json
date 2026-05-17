@@ -454,7 +454,8 @@
       "matrixEmptyData": "Zatím nejsou žádné okódované odkazy uvnitř clusterů. Označte úseky štítky uvnitř clusterů a matice se naplní.",
       "matrixInterview": "Rozhovor",
       "matrixTotal": "Různý součet",
-      "matrixColumnTotals": "Součty clusterů"
+      "matrixColumnTotals": "Součty clusterů",
+      "viewEvidence": "Zobrazit evidenci"
     },
     "evidence": {
       "title": "Prohlížeč evidence",
