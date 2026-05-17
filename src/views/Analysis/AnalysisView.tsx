@@ -1,0 +1,71 @@
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { Button } from "../../components/Button/Button";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
+import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { EvidenceBrowserContent } from "./EvidenceBrowserView";
+import { ThemeMapView } from "./ThemeMapView";
+import styles from "./AnalysisView.module.css";
+
+type Section = "theme-map" | "evidence";
+
+type Props = {
+  section: Section;
+};
+
+export const AnalysisView = ({ section }: Props) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { projectPath } = useParams({ strict: false }) as { projectPath: string };
+
+  const tabs = useMemo(
+    () => [
+      {
+        key: "theme-map" as const,
+        label: t("analysis.themeMap.title", { defaultValue: "Theme map" }),
+        to: "/workspace/$projectPath/analysis" as const,
+      },
+      {
+        key: "evidence" as const,
+        label: t("analysis.evidence.title", { defaultValue: "Evidence browser" }),
+        to: "/workspace/$projectPath/analysis/evidence" as const,
+      },
+    ],
+    [t],
+  );
+
+  return (
+    <div className={styles.shell}>
+      <ProjectHeader
+        activeView="analysis"
+        viewAccessory={
+          <div className={styles.tabBar} role="tablist" aria-label={t("analysis.title", { defaultValue: "Analysis" })}>
+            {tabs.map((tab) => {
+              const active = tab.key === section;
+              return (
+                <Button
+                  key={tab.key}
+                  onClick={() =>
+                    void navigate({
+                      to: tab.to,
+                      params: { projectPath },
+                    })
+                  }
+                  className={`${styles.tabButton} ${active ? styles.tabButtonActive : ""}`.trim()}
+                  aria-pressed={active}
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+        }
+      />
+
+      <PageContainer className={styles.wrap} size="xwide">
+        {section === "theme-map" ? <ThemeMapView /> : <EvidenceBrowserContent />}
+      </PageContainer>
+    </div>
+  );
+};
