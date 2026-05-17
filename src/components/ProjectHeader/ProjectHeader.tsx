@@ -9,8 +9,10 @@ import { currentProjectAtom } from "../../state/project";
 import { EditProjectModal } from "../../views/Workspace/EditProjectModal";
 import styles from "./ProjectHeader.module.css";
 
+type ProjectHeaderView = "coding" | "interviews" | "labels" | "people" | "analysis" | "export";
+
 type ProjectHeaderProps = {
-	activeView?: "coding" | "interviews" | "labels" | "people" | "export" | null;
+	activeView?: ProjectHeaderView | null;
 	viewAccessory?: ReactNode;
 	leftActions?: ReactNode;
 	actions?: ReactNode;
@@ -62,6 +64,100 @@ export const ProjectHeader = ({
 		await settingsRecentRename(project.path, name).catch(() => undefined);
 		setProject(updated);
 	};
+
+	const viewOptions: Array<{
+		id: ProjectHeaderView;
+		label: string;
+		requiresProject?: boolean;
+		onClick: () => void;
+	}> = [
+		{
+			id: "coding",
+			label: t("workspace.coding", { defaultValue: "Coding" }),
+			onClick: () => {
+				void navigate(
+					project
+						? {
+								to: "/workspace/$projectPath",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+						  }
+						: { to: "/" },
+				);
+			},
+		},
+		{
+			id: "interviews",
+			label: t("workspace.interviews", { defaultValue: "Interviews" }),
+			requiresProject: true,
+			onClick: () => {
+				if (!project) return;
+				void navigate({
+					to: "/workspace/$projectPath/interviews",
+					params: {
+						projectPath: encodeURIComponent(project.path),
+					},
+				});
+			},
+		},
+		{
+			id: "labels",
+			label: t("tags.title", { defaultValue: "Labels" }),
+			onClick: () => {
+				void navigate({ to: "/tags" });
+			},
+		},
+		{
+			id: "people",
+			label: t("people.title", { defaultValue: "People" }),
+			onClick: () => {
+				void navigate(
+					project
+						? {
+								to: "/workspace/$projectPath/people",
+								params: {
+									projectPath: encodeURIComponent(project.path),
+								},
+						  }
+						: { to: "/people" },
+				);
+			},
+		},
+		{
+			id: "analysis",
+			label: t("analysis.title", { defaultValue: "Analysis" }),
+			requiresProject: true,
+			onClick: () => {
+				if (!project) return;
+				void navigate({
+					to: "/workspace/$projectPath/analysis",
+					params: {
+						projectPath: encodeURIComponent(project.path),
+					},
+				});
+			},
+		},
+		{
+			id: "export",
+			label: t("export.title", { defaultValue: "Export" }),
+			requiresProject: true,
+			onClick: () => {
+				if (!project) return;
+				void navigate({
+					to: "/workspace/$projectPath/export",
+					params: {
+						projectPath: encodeURIComponent(project.path),
+					},
+				});
+			},
+		},
+	];
+
+	const visibleViewOptions = viewOptions.filter((option) => !option.requiresProject || project);
+	const activeViewLabel =
+		viewOptions.find((option) => option.id === activeView)?.label ??
+		t("workspace.coding", { defaultValue: "Coding" });
 
 	return (
 		<>
@@ -139,115 +235,32 @@ export const ProjectHeader = ({
 							className={styles.viewMenuTrigger}
 						>
 							<span className={styles.projectMenuTriggerContent}>
-								<span className={styles.title}>
-									{activeView === "interviews"
-										? t("workspace.interviews", { defaultValue: "Interviews" })
-										: activeView === "labels"
-											? t("tags.title", { defaultValue: "Labels" })
-											: activeView === "people"
-												? t("people.title", { defaultValue: "People" })
-												: activeView === "export"
-													? t("export.title", { defaultValue: "Export" })
-													: t("workspace.coding", { defaultValue: "Coding" })}
-								</span>
+								<span className={styles.title}>{activeViewLabel}</span>
 								<span aria-hidden="true">▾</span>
 							</span>
 						</Button>
 						{viewMenuOpen && (
 							<div className={styles.projectMenuDropdown} role="menu">
-								{activeView !== "interviews" && project && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({
-												to: "/workspace/$projectPath/interviews",
-												params: {
-													projectPath: encodeURIComponent(project.path),
-												},
-											});
-										}}
-									>
-										{t("workspace.interviews", { defaultValue: "Interviews" })}
-									</button>
-								)}
-								{activeView !== "coding" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate(
-												project
-													? {
-															to: "/workspace/$projectPath",
-															params: {
-																projectPath: encodeURIComponent(project.path),
-															},
-														}
-													: { to: "/" },
-											);
-										}}
-									>
-										{t("workspace.coding", { defaultValue: "Coding" })}
-									</button>
-								)}
-								{activeView !== "labels" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({ to: "/tags" });
-										}}
-									>
-										{t("tags.title", { defaultValue: "Labels" })}
-									</button>
-								)}
-								{activeView !== "people" && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate(
-												project
-													? {
-															to: "/workspace/$projectPath/people",
-															params: {
-																projectPath: encodeURIComponent(project.path),
-															},
-														}
-													: { to: "/people" },
-											);
-										}}
-									>
-										{t("people.title", { defaultValue: "People" })}
-									</button>
-								)}
-								{activeView !== "export" && project && (
-									<button
-										type="button"
-										role="menuitem"
-										className={styles.projectMenuItem}
-										onClick={() => {
-											setViewMenuOpen(false);
-											void navigate({
-												to: "/workspace/$projectPath/export",
-												params: {
-													projectPath: encodeURIComponent(project.path),
-												},
-											});
-										}}
-									>
-										{t("export.title", { defaultValue: "Export" })}
-									</button>
-								)}
+								{visibleViewOptions.map((option) => {
+									const isActive = option.id === activeView;
+									return (
+										<button
+											key={option.id}
+											type="button"
+											role="menuitem"
+											className={styles.projectMenuItem}
+											aria-current={isActive ? "page" : undefined}
+											disabled={isActive}
+											onClick={() => {
+												setViewMenuOpen(false);
+												if (isActive) return;
+												option.onClick();
+											}}
+										>
+											{option.label}
+										</button>
+									);
+								})}
 							</div>
 						)}
 					</div>
