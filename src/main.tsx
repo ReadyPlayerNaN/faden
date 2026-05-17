@@ -6,6 +6,9 @@ import "./i18n";
 import { router } from "./router";
 import "./styles/global.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { applyTheme } from "./theme";
+
+applyTheme("system");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

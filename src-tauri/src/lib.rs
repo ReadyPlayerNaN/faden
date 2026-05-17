@@ -46,6 +46,7 @@ pub fn run() {
             commands::settings::settings_recent_rename,
             commands::settings::settings_recent_remove,
             commands::settings::settings_provider_test,
+            commands::settings::settings_system_appearance,
             commands::settings::project_settings_get,
             commands::settings::project_settings_set,
             commands::codebook::codebook_tree,

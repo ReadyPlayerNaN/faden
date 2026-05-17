@@ -6,6 +6,7 @@ export type RecentProject = {
 };
 
 export type LlmProvider = "gemini" | "openai" | "anthropic" | "ollama";
+export type AppearanceMode = "system" | "light" | "dark";
 
 export type TaskModelSelection = {
   provider: LlmProvider;
@@ -22,6 +23,7 @@ export type ProviderSettings = {
 export type GlobalSettings = {
   recentProjects: RecentProject[];
   uiLanguage: string | null;
+  appearance: AppearanceMode;
   transcription: TaskModelSelection;
   generalAi: TaskModelSelection;
   providers: ProviderSettings;
@@ -61,6 +63,7 @@ type RawTaskModelSelection = {
 type RawGlobalSettings = {
   recent_projects?: RawRecentProject[];
   ui_language?: string | null;
+  appearance?: AppearanceMode;
   transcription?: RawTaskModelSelection;
   general_ai?: RawTaskModelSelection;
   providers?: {
@@ -112,6 +115,7 @@ const selectionFromRaw = (
 const rsToTs = (raw: RawGlobalSettings): GlobalSettings => ({
   recentProjects: (raw.recent_projects ?? []).map(rawRecentToTs),
   uiLanguage: raw.ui_language ?? null,
+  appearance: raw.appearance ?? "system",
   transcription: selectionFromRaw(raw.transcription, DEFAULT_TRANSCRIPTION),
   generalAi: selectionFromRaw(raw.general_ai, DEFAULT_GENERAL),
   providers: {
@@ -147,6 +151,7 @@ const tsToRs = (s: GlobalSettings): RawGlobalSettings => ({
     display_name: r.displayName,
   })),
   ui_language: s.uiLanguage,
+  appearance: s.appearance,
   transcription: s.transcription,
   general_ai: s.generalAi,
   providers: {
@@ -210,3 +215,6 @@ export const settingsProviderTest = (
     provider,
     model,
   });
+
+export const settingsSystemAppearance = (): Promise<Extract<AppearanceMode, "light" | "dark">> =>
+  invoke<Extract<AppearanceMode, "light" | "dark">>("settings_system_appearance");

@@ -108,6 +108,20 @@ fn default_general_ai_selection() -> TaskModelSelection {
     }
 }
 
+fn default_appearance() -> AppearanceMode {
+    AppearanceMode::System
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum AppearanceMode {
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "light")]
+    Light,
+    #[serde(rename = "dark")]
+    Dark,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskModelSelection {
     pub provider: LlmProvider,
@@ -254,6 +268,8 @@ pub struct GlobalSettings {
     pub recent_projects: Vec<RecentProject>,
     #[serde(default)]
     pub ui_language: Option<String>,
+    #[serde(default = "default_appearance")]
+    pub appearance: AppearanceMode,
     #[serde(default = "default_transcription_selection")]
     pub transcription: TaskModelSelection,
     #[serde(default = "default_general_ai_selection")]
@@ -303,6 +319,8 @@ struct StoredSettings {
     recent_projects: Vec<RecentProject>,
     #[serde(default)]
     ui_language: Option<String>,
+    #[serde(default = "default_appearance")]
+    appearance: AppearanceMode,
     #[serde(default = "default_transcription_selection")]
     transcription: TaskModelSelection,
     #[serde(default = "default_general_ai_selection")]
@@ -369,6 +387,7 @@ impl Default for GlobalSettings {
         Self {
             recent_projects: Vec::new(),
             ui_language: None,
+            appearance: default_appearance(),
             transcription: default_transcription_selection(),
             general_ai: default_general_ai_selection(),
             providers: ProviderSettings::default(),
@@ -381,6 +400,7 @@ impl Default for StoredSettings {
         Self {
             recent_projects: Vec::new(),
             ui_language: None,
+            appearance: default_appearance(),
             transcription: default_transcription_selection(),
             general_ai: default_general_ai_selection(),
             providers: StoredProviderSettings::default(),
@@ -393,6 +413,7 @@ impl From<StoredSettings> for GlobalSettings {
         Self {
             recent_projects: value.recent_projects,
             ui_language: value.ui_language,
+            appearance: value.appearance,
             transcription: value.transcription,
             general_ai: value.general_ai,
             providers: ProviderSettings {
@@ -420,6 +441,7 @@ impl From<&GlobalSettings> for StoredSettings {
         Self {
             recent_projects: value.recent_projects.clone(),
             ui_language: value.ui_language.clone(),
+            appearance: value.appearance,
             transcription: value.transcription.clone(),
             general_ai: value.general_ai.clone(),
             providers: StoredProviderSettings {
@@ -478,6 +500,10 @@ impl SettingsStore {
         let Some(root) = value.as_object_mut() else {
             return;
         };
+
+        if !root.contains_key("appearance") {
+            root.insert("appearance".into(), serde_json::json!("system"));
+        }
 
         if !root.contains_key("transcription") {
             let model = root

@@ -10,6 +10,7 @@ use crate::settings::{
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::process::Command;
 use tauri::Manager;
 
 fn store_for(app: &tauri::AppHandle) -> AppResult<SettingsStore> {
@@ -44,6 +45,91 @@ pub struct ProviderConnectionTestResult {
 pub async fn settings_get(app: tauri::AppHandle) -> AppResult<GlobalSettings> {
     let store = store_for(&app)?;
     hydrate_global_settings(&app, &store)
+}
+
+fn command_stdout(program: &str, args: &[&str]) -> Option<String> {
+    let output = Command::new(program).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_portal_appearance() -> Option<String> {
+    let value = command_stdout(
+        "gdbus",
+        &[
+            "call",
+            "--session",
+            "--dest",
+            "org.freedesktop.portal.Desktop",
+            "--object-path",
+            "/org/freedesktop/portal/desktop",
+            "--method",
+            "org.freedesktop.portal.Settings.Read",
+            "org.freedesktop.appearance",
+            "color-scheme",
+        ],
+    )?;
+
+    if value.contains("uint32 1") {
+        return Some("dark".into());
+    }
+    if value.contains("uint32 2") || value.contains("uint32 0") {
+        return Some("light".into());
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_gsettings_appearance() -> Option<String> {
+    if let Some(value) = command_stdout(
+        "gsettings",
+        &["get", "org.gnome.desktop.interface", "color-scheme"],
+    ) {
+        let normalized = value.trim_matches('"').trim_matches('\'').trim();
+        if normalized.eq_ignore_ascii_case("prefer-dark") {
+            return Some("dark".into());
+        }
+        if normalized.eq_ignore_ascii_case("prefer-light")
+            || normalized.eq_ignore_ascii_case("default")
+            || normalized.eq_ignore_ascii_case("no-preference")
+        {
+            return Some("light".into());
+        }
+    }
+
+    if let Some(value) = command_stdout(
+        "gsettings",
+        &["get", "org.gnome.desktop.interface", "gtk-theme"],
+    ) {
+        let normalized = value.trim_matches('"').trim_matches('\'').trim();
+        let lowered = normalized.to_ascii_lowercase();
+        if lowered.ends_with("-dark") || lowered.ends_with(":dark") {
+            return Some("dark".into());
+        }
+        return Some("light".into());
+    }
+
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn detect_linux_system_appearance() -> String {
+    detect_linux_portal_appearance()
+        .or_else(detect_linux_gsettings_appearance)
+        .unwrap_or_else(|| "light".into())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn detect_linux_system_appearance() -> String {
+    "dark".into()
+}
+
+#[tauri::command]
+pub async fn settings_system_appearance() -> AppResult<String> {
+    Ok(detect_linux_system_appearance())
 }
 
 #[tauri::command]

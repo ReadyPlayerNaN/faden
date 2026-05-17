@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useAtom } from "jotai";
@@ -6,12 +6,13 @@ import {
   settingsGet,
   settingsProviderTest,
   settingsSet,
+  type AppearanceMode,
   type GlobalSettings,
   type LlmProvider,
   type ProviderConnectionTestResult,
   type TaskModelSelection,
 } from "../../ipc/settings";
-import { globalSettingsAtom } from "../../state/settings";
+import { globalSettingsAtom, themePreviewAtom } from "../../state/settings";
 import { PROVIDERS, providerById, type TaskKind } from "../../llm/catalog";
 import { Button } from "../../components/Button/Button";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
@@ -20,8 +21,10 @@ import { ErrorBanner } from "../../components/ErrorBanner";
 import { Modal } from "../../components/Modal/Modal";
 import { PromptEditors } from "./PromptEditors";
 import styles from "./Settings.module.css";
+import { applyTheme } from "../../theme";
 
 type LangChoice = "auto" | "en" | "cs";
+type AppearanceChoice = AppearanceMode;
 type ProviderState = GlobalSettings["providers"];
 
 type TaskSelectorProps = {
@@ -217,6 +220,7 @@ export const Settings = () => {
     projectPath?: string;
   };
   const [settings, setSettings] = useAtom(globalSettingsAtom);
+  const [, setThemePreview] = useAtom(themePreviewAtom);
   const [providers, setProviders] = useState<ProviderState | null>(null);
   const [configuredProviders, setConfiguredProviders] = useState<LlmProvider[]>([]);
   const [transcription, setTranscription] = useState<TaskModelSelection>({
@@ -228,8 +232,10 @@ export const Settings = () => {
     model: "gemini-3-flash-preview",
   });
   const [uiLanguage, setUiLanguage] = useState<LangChoice>("auto");
+  const [appearance, setAppearance] = useState<AppearanceChoice>("system");
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const persistedAppearanceRef = useRef<AppearanceChoice>("system");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [testingProvider, setTestingProvider] = useState<LlmProvider | null>(null);
@@ -251,6 +257,7 @@ export const Settings = () => {
     setTranscription(normalizedTranscription);
     setGeneralAi(normalizedGeneral);
     setUiLanguage((next.uiLanguage as LangChoice | null) ?? "auto");
+    setAppearance(next.appearance ?? "system");
   };
 
   useEffect(() => {
@@ -345,6 +352,23 @@ export const Settings = () => {
     }
   };
 
+  useEffect(() => {
+    persistedAppearanceRef.current = (settings?.appearance ?? "system") as AppearanceChoice;
+  }, [settings?.appearance]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    setThemePreview(appearance);
+    applyTheme(appearance);
+  }, [appearance, isLoading, setThemePreview]);
+
+  useEffect(() => {
+    return () => {
+      setThemePreview(null);
+      applyTheme(persistedAppearanceRef.current);
+    };
+  }, [setThemePreview]);
+
   const onSave = async () => {
     if (!settings || !providers || isLoading || isSaving) return;
     const next: GlobalSettings = {
@@ -353,6 +377,7 @@ export const Settings = () => {
       transcription,
       generalAi,
       uiLanguage: uiLanguage === "auto" ? null : uiLanguage,
+      appearance,
     };
     setIsSaving(true);
     setSaveError(null);
@@ -426,6 +451,25 @@ export const Settings = () => {
         ) : null}
 
         <div className={styles.settingsStack}>
+          <div className={styles.settingsBlock}>
+            <h2 className={styles.sectionTitle}>{t("settings.appearance")}</h2>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                {t("settings.appearance")}
+                <select
+                  className={styles.select}
+                  value={appearance}
+                  onChange={(e) => setAppearance(e.target.value as AppearanceChoice)}
+                  disabled={isLoading || isSaving}
+                >
+                  <option value="system">{t("settings.appearanceSystem")}</option>
+                  <option value="light">{t("settings.appearanceLight")}</option>
+                  <option value="dark">{t("settings.appearanceDark")}</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
           <div className={styles.settingsBlock}>
             <h2 className={styles.sectionTitle}>{t("settings.uiLanguage")}</h2>
             <div className={styles.field}>

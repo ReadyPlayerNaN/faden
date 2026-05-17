@@ -19,6 +19,8 @@ import { ExportView } from "./views/Export/ExportView";
 import { AnalysisView } from "./views/Analysis/AnalysisView";
 import { normalizeAnalysisSearch } from "./views/Analysis/analysisSearch";
 import { AudioPlayer } from "./views/Workspace/AudioPlayer/AudioPlayer";
+import { ThemeController } from "./components/ThemeController";
+import { ThemeDebugBadge } from "./components/ThemeDebugBadge";
 import { currentProjectAtom } from "./state/project";
 
 const isProjectRoute = (pathname: string) =>
@@ -34,12 +36,16 @@ const RootLayout = () => {
 	const showAudioControls = location.pathname.startsWith("/workspace/");
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-			<div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-				<Outlet />
+		<>
+			<ThemeController />
+			<ThemeDebugBadge />
+			<div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+				<div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+					<Outlet />
+				</div>
+				{showProjectStatusBar ? <AudioPlayer showAudioControls={showAudioControls} /> : null}
 			</div>
-			{showProjectStatusBar ? <AudioPlayer showAudioControls={showAudioControls} /> : null}
-		</div>
+		</>
 	);
 };
 
