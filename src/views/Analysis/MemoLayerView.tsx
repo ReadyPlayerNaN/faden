@@ -50,6 +50,22 @@ export const MemoLayerView = () => {
   });
 
   const visibleMemos = useMemo(() => visibleItems, [visibleItems]);
+  const categorySelectDisabled = filteredCategoryOptions.length === 0;
+  const tagSelectDisabled = filteredTagOptions.length === 0;
+
+  const categoryPlaceholder = categorySelectDisabled
+    ? clusterFilter !== null
+      ? t("analysis.memos.noCategoriesInCluster", { defaultValue: "No categories in current cluster" })
+      : t("analysis.memos.noCategoriesInScope", { defaultValue: "No categories in current scope" })
+    : t("analysis.memos.allCategories", { defaultValue: "All categories" });
+
+  const tagPlaceholder = tagSelectDisabled
+    ? categoryFilter !== null
+      ? t("analysis.memos.noTagsInCategory", { defaultValue: "No tags in current category" })
+      : clusterFilter !== null
+        ? t("analysis.memos.noTagsInCluster", { defaultValue: "No tags in current cluster" })
+        : t("analysis.memos.noTagsInScope", { defaultValue: "No tags in current scope" })
+    : t("analysis.memos.allTags", { defaultValue: "All tags" });
 
   return (
     <>
@@ -120,8 +136,9 @@ export const MemoLayerView = () => {
             <select
               value={categoryFilter ?? ""}
               onChange={(event) => setCategoryFilter(event.target.value ? Number(event.target.value) : null)}
+              disabled={categorySelectDisabled}
             >
-              <option value="">{t("analysis.memos.allCategories", { defaultValue: "All categories" })}</option>
+              <option value="">{categoryPlaceholder}</option>
               {filteredCategoryOptions.map(({ category, cluster }) => (
                 <option key={category.id} value={category.id}>
                   {cluster ? `${cluster.name} › ${category.name}` : category.name}
@@ -135,8 +152,9 @@ export const MemoLayerView = () => {
             <select
               value={tagFilter ?? ""}
               onChange={(event) => setTagFilter(event.target.value ? Number(event.target.value) : null)}
+              disabled={tagSelectDisabled}
             >
-              <option value="">{t("analysis.memos.allTags", { defaultValue: "All tags" })}</option>
+              <option value="">{tagPlaceholder}</option>
               {filteredTagOptions.map((meta) => (
                 <option key={meta.tag.id} value={meta.tag.id}>
                   {meta.tag.name}

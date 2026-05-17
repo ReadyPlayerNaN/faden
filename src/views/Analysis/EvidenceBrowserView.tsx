@@ -51,6 +51,22 @@ export const EvidenceBrowserContent = () => {
 
   const totalTaggedQuotes = evidenceItems.length;
   const visibleEvidence = useMemo(() => visibleItems, [visibleItems]);
+  const categorySelectDisabled = filteredCategoryOptions.length === 0;
+  const tagSelectDisabled = filteredTagOptions.length === 0;
+
+  const categoryPlaceholder = categorySelectDisabled
+    ? clusterFilter !== null
+      ? t("analysis.evidence.noCategoriesInCluster", { defaultValue: "No categories in current cluster" })
+      : t("analysis.evidence.noCategoriesInScope", { defaultValue: "No categories in current scope" })
+    : t("analysis.evidence.allCategories", { defaultValue: "All categories" });
+
+  const tagPlaceholder = tagSelectDisabled
+    ? categoryFilter !== null
+      ? t("analysis.evidence.noTagsInCategory", { defaultValue: "No tags in current category" })
+      : clusterFilter !== null
+        ? t("analysis.evidence.noTagsInCluster", { defaultValue: "No tags in current cluster" })
+        : t("analysis.evidence.noTagsInScope", { defaultValue: "No tags in current scope" })
+    : t("analysis.evidence.allTags", { defaultValue: "All tags" });
 
   return (
     <>
@@ -121,8 +137,9 @@ export const EvidenceBrowserContent = () => {
             <select
               value={categoryFilter ?? ""}
               onChange={(event) => setCategoryFilter(event.target.value ? Number(event.target.value) : null)}
+              disabled={categorySelectDisabled}
             >
-              <option value="">{t("analysis.evidence.allCategories", { defaultValue: "All categories" })}</option>
+              <option value="">{categoryPlaceholder}</option>
               {filteredCategoryOptions.map(({ category, cluster }) => (
                 <option key={category.id} value={category.id}>
                   {cluster ? `${cluster.name} › ${category.name}` : category.name}
@@ -136,8 +153,9 @@ export const EvidenceBrowserContent = () => {
             <select
               value={tagFilter ?? ""}
               onChange={(event) => setTagFilter(event.target.value ? Number(event.target.value) : null)}
+              disabled={tagSelectDisabled}
             >
-              <option value="">{t("analysis.evidence.allTags", { defaultValue: "All tags" })}</option>
+              <option value="">{tagPlaceholder}</option>
               {filteredTagOptions.map((meta) => (
                 <option key={meta.tag.id} value={meta.tag.id}>
                   {meta.tag.name}
