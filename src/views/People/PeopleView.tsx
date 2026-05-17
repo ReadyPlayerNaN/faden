@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { TextField } from "../../components/TextField/TextField";
 import { projectOpen } from "../../ipc/project";
@@ -160,7 +161,7 @@ export const PeopleView = () => {
 	return (
 		<div className={styles.shell}>
 			<ProjectHeader activeView="people" />
-			<div className={styles.wrap}>
+			<PageContainer className={styles.wrap}>
 				<div className={styles.headerRow}>
 					<div>
 						<h1 className={styles.title}>
@@ -216,7 +217,7 @@ export const PeopleView = () => {
 						))
 					)}
 				</div>
-			</div>
+			</PageContainer>
 
 			<Modal
 				open={addOpen}

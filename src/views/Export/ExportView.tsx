@@ -4,6 +4,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useAtom, useAtomValue } from "jotai";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { codebookTree as fetchCodebookTree } from "../../ipc/codebook";
 import {
@@ -134,7 +135,7 @@ export const ExportView = () => {
     <div className={styles.shell}>
       <ProjectHeader activeView="export" />
 
-      <div className={styles.wrap}>
+      <PageContainer className={styles.wrap}>
         <div className={styles.headerRow}>
           <div>
             <h1 className={styles.title}>{t("export.title", { defaultValue: "Export" })}</h1>
@@ -276,7 +277,7 @@ export const ExportView = () => {
           {error && <p className={styles.error}>{error}</p>}
           {success && <p className={styles.success}>{success}</p>}
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 };

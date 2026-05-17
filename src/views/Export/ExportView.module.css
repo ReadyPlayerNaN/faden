@@ -5,10 +5,7 @@
 }
 
 .wrap {
-  max-width: 72rem;
-  width: 100%;
-  margin: 0 auto;
-  padding: 1.25rem;
+  padding-block: 1.25rem;
 }
 
 .headerRow {
@@ -114,7 +111,7 @@
 
 @media (max-width: 720px) {
   .wrap {
-    padding: 1rem;
+    padding-block: 1rem;
   }
 
   .headerRow,

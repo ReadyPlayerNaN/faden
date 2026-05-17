@@ -14,6 +14,7 @@ import {
 import { globalSettingsAtom } from "../../state/settings";
 import { PROVIDERS, providerById, type TaskKind } from "../../llm/catalog";
 import { Button } from "../../components/Button/Button";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { TextField } from "../../components/TextField/TextField";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { Modal } from "../../components/Modal/Modal";
@@ -400,7 +401,7 @@ export const Settings = () => {
   };
 
   return (
-    <div className={styles.wrap}>
+    <PageContainer className={styles.wrap} size="narrow">
       <header className={styles.header}>
         <h1 className={styles.title}>{t("settings.title")}</h1>
         <Button
@@ -739,6 +740,6 @@ export const Settings = () => {
           </div>
         ) : null}
       </Modal>
-    </div>
+    </PageContainer>
   );
 };

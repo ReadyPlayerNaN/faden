@@ -34,7 +34,7 @@ export const ProjectPicker = () => {
     setCurrent({ path, name, language });
     void settingsAddRecent(path, name).then(setSettings);
     void navigate({
-      to: "/workspace/$projectPath",
+      to: "/workspace/$projectPath/interviews",
       params: { projectPath: encodeURIComponent(path) },
     });
   };

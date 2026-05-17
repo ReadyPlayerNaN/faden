@@ -4,6 +4,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import {
   aiRunList,
   aiRunRetry,
@@ -154,7 +155,7 @@ export const AiOpsView = () => {
   };
 
   return (
-    <div className={styles.wrap}>
+    <PageContainer className={styles.wrap} size="wide">
       {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
       <header className={styles.header}>
         <div>
@@ -258,7 +259,7 @@ export const AiOpsView = () => {
           </ul>
         )}
       </section>
-    </div>
+    </PageContainer>
   );
 };
 

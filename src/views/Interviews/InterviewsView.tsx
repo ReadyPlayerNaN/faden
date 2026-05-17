@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { projectOpen } from "../../ipc/project";
 import { currentProjectAtom } from "../../state/project";
@@ -27,7 +28,7 @@ export const InterviewsView = () => {
   return (
     <div className={styles.shell}>
       <ProjectHeader activeView="interviews" />
-      <div className={styles.wrap}>
+      <PageContainer className={styles.wrap}>
         <div className={styles.headerRow}>
           <div>
             <h1 className={styles.title}>
@@ -56,7 +57,7 @@ export const InterviewsView = () => {
             }}
           />
         </div>
-      </div>
+      </PageContainer>
       {modalOpen && <AddInterviewModal onClose={() => setModalOpen(false)} />}
     </div>
   );

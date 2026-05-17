@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom, useSetAtom } from "jotai";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "../../components/Button/Button";
+import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
 import { interviewList as fetchInterviews } from "../../ipc/interview";
 import { projectOpen } from "../../ipc/project";
@@ -51,7 +52,7 @@ export const SuggestionsView = () => {
           </Button>
         }
       />
-      <main className={styles.content}>
+      <PageContainer className={styles.content} size="wide">
         <header className={styles.header}>
           <h1 className={styles.title}>
             {t("ai.suggestionsCenterTitle", {
@@ -64,7 +65,7 @@ export const SuggestionsView = () => {
           fullHeight
           initialSelectedStatuses={["pending", "accepted", "rejected"]}
         />
-      </main>
+      </PageContainer>
     </div>
   );
 };
