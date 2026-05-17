@@ -243,16 +243,17 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={closeActionModal}>
+						<Button type="button" onClick={closeActionModal}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
+							variant="primary"
 							onClick={() => void submitAdd()}
 							disabled={!newLabel.trim() && !newPersonId}
 						>
 							{t("common.create", { defaultValue: "Create" })}
-						</button>
+						</Button>
 					</>
 				}
 			>
@@ -315,12 +316,12 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={closeActionModal}>
+						<Button type="button" onClick={closeActionModal}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button type="button" onClick={() => void submitMerge()}>
+						</Button>
+						<Button type="button" variant="primary" onClick={() => void submitMerge()}>
 							{t("speakers.merge", { defaultValue: "Merge speakers" })}
-						</button>
+						</Button>
 					</>
 				}
 			>
@@ -381,19 +382,19 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				size="sm"
 				footer={
 					<>
-						<button type="button" onClick={closeSpeakerDetail}>
+						<Button type="button" onClick={closeSpeakerDetail}>
 							{t("common.cancel", { defaultValue: "Cancel" })}
-						</button>
-						<button
+						</Button>
+						<Button
 							type="button"
-							className={styles.deleteButton}
+							variant="danger"
 							onClick={() => void deleteFromDetail()}
 						>
 							{t("common.delete", { defaultValue: "Delete" })}
-						</button>
-						<button type="button" onClick={() => void submitDetail()}>
+						</Button>
+						<Button type="button" variant="primary" onClick={() => void submitDetail()}>
 							{t("common.save", { defaultValue: "Save" })}
-						</button>
+						</Button>
 					</>
 				}
 			>

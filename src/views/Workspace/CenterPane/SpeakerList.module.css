@@ -102,9 +102,6 @@
 	background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
 }
 
-.deleteButton {
-	color: var(--danger);
-}
 
 .error {
 	color: #d04848;
