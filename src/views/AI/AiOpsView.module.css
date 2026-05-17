@@ -27,6 +27,31 @@
   gap: 0.5rem;
 }
 
+.filtersSection {
+  margin-bottom: 1rem;
+}
+
+.filterField {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.filterLabel {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.filterSelect {
+  min-width: 16rem;
+  background: var(--bg-muted);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+}
+
 .section {
   margin-bottom: 2rem;
 }
@@ -161,6 +186,11 @@
   border: 2px solid color-mix(in srgb, var(--fg) 18%, transparent);
   border-top-color: var(--fg);
   animation: spin 0.8s linear infinite;
+}
+
+.scopeMeta {
+  font-size: 0.82rem;
+  opacity: 0.72;
 }
 
 .summary {

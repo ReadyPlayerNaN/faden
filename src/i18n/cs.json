@@ -215,7 +215,13 @@
     "errorClusterRequired": "Klastr je povinný",
     "editCluster": "Upravit klastr",
     "editCategory": "Upravit kategorii",
-    "editTag": "Upravit štítek"
+    "editTag": "Upravit štítek",
+    "findMoreTargetsTitle": "Najít další výskyty",
+    "findMoreTargetsHelp": "Vyberte, ve kterých rozhovorech se má tento štítek hledat.",
+    "runFindMore": "Spustit hledání",
+    "selectAll": "Vybrat vše",
+    "selectNone": "Zrušit výběr",
+    "noInterviews": "Zatím žádné rozhovory"
   },
   "people": {
     "title": "Osoby",
@@ -279,6 +285,7 @@
     "preTag": "Doplnit štítky",
     "findMore": "Najít další",
     "findMoreOccurrences": "Najít další výskyty",
+    "selectAtLeastOneInterview": "Vyberte alespoň jeden rozhovor",
     "useExistingCodebook": "Rozšířit stávající číselník",
     "selectInterviews": "Vyberte rozhovory",
     "selectTag": "Nejprve vyberte štítek v číselníku",
@@ -321,6 +328,9 @@
     "historyTitle": "Historie",
     "viewAllOps": "Otevřít centrum operací",
     "refreshOps": "Obnovit",
+    "interviewFilter": "Rozhovor",
+    "interviewFilterAll": "Všechny operace",
+    "interviewFilterProjectWide": "Jen projektové",
     "opDetailTitle": "Detail operace",
     "noOngoing": "Žádné probíhající operace",
     "noHistory": "Zatím žádná historie operací",
@@ -375,6 +385,9 @@
       "transcribe_chunk": "Přepsat část"
     },
     "operationWithInterview": "{{kind}} {{name}}",
+    "findMoreTagTitle": "Najít další \"{{name}}\"",
+    "projectWide": "Na úrovni projektu",
+    "relatedInterviewValue": "Rozhovor: {{name}}",
     "kinds": {
       "transcribe": "Přepis",
       "codebook_gen": "Odvodit číselník",

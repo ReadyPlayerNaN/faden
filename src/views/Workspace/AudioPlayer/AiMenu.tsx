@@ -265,6 +265,7 @@ export const AiMenu = () => {
                         ) : (
                           <span className={styles.ongoingLabel}>{op.title}</span>
                         )}
+                        <span className={styles.ongoingMeta}>{op.relatedScopeLabel}</span>
                       </div>
                     </div>
                     {failed && op.runId !== null ? (

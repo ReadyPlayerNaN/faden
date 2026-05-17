@@ -101,6 +101,13 @@
   text-overflow: ellipsis;
 }
 
+.ongoingMeta {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.76rem;
+  opacity: 0.7;
+}
+
 .failedItem {
   border: 1px solid color-mix(in srgb, #ff5c57 40%, transparent);
 }

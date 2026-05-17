@@ -16,6 +16,7 @@ import { buildTagMetaMap, listTagMeta } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
 import { effectiveSelectedInterviewIdAtom } from "../../../state/interview";
 import { Button } from "../../../components/Button/Button";
+import { useFindMoreAction } from "../AI/useFindMoreAction";
 import styles from "./SpanDetail.module.css";
 
 type Props = { span: SpanDTO };
@@ -31,6 +32,7 @@ export const SpanDetail = ({ span }: Props) => {
   const [addingTag, setAddingTag] = useState(false);
   const [filter, setFilter] = useState("");
   const memoSaveRequestIdRef = useRef(0);
+  const { busy: findMoreBusy, status: findMoreStatus, launchFindMore, costPreviewModal } = useFindMoreAction();
 
   useEffect(() => {
     setMemo(span.memo ?? "");
@@ -187,6 +189,19 @@ export const SpanDetail = ({ span }: Props) => {
             </div>
           )}
         </div>
+        <div className={styles.sectionActions}>
+          <Button
+            onClick={() => {
+              const firstTag = span.tags[0];
+              const tagName = firstTag ? tagMetaById.get(firstTag.tagId)?.tag.name ?? null : null;
+              void launchFindMore(firstTag?.tagId ?? null, undefined, tagName);
+            }}
+            disabled={findMoreBusy || span.tags.length === 0}
+          >
+            {t("ai.findMoreOccurrences", { defaultValue: "Find more occurrences" })}
+          </Button>
+          {findMoreStatus ? <p className={styles.status}>{findMoreStatus}</p> : null}
+        </div>
       </section>
 
       <section>
@@ -208,6 +223,7 @@ export const SpanDetail = ({ span }: Props) => {
           {t("tagging.deleteSpan")}
         </Button>
       </section>
+      {costPreviewModal}
     </div>
   );
 };

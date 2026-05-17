@@ -157,9 +157,12 @@ pub async fn ai_find_more_start(
             project_settings.prompts.find_more.as_deref(),
             project_settings.language.as_deref().unwrap_or("English"),
         )?;
+        let tag_record = tag::get(&conn, tag_id)?;
         let input_json = serde_json::json!({
             "provider": selection.provider.as_str(),
             "model": selection.model.clone(),
+            "tag_id": tag_id,
+            "tag_name": tag_record.name,
         })
         .to_string();
         let run_id = ai_run::start(

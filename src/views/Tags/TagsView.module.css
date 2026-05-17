@@ -25,6 +25,15 @@
   margin-bottom: 0.75rem;
 }
 
+.notice {
+  color: var(--fg);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
 .empty {
   opacity: 0.6;
   font-style: italic;
@@ -116,6 +125,92 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.menuWrap {
+  position: relative;
+}
+.menuBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 0.1rem 0.55rem 0.2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.8;
+}
+.menuBtn:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg-muted) 72%, transparent);
+}
+.menuDropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 20;
+  min-width: 12rem;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  padding: 0.25rem;
+}
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+}
+.menuItem:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-muted) 78%, transparent);
+}
+.menuItem:disabled {
+  opacity: 0.6;
+}
+
+.findMoreModal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.findMoreHelp,
+.findMoreValidation {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.findMoreValidation {
+  color: var(--danger);
+}
+.findMoreBulkActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.findMoreList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 18rem;
+  overflow: auto;
+}
+.findMoreRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-muted);
+}
+.findMoreName {
+  min-width: 0;
 }
 
 .modalField { display: flex; flex-direction: column; gap: 0.3rem; }

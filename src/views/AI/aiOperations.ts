@@ -28,6 +28,7 @@ export type DisplayOperation = {
   interviewId: number | null;
   interviewName: string | null;
   title: string;
+  relatedScopeLabel: string;
   stages: AiRunStageDTO[];
   retryAvailable: boolean;
 };
@@ -78,21 +79,42 @@ const sortByStartedAtDesc = (items: DisplayOperation[]) =>
     return bTime - aTime;
   });
 
+type RunInputMetadata = {
+  provider?: string;
+  tag_id?: number;
+  tag_name?: string;
+};
+
+const parseRunInputMetadata = (inputJson: string | null): RunInputMetadata | null => {
+  if (!inputJson) return null;
+  try {
+    return JSON.parse(inputJson) as RunInputMetadata;
+  } catch {
+    return null;
+  }
+};
+
 const operationTitle = (
   kind: AiRunKind,
-  interviewName: string | null,
   t: TFunction,
+  metadata?: RunInputMetadata | null,
 ) => {
-  const kindLabel = t(`ai.kinds.${kind}`);
-  if (interviewName) {
-    return t("ai.operationWithInterview", {
-      kind: kindLabel,
-      name: interviewName,
-      defaultValue: "{{kind}} {{name}}",
+  if (kind === "find_more" && metadata?.tag_name) {
+    return t("ai.findMoreTagTitle", {
+      name: metadata.tag_name,
+      defaultValue: 'Find more "{{name}}"',
     });
   }
-  return kindLabel;
+  return t(`ai.kinds.${kind}`);
 };
+
+const relatedScopeLabel = (interviewName: string | null, t: TFunction) =>
+  interviewName
+    ? t("ai.relatedInterviewValue", {
+        name: interviewName,
+        defaultValue: "Interview: {{name}}",
+      })
+    : t("ai.projectWide", { defaultValue: "Project-wide" });
 
 const stageLabel = (key: AiRunStageKey, t: TFunction) =>
   t(`ai.operationStages.${key}`);
@@ -280,7 +302,8 @@ export const buildDisplayOperations = ({
       label: op.label,
       interviewId: op.interviewId,
       interviewName,
-      title: operationTitle(op.kind, interviewName, t),
+      title: op.title ?? operationTitle(op.kind, t),
+      relatedScopeLabel: relatedScopeLabel(interviewName, t),
       stages: [],
       retryAvailable: false,
     };
@@ -303,6 +326,7 @@ export const buildDisplayOperations = ({
       const live = liveByRunId.get(run.id) ?? (run.interviewId !== null ? liveByInterviewId.get(run.interviewId) : undefined);
       const stages = live ? mergeLiveStageProgress(run.stages, live) : run.stages;
       const parsedModel = parseModelRef(run.model, run.provider);
+      const metadata = parseRunInputMetadata(run.inputJson);
       return {
         id: `run-${run.id}`,
         runId: run.id,
@@ -318,7 +342,8 @@ export const buildDisplayOperations = ({
         label: live ? labelFromSnapshot(live, t) : labelFromStages(stages, t),
         interviewId: run.interviewId,
         interviewName,
-        title: operationTitle(run.kind, interviewName, t),
+        title: operationTitle(run.kind, t, metadata),
+        relatedScopeLabel: relatedScopeLabel(interviewName, t),
         stages,
         retryAvailable:
           run.kind === "transcribe" && (run.status === "failed" || run.status === "cancelled"),
@@ -347,7 +372,8 @@ export const buildDisplayOperations = ({
         label: labelFromSnapshot(run, t),
         interviewId: numericInterviewId,
         interviewName,
-        title: operationTitle("transcribe", interviewName, t),
+        title: operationTitle("transcribe", t),
+        relatedScopeLabel: relatedScopeLabel(interviewName, t),
         stages,
         retryAvailable: false,
       };

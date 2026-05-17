@@ -46,6 +46,7 @@ export const AiOpsView = () => {
   const [loading, setLoading] = useState(true);
   const [retryingRunId, setRetryingRunId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [interviewFilter, setInterviewFilter] = useState<string>("all");
 
   useEffect(() => {
     const path = decodeURIComponent(projectPath);
@@ -122,8 +123,17 @@ export const AiOpsView = () => {
     [activeOps, aiRuns, interviews, t, transcriptionRuns],
   );
 
-  const unresolved = all.filter((op) => isUnresolvedOperation(op, acknowledgedRuns));
-  const history = all.filter((op) => op.status !== "running");
+  const filteredAll = useMemo(() => {
+    if (interviewFilter === "all") return all;
+    if (interviewFilter === "project") {
+      return all.filter((op) => op.interviewId === null);
+    }
+    const interviewId = Number(interviewFilter);
+    return all.filter((op) => op.interviewId === interviewId);
+  }, [all, interviewFilter]);
+
+  const unresolved = filteredAll.filter((op) => isUnresolvedOperation(op, acknowledgedRuns));
+  const history = filteredAll.filter((op) => op.status !== "running");
 
   const retryRun = async (runId: number) => {
     setRetryingRunId(runId);
@@ -168,6 +178,25 @@ export const AiOpsView = () => {
         </div>
       </header>
 
+      <section className={styles.filtersSection}>
+        <label className={styles.filterField}>
+          <span className={styles.filterLabel}>{t("ai.interviewFilter", { defaultValue: "Interview" })}</span>
+          <select
+            className={styles.filterSelect}
+            value={interviewFilter}
+            onChange={(e) => setInterviewFilter(e.target.value)}
+          >
+            <option value="all">{t("ai.interviewFilterAll", { defaultValue: "All operations" })}</option>
+            <option value="project">{t("ai.interviewFilterProjectWide", { defaultValue: "Project-wide only" })}</option>
+            {interviews.map((interview) => (
+              <option key={interview.id} value={String(interview.id)}>
+                {interview.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>
@@ -205,7 +234,7 @@ export const AiOpsView = () => {
           </h2>
           <span className={styles.sectionCount}>{history.length}</span>
         </div>
-        {all.length === 0 ? (
+        {filteredAll.length === 0 ? (
           <p className={styles.empty}>{t("ai.noOperations")}</p>
         ) : history.length === 0 ? (
           <p className={styles.empty}>
@@ -267,6 +296,7 @@ const OperationCard = ({
     kind,
     status,
     title,
+    relatedScopeLabel,
     label,
     summary,
     error,
@@ -296,6 +326,7 @@ const OperationCard = ({
             </span>
           </div>
         </div>
+        <div className={styles.scopeMeta}>{relatedScopeLabel}</div>
         {label && label !== title && <div className={styles.summary}>{label}</div>}
         {summary && <div className={styles.summary}>{summary}</div>}
         {error && <div className={styles.error}>{error}</div>}
@@ -322,6 +353,7 @@ const OperationCard = ({
             </span>
           )}
           <span>{t(`ai.kinds.${kind}`)}</span>
+          <span>{relatedScopeLabel}</span>
         </div>
       </div>
 

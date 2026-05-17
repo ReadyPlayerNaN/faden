@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
+import { interviewList as fetchInterviewList } from "../../ipc/interview";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
@@ -14,12 +15,14 @@ import {
   type TagNode,
 } from "../../ipc/codebook";
 import { codebookTreeAtom } from "../../state/codebook";
+import { interviewListAtom } from "../../state/interview";
 import { AddClusterModal } from "./AddClusterModal";
 import { AddCategoryModal } from "./AddCategoryModal";
 import { AddTagModal } from "./AddTagModal";
 import { EditCategoryModal } from "./EditCategoryModal";
 import { EditClusterModal } from "./EditClusterModal";
 import { EditTagModal } from "./EditTagModal";
+import { useFindMoreAction } from "../Workspace/AI/useFindMoreAction";
 import styles from "./TagsView.module.css";
 
 type DeleteTarget =
@@ -37,6 +40,7 @@ type TagItem = {
 export const TagsView = () => {
   const { t } = useTranslation();
   const [tree, setTree] = useAtom(codebookTreeAtom);
+  const [interviews, setInterviews] = useAtom(interviewListAtom);
   const [error, setError] = useState<string | null>(null);
 
   const [addClusterOpen, setAddClusterOpen] = useState(false);
@@ -48,6 +52,14 @@ export const TagsView = () => {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [findMoreTag, setFindMoreTag] = useState<TagNode | null>(null);
+  const [selectedInterviewIds, setSelectedInterviewIds] = useState<number[]>([]);
+  const {
+    busy: findMoreBusy,
+    status: findMoreStatus,
+    launchFindMoreForInterviews,
+    costPreviewModal,
+  } = useFindMoreAction();
 
   const reload = async () => {
     try {
@@ -61,6 +73,11 @@ export const TagsView = () => {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (interviews.length > 0) return;
+    void fetchInterviewList().then(setInterviews).catch(() => undefined);
+  }, [interviews.length, setInterviews]);
 
   const handleError = (e: unknown) => {
     const msg = String((e as { message?: string })?.message ?? e);
@@ -111,6 +128,32 @@ export const TagsView = () => {
     setDeleteTarget(target);
   };
 
+  const openFindMoreModal = (tag: TagNode) => {
+    setFindMoreTag(tag);
+    setSelectedInterviewIds(interviews.map((interview) => interview.id));
+  };
+
+  const closeFindMoreModal = () => {
+    setFindMoreTag(null);
+    setSelectedInterviewIds([]);
+  };
+
+  const toggleInterview = (interviewId: number) => {
+    setSelectedInterviewIds((prev) =>
+      prev.includes(interviewId)
+        ? prev.filter((id) => id !== interviewId)
+        : [...prev, interviewId],
+    );
+  };
+
+  const onRunFindMore = async () => {
+    if (!findMoreTag || selectedInterviewIds.length === 0) return;
+    const tagId = findMoreTag.id;
+    const interviewIds = [...selectedInterviewIds];
+    closeFindMoreModal();
+    await launchFindMoreForInterviews(tagId, interviewIds, findMoreTag.name);
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleteError(null);
@@ -157,6 +200,7 @@ export const TagsView = () => {
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
+        {findMoreStatus && <div className={styles.notice}>{findMoreStatus}</div>}
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>
@@ -242,6 +286,10 @@ export const TagsView = () => {
                     .join(" · ")}
                   onEdit={() => setEditTag(tag)}
                   onDelete={() => requestDelete({ kind: "tag", id: tag.id, name: tag.name })}
+                  actionMenu={{
+                    busy: findMoreBusy,
+                    onFindMore: () => openFindMoreModal(tag),
+                  }}
                 />
               ))
             )}
@@ -296,6 +344,75 @@ export const TagsView = () => {
       )}
 
       <Modal
+        open={findMoreTag !== null}
+        onClose={closeFindMoreModal}
+        title={t("tags.findMoreTargetsTitle", {
+          defaultValue: "Find more occurrences",
+        })}
+        footer={
+          <>
+            <Button onClick={closeFindMoreModal} disabled={findMoreBusy}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void onRunFindMore()}
+              disabled={findMoreBusy || selectedInterviewIds.length === 0}
+            >
+              {t("tags.runFindMore", { defaultValue: "Run search" })}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.findMoreModal}>
+          <p className={styles.findMoreHelp}>
+            {t("tags.findMoreTargetsHelp", {
+              defaultValue: "Choose which interviews should be searched for this tag.",
+            })}
+          </p>
+          <div className={styles.findMoreBulkActions}>
+            <button
+              type="button"
+              className={styles.manageBtn}
+              onClick={() => setSelectedInterviewIds(interviews.map((interview) => interview.id))}
+            >
+              {t("tags.selectAll", { defaultValue: "Select all" })}
+            </button>
+            <button
+              type="button"
+              className={styles.manageBtn}
+              onClick={() => setSelectedInterviewIds([])}
+            >
+              {t("tags.selectNone", { defaultValue: "Select none" })}
+            </button>
+          </div>
+          <div className={styles.findMoreList}>
+            {interviews.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noInterviews", { defaultValue: "No interviews yet" })}</p>
+            ) : (
+              interviews.map((interview) => (
+                <label key={interview.id} className={styles.findMoreRow}>
+                  <input
+                    type="checkbox"
+                    checked={selectedInterviewIds.includes(interview.id)}
+                    onChange={() => toggleInterview(interview.id)}
+                  />
+                  <span className={styles.findMoreName}>{interview.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+          {selectedInterviewIds.length === 0 ? (
+            <p className={styles.findMoreValidation}>
+              {t("ai.selectAtLeastOneInterview", {
+                defaultValue: "Select at least one interview",
+              })}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
+
+      <Modal
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         title={t("tags.confirmDeleteTitle", { defaultValue: "Confirm delete" })}
@@ -318,6 +435,7 @@ export const TagsView = () => {
         </p>
         {deleteError && <div className={styles.modalError}>{deleteError}</div>}
       </Modal>
+      {costPreviewModal}
     </div>
   );
 };
@@ -329,10 +447,34 @@ type ManagementRowProps = {
   subtitle: string | null;
   onEdit: () => void;
   onDelete: () => void;
+  actionMenu?: {
+    busy?: boolean;
+    onFindMore: () => void;
+  };
 };
 
-const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete }: ManagementRowProps) => {
+const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete, actionMenu }: ManagementRowProps) => {
   const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <div className={styles.managementRow}>
@@ -345,12 +487,67 @@ const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete }: Manag
         {subtitle ? <div className={styles.managementSubtitle}>{subtitle}</div> : null}
       </div>
       <div className={styles.managementActions}>
-        <button className={styles.manageBtn} onClick={onEdit}>
-          {t("common.edit", { defaultValue: "Edit" })}
-        </button>
-        <button className={styles.delBtn} onClick={onDelete} title={t("tags.delete", { defaultValue: "Delete" })}>
-          ×
-        </button>
+        {actionMenu ? (
+          <div className={styles.menuWrap} ref={menuRef}>
+            <button
+              type="button"
+              className={styles.menuBtn}
+              aria-label={t("common.actions", { defaultValue: "Actions" }) as string}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              {"⋯"}
+            </button>
+            {menuOpen && (
+              <div className={styles.menuDropdown} role="menu">
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  disabled={actionMenu.busy}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    actionMenu.onFindMore();
+                  }}
+                >
+                  {t("ai.findMoreOccurrences", { defaultValue: "Find more occurrences" })}
+                </button>
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit();
+                  }}
+                >
+                  {t("common.edit", { defaultValue: "Edit" })}
+                </button>
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete();
+                  }}
+                >
+                  {t("common.delete", { defaultValue: "Delete" })}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <button className={styles.manageBtn} onClick={onEdit}>
+              {t("common.edit", { defaultValue: "Edit" })}
+            </button>
+            <button className={styles.delBtn} onClick={onDelete} title={t("tags.delete", { defaultValue: "Delete" })}>
+              ×
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

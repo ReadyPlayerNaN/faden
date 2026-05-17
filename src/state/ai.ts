@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type { AiRunDTO, ProposalDTO, ProposalKind } from "../ipc/ai";
 import type { TranscriptionProgress } from "../ipc/transcribe";
 
@@ -9,6 +10,7 @@ export type LocalAiOperation = {
   startedAt: string;
   interviewId: number | null;
   label: string;
+  title?: string;
   progress?: TranscriptionProgress;
 };
 
@@ -16,7 +18,12 @@ export const pendingProposalsAtom = atom<ProposalDTO[]>([]);
 export const activeProposalIdAtom = atom<number | null>(null);
 export const aiRunHistoryAtom = atom<AiRunDTO[]>([]);
 export const activeAiOperationsAtom = atom<LocalAiOperation[]>([]);
-export const acknowledgedAiRunsAtom = atom<Record<number, boolean>>({});
+export const acknowledgedAiRunsAtom = atomWithStorage<Record<number, boolean>>(
+  "faden.acknowledged-ai-runs",
+  {},
+  createJSONStorage(() => localStorage),
+  { getOnInit: true },
+);
 export const hasOngoingAiOperationsAtom = atom(
   (get) =>
     get(activeAiOperationsAtom).length > 0 ||

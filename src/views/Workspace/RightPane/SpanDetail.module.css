@@ -17,6 +17,8 @@
 .addRow:active { background: color-mix(in srgb, var(--bg-muted) 92%, transparent); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
 .path { opacity: 0.55; font-size: 0.85em; }
+.sectionActions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; margin-top: 0.6rem; }
+.status { margin: 0; font-size: 0.85rem; opacity: 0.8; }
 .memo { background: var(--bg-muted); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 0.4rem 0.5rem; font: inherit; resize: vertical; min-height: 5rem; width: 100%; }
 .savedLabel { color: var(--accent); font-size: 0.8em; margin: 0.2rem 0 0; }
 .danger { margin-top: 0.5rem; }

@@ -216,7 +216,13 @@
     "errorClusterRequired": "Cluster is required",
     "editCluster": "Edit cluster",
     "editCategory": "Edit category",
-    "editTag": "Edit tag"
+    "editTag": "Edit tag",
+    "findMoreTargetsTitle": "Find more occurrences",
+    "findMoreTargetsHelp": "Choose which interviews should be searched for this tag.",
+    "runFindMore": "Run search",
+    "selectAll": "Select all",
+    "selectNone": "Select none",
+    "noInterviews": "No interviews yet"
   },
   "people": {
     "title": "People",
@@ -280,6 +286,7 @@
     "preTag": "Supplement tags",
     "findMore": "Find more",
     "findMoreOccurrences": "Find more occurrences",
+    "selectAtLeastOneInterview": "Select at least one interview",
     "useExistingCodebook": "Extend existing codebook",
     "selectInterviews": "Pick interviews",
     "selectTag": "Select a tag in the codebook first",
@@ -322,6 +329,9 @@
     "historyTitle": "History",
     "viewAllOps": "Open ops center",
     "refreshOps": "Refresh",
+    "interviewFilter": "Interview",
+    "interviewFilterAll": "All operations",
+    "interviewFilterProjectWide": "Project-wide only",
     "opDetailTitle": "Operation detail",
     "noOngoing": "No ongoing operations",
     "noHistory": "No historical operations yet",
@@ -376,6 +386,9 @@
       "transcribe_chunk": "Transcribe chunk"
     },
     "operationWithInterview": "{{kind}} {{name}}",
+    "findMoreTagTitle": "Find more \"{{name}}\"",
+    "projectWide": "Project-wide",
+    "relatedInterviewValue": "Interview: {{name}}",
     "kinds": {
       "transcribe": "Transcription",
       "codebook_gen": "Derive codebook",
