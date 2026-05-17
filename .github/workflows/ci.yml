@@ -45,7 +45,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libsoup-3.0-dev \
-            patchelf
+            patchelf \
+            rpm
 
       - name: Install JavaScript dependencies
         run: npm ci
@@ -55,6 +56,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Smoke test Linux release bundling
+        run: npm run tauri build -- --bundles deb,rpm
 
       - name: Validate AUR packaging generators
         shell: bash
