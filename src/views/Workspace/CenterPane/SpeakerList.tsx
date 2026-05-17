@@ -192,6 +192,18 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				<span className={styles.label}>
 					{t("speakers.title", { defaultValue: "Speakers" })}:
 				</span>
+				<div className={styles.list}>
+					{speakers.map((speaker) => (
+						<span key={speaker.id} className={styles.item}>
+							<button
+								className={styles.name}
+								onClick={() => openSpeakerDetail(speaker)}
+							>
+								{speaker.effectiveName}
+							</button>
+						</span>
+					))}
+				</div>
 				<div className={styles.actions} ref={containerRef}>
 					<Button
 						onClick={() => setMenuOpen((value) => !value)}
@@ -223,16 +235,6 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 						</div>
 					)}
 				</div>
-				{speakers.map((speaker) => (
-					<span key={speaker.id} className={styles.item}>
-						<button
-							className={styles.name}
-							onClick={() => openSpeakerDetail(speaker)}
-						>
-							{speaker.effectiveName}
-						</button>
-					</span>
-				))}
 			</div>
 			{error && <div className={styles.error}>{error}</div>}
 
