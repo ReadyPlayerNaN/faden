@@ -42,9 +42,14 @@ export const ThemeMapView = () => {
     });
   };
 
-  const openMemos = (filters: { clusterId?: number; categoryId?: number; tagId?: number; interviewId?: number }) => {
+  const openEvidenceForHierarchy = (filters: {
+    clusterId?: number;
+    categoryId?: number;
+    tagId?: number;
+    interviewId?: number;
+  }) => {
     void navigate({
-      to: "/workspace/$projectPath/analysis/memos",
+      to: "/workspace/$projectPath/analysis/evidence",
       params: { projectPath },
       search: mergeAnalysisSearch({}, filters),
     });
@@ -209,21 +214,21 @@ export const ThemeMapView = () => {
                 <ClusterSection
                   key={`cluster-${branch.cluster.id}`}
                   cluster={branch.cluster}
-                  onOpenClusterMemos={() => openMemos({ clusterId: branch.cluster.id })}
-                  onOpenCategoryMemos={(categoryId) =>
-                    openMemos({ clusterId: branch.cluster.id, categoryId })
+                  onOpenClusterEvidence={() => openEvidenceForHierarchy({ clusterId: branch.cluster.id })}
+                  onOpenCategoryEvidence={(categoryId) =>
+                    openEvidenceForHierarchy({ clusterId: branch.cluster.id, categoryId })
                   }
-                  onOpenTagMemos={(categoryId, tagId) =>
-                    openMemos({ clusterId: branch.cluster.id, categoryId, tagId })
+                  onOpenTagEvidence={(categoryId, tagId) =>
+                    openEvidenceForHierarchy({ clusterId: branch.cluster.id, categoryId, tagId })
                   }
                 />
               ) : (
                 <StandaloneCategorySection
                   key={`category-${branch.category.id}`}
                   category={branch.category}
-                  onOpenCategoryMemos={() => openMemos({ categoryId: branch.category.id })}
-                  onOpenTagMemos={(tagId) =>
-                    openMemos({ categoryId: branch.category.id, tagId })
+                  onOpenCategoryEvidence={() => openEvidenceForHierarchy({ categoryId: branch.category.id })}
+                  onOpenTagEvidence={(tagId) =>
+                    openEvidenceForHierarchy({ categoryId: branch.category.id, tagId })
                   }
                 />
               ),
@@ -244,7 +249,7 @@ export const ThemeMapView = () => {
                 </div>
                 <ul className={styles.tagList}>
                   {tree.standaloneTags.map((tag) => (
-                    <TagRow key={tag.id} tag={tag} onOpenMemos={() => openMemos({ tagId: tag.id })} />
+                    <TagRow key={tag.id} tag={tag} onOpenEvidence={() => openEvidenceForHierarchy({ tagId: tag.id })} />
                   ))}
                 </ul>
               </section>
@@ -376,14 +381,14 @@ export const ThemeMapView = () => {
 
 const ClusterSection = ({
   cluster,
-  onOpenClusterMemos,
-  onOpenCategoryMemos,
-  onOpenTagMemos,
+  onOpenClusterEvidence,
+  onOpenCategoryEvidence,
+  onOpenTagEvidence,
 }: {
   cluster: ClusterNode;
-  onOpenClusterMemos: () => void;
-  onOpenCategoryMemos: (categoryId: number) => void;
-  onOpenTagMemos: (categoryId: number, tagId: number) => void;
+  onOpenClusterEvidence: () => void;
+  onOpenCategoryEvidence: (categoryId: number) => void;
+  onOpenTagEvidence: (categoryId: number, tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -402,8 +407,8 @@ const ClusterSection = ({
         </div>
         <CountPill
           count={cluster.count}
-          onClick={onOpenClusterMemos}
-          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+          onClick={cluster.count > 0 ? onOpenClusterEvidence : undefined}
+          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
         />
       </div>
       {cluster.description ? <p className={styles.description}>{cluster.description}</p> : null}
@@ -419,8 +424,8 @@ const ClusterSection = ({
             <CategoryCard
               key={category.id}
               category={category}
-              onOpenMemos={() => onOpenCategoryMemos(category.id)}
-              onOpenTagMemos={(tagId) => onOpenTagMemos(category.id, tagId)}
+              onOpenEvidence={() => onOpenCategoryEvidence(category.id)}
+              onOpenTagEvidence={(tagId) => onOpenTagEvidence(category.id, tagId)}
             />
           ))}
         </div>
@@ -431,12 +436,12 @@ const ClusterSection = ({
 
 const StandaloneCategorySection = ({
   category,
-  onOpenCategoryMemos,
-  onOpenTagMemos,
+  onOpenCategoryEvidence,
+  onOpenTagEvidence,
 }: {
   category: CategoryNode;
-  onOpenCategoryMemos: () => void;
-  onOpenTagMemos: (tagId: number) => void;
+  onOpenCategoryEvidence: () => void;
+  onOpenTagEvidence: (tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -453,8 +458,8 @@ const StandaloneCategorySection = ({
         </div>
         <CountPill
           count={category.count}
-          onClick={onOpenCategoryMemos}
-          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+          onClick={category.count > 0 ? onOpenCategoryEvidence : undefined}
+          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
         />
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
@@ -467,7 +472,7 @@ const StandaloneCategorySection = ({
       ) : (
         <ul className={styles.tagList}>
           {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} onOpenMemos={() => onOpenTagMemos(tag.id)} />
+            <TagRow key={tag.id} tag={tag} onOpenEvidence={() => onOpenTagEvidence(tag.id)} />
           ))}
         </ul>
       )}
@@ -477,12 +482,12 @@ const StandaloneCategorySection = ({
 
 const CategoryCard = ({
   category,
-  onOpenMemos,
-  onOpenTagMemos,
+  onOpenEvidence,
+  onOpenTagEvidence,
 }: {
   category: CategoryNode;
-  onOpenMemos: () => void;
-  onOpenTagMemos: (tagId: number) => void;
+  onOpenEvidence: () => void;
+  onOpenTagEvidence: (tagId: number) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -501,8 +506,8 @@ const CategoryCard = ({
         </div>
         <CountPill
           count={category.count}
-          onClick={onOpenMemos}
-          label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+          onClick={category.count > 0 ? onOpenEvidence : undefined}
+          label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
         />
       </div>
       {category.description ? <p className={styles.description}>{category.description}</p> : null}
@@ -515,7 +520,7 @@ const CategoryCard = ({
       ) : (
         <ul className={styles.tagList}>
           {category.tags.map((tag) => (
-            <TagRow key={tag.id} tag={tag} onOpenMemos={() => onOpenTagMemos(tag.id)} />
+            <TagRow key={tag.id} tag={tag} onOpenEvidence={() => onOpenTagEvidence(tag.id)} />
           ))}
         </ul>
       )}
@@ -523,7 +528,7 @@ const CategoryCard = ({
   );
 };
 
-const TagRow = ({ tag, onOpenMemos }: { tag: TagNode; onOpenMemos?: () => void }) => {
+const TagRow = ({ tag, onOpenEvidence }: { tag: TagNode; onOpenEvidence?: () => void }) => {
   const { t } = useTranslation();
 
   return (
@@ -534,8 +539,8 @@ const TagRow = ({ tag, onOpenMemos }: { tag: TagNode; onOpenMemos?: () => void }
       </div>
       <CountPill
         count={tag.count}
-        onClick={onOpenMemos}
-        label={t("analysis.themeMap.viewMemos", { defaultValue: "View memos" })}
+        onClick={tag.count > 0 ? onOpenEvidence : undefined}
+        label={t("analysis.themeMap.viewEvidence", { defaultValue: "View evidence" })}
       />
     </li>
   );
