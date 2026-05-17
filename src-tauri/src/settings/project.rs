@@ -22,6 +22,10 @@ pub struct PromptOverrides {
     pub pretag: Option<String>,
     #[serde(default)]
     pub find_more: Option<String>,
+    #[serde(default)]
+    pub categorize: Option<String>,
+    #[serde(default)]
+    pub cluster: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

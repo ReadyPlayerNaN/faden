@@ -22,6 +22,7 @@ import { formatTimestamp, stageProgressText } from "./aiOperations";
 import styles from "./AiOpDetailView.module.css";
 
 type CodebookTag = {
+  id?: number;
   name: string;
   description?: string | null;
   evidence_quotes?: string[];
@@ -32,6 +33,26 @@ type SpanSuggestion = {
   start_offset: number;
   end_offset: number;
   tag_names: string[];
+  rationale?: string | null;
+};
+
+type CategorizeSuggestion = {
+  category: {
+    existing_category_id?: number | null;
+    name: string;
+    description?: string | null;
+  };
+  tags: CodebookTag[];
+  rationale?: string | null;
+};
+
+type ClusterSuggestion = {
+  cluster: {
+    existing_cluster_id?: number | null;
+    name: string;
+    description?: string | null;
+  };
+  categories: CodebookTag[];
   rationale?: string | null;
 };
 
@@ -90,7 +111,7 @@ const interviewNameOf = (interviews: Interview[], interviewId: number | null) =>
 const ProposalSection = ({ proposal }: { proposal: ProposalDTO }) => {
   const { t } = useTranslation();
   const payload = proposal.payload as {
-    proposals?: CodebookTag[];
+    proposals?: CodebookTag[] | CategorizeSuggestion[] | ClusterSuggestion[];
     suggestions?: SpanSuggestion[];
   };
 
@@ -146,23 +167,77 @@ const ProposalSection = ({ proposal }: { proposal: ProposalDTO }) => {
             {t("ai.linkedSuggestions", { defaultValue: "Linked suggestions" })}
           </h4>
           <ul className={styles.suggestionList}>
-            {payload.proposals.map((tag, index) => (
-              <li key={`${proposal.id}-tag-${index}`} className={styles.suggestionItem}>
-                <div className={styles.suggestionTags}>
-                  <span className={styles.tag}>{tag.name}</span>
-                </div>
-                {tag.description && <p className={styles.rationale}>{tag.description}</p>}
-                {tag.evidence_quotes?.length ? (
-                  <ul className={styles.quoteList}>
-                    {tag.evidence_quotes.map((quote, quoteIndex) => (
-                      <li key={quoteIndex} className={styles.quoteItem}>
-                        {quote}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
+            {(payload.proposals as Array<CodebookTag | CategorizeSuggestion | ClusterSuggestion>).map((entry, index) => {
+              if ("category" in entry) {
+                return (
+                  <li key={`${proposal.id}-category-${index}`} className={styles.suggestionItem}>
+                    <div className={styles.suggestionTags}>
+                      <span className={styles.tag}>{entry.category.name}</span>
+                    </div>
+                    <div className={styles.suggestionMeta}>
+                      {entry.category.existing_category_id
+                        ? t("ai.useExistingCategory", {
+                            defaultValue: "Use existing category #{{id}}",
+                            id: entry.category.existing_category_id,
+                          })
+                        : t("ai.createCategory", { defaultValue: "Create category" })}
+                    </div>
+                    {entry.category.description && <p className={styles.rationale}>{entry.category.description}</p>}
+                    {entry.rationale && <p className={styles.rationale}>{entry.rationale}</p>}
+                    <div className={styles.suggestionTags}>
+                      {entry.tags.map((tag) => (
+                        <span key={tag.id ?? tag.name} className={styles.tag}>
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                );
+              }
+              if ("cluster" in entry) {
+                return (
+                  <li key={`${proposal.id}-cluster-${index}`} className={styles.suggestionItem}>
+                    <div className={styles.suggestionTags}>
+                      <span className={styles.tag}>{entry.cluster.name}</span>
+                    </div>
+                    <div className={styles.suggestionMeta}>
+                      {entry.cluster.existing_cluster_id
+                        ? t("ai.useExistingCluster", {
+                            defaultValue: "Use existing cluster #{{id}}",
+                            id: entry.cluster.existing_cluster_id,
+                          })
+                        : t("ai.createCluster", { defaultValue: "Create cluster" })}
+                    </div>
+                    {entry.cluster.description && <p className={styles.rationale}>{entry.cluster.description}</p>}
+                    {entry.rationale && <p className={styles.rationale}>{entry.rationale}</p>}
+                    <div className={styles.suggestionTags}>
+                      {entry.categories.map((category) => (
+                        <span key={category.id ?? category.name} className={styles.tag}>
+                          {category.name}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                );
+              }
+              return (
+                <li key={`${proposal.id}-tag-${index}`} className={styles.suggestionItem}>
+                  <div className={styles.suggestionTags}>
+                    <span className={styles.tag}>{entry.name}</span>
+                  </div>
+                  {entry.description && <p className={styles.rationale}>{entry.description}</p>}
+                  {entry.evidence_quotes?.length ? (
+                    <ul className={styles.quoteList}>
+                      {entry.evidence_quotes.map((quote, quoteIndex) => (
+                        <li key={quoteIndex} className={styles.quoteItem}>
+                          {quote}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -2,17 +2,19 @@
 .wrap { max-width: 960px; margin: 0 auto; padding: 0 1.5rem 2rem; }
 .title { font-size: 1.5rem; margin: 1.5rem 0; }
 
-.topActions {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
 .section { margin-bottom: 2rem; }
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
 .sectionTitle {
   font-size: 1.1rem;
-  margin: 0 0 0.75rem;
+  margin: 0;
   opacity: 0.85;
 }
 

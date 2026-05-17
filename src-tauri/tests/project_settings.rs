@@ -28,6 +28,7 @@ fn round_trip() {
         ..ProjectSettings::default()
     };
     s.prompts.codebook_gen = Some("custom prompt".into());
+    s.prompts.categorize = Some("categorize prompt".into());
     s.transcription.chunk_seconds = 600;
     project_meta::write_settings(&conn, &s).unwrap();
     let loaded = project_meta::read_settings(&conn).unwrap();
@@ -35,6 +36,10 @@ fn round_trip() {
     assert_eq!(
         loaded.prompts.codebook_gen.as_deref(),
         Some("custom prompt")
+    );
+    assert_eq!(
+        loaded.prompts.categorize.as_deref(),
+        Some("categorize prompt")
     );
     assert_eq!(loaded.transcription.chunk_seconds, 600);
 }

@@ -42,10 +42,7 @@
     "editProject": "Edit project",
     "settings": "Settings",
     "openAnotherProject": "Open another project",
-    "coding": "Coding",
-    "interviewsSubtitle": "Manage interviews here. Select one to open it in Coding view.",
-    "interviewSearch": "Filter interviews",
-    "noMatchingInterviews": "No interviews found"
+    "coding": "Coding"
   },
   "codebook": {
     "addCluster": "+ Cluster",
@@ -110,6 +107,8 @@
       "codebookGen": "Codebook derivation",
       "pretag": "Tag supplementation",
       "findMore": "Find more like this",
+      "categorize": "Categorize tags",
+      "cluster": "Cluster categories",
       "usesDefault": "(using default)"
     }
   },
@@ -220,6 +219,9 @@
     "editCluster": "Edit cluster",
     "editCategory": "Edit category",
     "editTag": "Edit tag",
+    "createCluster": "Create cluster",
+    "createCategory": "Create category",
+    "createTag": "Create tag",
     "findMoreTargetsTitle": "Find more occurrences",
     "findMoreTargetsHelp": "Choose which interviews should be searched for this tag.",
     "runFindMore": "Run search",
@@ -288,6 +290,8 @@
     "generateCodebook": "Derive codebook",
     "preTag": "Supplement tags",
     "findMore": "Find more",
+    "categorize": "Categorize tags",
+    "cluster": "Cluster categories",
     "findMoreOccurrences": "Find more occurrences",
     "selectAtLeastOneInterview": "Select at least one interview",
     "useExistingCodebook": "Extend existing codebook",
@@ -390,13 +394,19 @@
     },
     "operationWithInterview": "{{kind}} {{name}}",
     "findMoreTagTitle": "Find more \"{{name}}\"",
+    "createCategory": "Create category",
+    "createCluster": "Create cluster",
+    "useExistingCategory": "Use existing category #{{id}}",
+    "useExistingCluster": "Use existing cluster #{{id}}",
     "projectWide": "Project-wide",
     "relatedInterviewValue": "Interview: {{name}}",
     "kinds": {
       "transcribe": "Transcription",
       "codebook_gen": "Derive codebook",
       "pretag": "Supplement tags",
-      "find_more": "Find more"
+      "find_more": "Find more",
+      "categorize": "Categorize tags",
+      "cluster": "Cluster categories"
     }
   },
   "errors": {

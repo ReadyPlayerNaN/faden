@@ -10,6 +10,8 @@ pub enum AiRunKind {
     Pretag,
     CodebookGen,
     FindMore,
+    Categorize,
+    Cluster,
 }
 
 impl AiRunKind {
@@ -19,6 +21,8 @@ impl AiRunKind {
             Self::Pretag => "pretag",
             Self::CodebookGen => "codebook_gen",
             Self::FindMore => "find_more",
+            Self::Categorize => "categorize",
+            Self::Cluster => "cluster",
         }
     }
     pub fn parse(s: &str) -> AppResult<Self> {
@@ -27,6 +31,8 @@ impl AiRunKind {
             "pretag" => Ok(Self::Pretag),
             "codebook_gen" => Ok(Self::CodebookGen),
             "find_more" => Ok(Self::FindMore),
+            "categorize" => Ok(Self::Categorize),
+            "cluster" => Ok(Self::Cluster),
             other => Err(AppError::Invalid(format!("ai_run kind: {other}"))),
         }
     }

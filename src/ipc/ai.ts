@@ -26,7 +26,12 @@ type RawCostEstimate = {
   estimated_usd: number;
 };
 
-export type ProposalKind = "codebook_gen" | "pretag" | "find_more";
+export type ProposalKind =
+  | "codebook_gen"
+  | "pretag"
+  | "find_more"
+  | "categorize"
+  | "cluster";
 export type ProposalStatus = "pending" | "accepted" | "rejected";
 export type AiRunKind = ProposalKind | "transcribe";
 export type CostEstimateKind = ProposalKind | "transcribe";
@@ -171,6 +176,12 @@ export const aiFindMoreStart = (
   interviewId: number,
 ): Promise<number> =>
   invoke<number>("ai_find_more_start", { tagId, interviewId });
+
+export const aiCategorizeStart = (): Promise<number> =>
+  invoke<number>("ai_categorize_start");
+
+export const aiClusterStart = (): Promise<number> =>
+  invoke<number>("ai_cluster_start");
 
 export const aiProposalList = (
   statuses?: ProposalStatus[],

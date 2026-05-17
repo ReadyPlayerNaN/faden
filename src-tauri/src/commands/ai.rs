@@ -1,7 +1,8 @@
 use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{
-    codebook_gen, find_more, pretag, SpanSuggestion, SpanSuggestions, CODEBOOK_RESPONSE_SCHEMA,
-    SPAN_SUGGESTIONS_SCHEMA,
+    categorize, cluster_suggest, codebook_gen, find_more, pretag, CategorizeSuggestions,
+    ClusterSuggestions, SpanSuggestion, SpanSuggestions, CATEGORIZE_SUGGESTIONS_SCHEMA,
+    CLUSTER_SUGGESTIONS_SCHEMA, CODEBOOK_RESPONSE_SCHEMA, SPAN_SUGGESTIONS_SCHEMA,
 };
 use crate::app_state::AppState;
 use crate::commands::transcribe::start_transcription_run;
@@ -185,6 +186,90 @@ pub async fn ai_find_more_start(
     .await;
     let conn = project_conn(&app)?;
     let _ = find_more::finalize(&conn, run_id, &input, api_result);
+    Ok(run_id)
+}
+
+#[tauri::command]
+pub async fn ai_categorize_start(app: tauri::AppHandle) -> AppResult<i64> {
+    let settings = load_settings(&app)?;
+    let selection = general_selection(&settings);
+    let input = categorize::CategorizeInput;
+    let (run_id, prompt) = {
+        let conn = project_conn(&app)?;
+        let project_settings = effective_project_settings(&app, &conn)?;
+        let prompt = categorize::build_prompt(
+            &conn,
+            &input,
+            project_settings.prompts.categorize.as_deref(),
+            project_settings.language.as_deref().unwrap_or("English"),
+        )?;
+        let input_json = serde_json::json!({
+            "provider": selection.provider.as_str(),
+            "model": selection.model.clone(),
+        })
+        .to_string();
+        let run_id = ai_run::start(
+            &conn,
+            AiRunKind::Categorize,
+            None,
+            &selection.model_ref(),
+            &prompt,
+            Some(&input_json),
+        )?;
+        (run_id, prompt)
+    };
+    let api_result = llm::generate_text_json(
+        &settings,
+        &selection,
+        &prompt,
+        Some(CATEGORIZE_SUGGESTIONS_SCHEMA),
+        16384,
+    )
+    .await;
+    let conn = project_conn(&app)?;
+    let _ = categorize::finalize(&conn, run_id, api_result);
+    Ok(run_id)
+}
+
+#[tauri::command]
+pub async fn ai_cluster_start(app: tauri::AppHandle) -> AppResult<i64> {
+    let settings = load_settings(&app)?;
+    let selection = general_selection(&settings);
+    let input = cluster_suggest::ClusterInput;
+    let (run_id, prompt) = {
+        let conn = project_conn(&app)?;
+        let project_settings = effective_project_settings(&app, &conn)?;
+        let prompt = cluster_suggest::build_prompt(
+            &conn,
+            &input,
+            project_settings.prompts.cluster.as_deref(),
+            project_settings.language.as_deref().unwrap_or("English"),
+        )?;
+        let input_json = serde_json::json!({
+            "provider": selection.provider.as_str(),
+            "model": selection.model.clone(),
+        })
+        .to_string();
+        let run_id = ai_run::start(
+            &conn,
+            AiRunKind::Cluster,
+            None,
+            &selection.model_ref(),
+            &prompt,
+            Some(&input_json),
+        )?;
+        (run_id, prompt)
+    };
+    let api_result = llm::generate_text_json(
+        &settings,
+        &selection,
+        &prompt,
+        Some(CLUSTER_SUGGESTIONS_SCHEMA),
+        16384,
+    )
+    .await;
+    let conn = project_conn(&app)?;
+    let _ = cluster_suggest::finalize(&conn, run_id, api_result);
     Ok(run_id)
 }
 
@@ -444,6 +529,316 @@ pub struct AcceptResult {
     pub skipped: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct SelectableTag {
+    id: i64,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    accept: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct SelectableCategoryTarget {
+    #[serde(default)]
+    existing_category_id: Option<i64>,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    accept: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct SelectableCategoryProposal {
+    category: SelectableCategoryTarget,
+    #[serde(default)]
+    tags: Vec<SelectableTag>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SelectableCategoryRef {
+    id: i64,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    accept: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct SelectableClusterTarget {
+    #[serde(default)]
+    existing_cluster_id: Option<i64>,
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    accept: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct SelectableClusterProposal {
+    cluster: SelectableClusterTarget,
+    #[serde(default)]
+    categories: Vec<SelectableCategoryRef>,
+}
+
+fn find_category_by_name(conn: &rusqlite::Connection, name: &str) -> AppResult<Option<i64>> {
+    Ok(category::list_all(conn)?
+        .into_iter()
+        .find(|category| category.name == name)
+        .map(|category| category.id))
+}
+
+fn find_cluster_by_name(conn: &rusqlite::Connection, name: &str) -> AppResult<Option<i64>> {
+    Ok(cluster::list(conn)?
+        .into_iter()
+        .find(|cluster| cluster.name == name)
+        .map(|cluster| cluster.id))
+}
+
+fn resolve_existing_category_target(
+    conn: &rusqlite::Connection,
+    target: &SelectableCategoryTarget,
+    skipped: &mut Vec<String>,
+) -> AppResult<Option<i64>> {
+    match target.existing_category_id {
+        Some(existing_category_id) => match category::get(conn, existing_category_id) {
+            Ok(_) => Ok(Some(existing_category_id)),
+            Err(AppError::NotFound(_)) => {
+                skipped.push(format!(
+                    "category '{}' target {} missing; creating or matching by name instead",
+                    target.name, existing_category_id
+                ));
+                Ok(find_category_by_name(conn, &target.name)?)
+            }
+            Err(error) => Err(error),
+        },
+        None => Ok(find_category_by_name(conn, &target.name)?),
+    }
+}
+
+fn resolve_existing_cluster_target(
+    conn: &rusqlite::Connection,
+    target: &SelectableClusterTarget,
+    skipped: &mut Vec<String>,
+) -> AppResult<Option<i64>> {
+    match target.existing_cluster_id {
+        Some(existing_cluster_id) => match cluster::get(conn, existing_cluster_id) {
+            Ok(_) => Ok(Some(existing_cluster_id)),
+            Err(AppError::NotFound(_)) => {
+                skipped.push(format!(
+                    "cluster '{}' target {} missing; creating or matching by name instead",
+                    target.name, existing_cluster_id
+                ));
+                Ok(find_cluster_by_name(conn, &target.name)?)
+            }
+            Err(error) => Err(error),
+        },
+        None => Ok(find_cluster_by_name(conn, &target.name)?),
+    }
+}
+
+fn accept_categorize_proposal(
+    conn: &rusqlite::Connection,
+    payload: CategorizeSuggestions,
+    selection: Value,
+) -> AppResult<AcceptResult> {
+    let selected = if let Some(proposals) = selection.get("proposals") {
+        serde_json::from_value::<Vec<SelectableCategoryProposal>>(proposals.clone())
+            .map(|proposals| CategorizeSuggestions {
+                proposals: proposals
+                    .into_iter()
+                    .filter(|proposal| proposal.category.accept)
+                    .map(|proposal| crate::ai::CategorizeSuggestion {
+                        category: crate::ai::SuggestedCategoryTarget {
+                            existing_category_id: proposal.category.existing_category_id,
+                            name: proposal.category.name,
+                            description: proposal.category.description,
+                        },
+                        tags: proposal
+                            .tags
+                            .into_iter()
+                            .filter(|tag| tag.accept)
+                            .map(|tag| crate::ai::ExistingTagRef {
+                                id: tag.id,
+                                name: tag.name,
+                                description: tag.description,
+                            })
+                            .collect(),
+                        rationale: None,
+                    })
+                    .collect(),
+            })
+            .map_err(|error| AppError::Invalid(format!("categorize selection parse: {error}")))?
+    } else {
+        payload
+    };
+
+    let mut created = 0usize;
+    let mut skipped = Vec::new();
+    for proposal in selected.proposals {
+        if proposal.tags.is_empty() {
+            skipped.push(format!(
+                "category '{}' has no selected tags",
+                proposal.category.name
+            ));
+            continue;
+        }
+        let target_category_id = if let Some(existing_category_id) =
+            resolve_existing_category_target(conn, &proposal.category, &mut skipped)?
+        {
+            existing_category_id
+        } else {
+            match category::create(
+                conn,
+                None,
+                &proposal.category.name,
+                proposal.category.description.as_deref(),
+                None,
+            ) {
+                Ok(created_category) => {
+                    created += 1;
+                    created_category.id
+                }
+                Err(AppError::Conflict(_)) => {
+                    match find_category_by_name(conn, &proposal.category.name)? {
+                        Some(existing_category_id) => existing_category_id,
+                        None => {
+                            skipped.push(format!("category '{}' (exists)", proposal.category.name));
+                            continue;
+                        }
+                    }
+                }
+                Err(error) => return Err(error),
+            }
+        };
+
+        for tag_ref in proposal.tags {
+            let current = match tag::get(conn, tag_ref.id) {
+                Ok(tag) => tag,
+                Err(_) => {
+                    skipped.push(format!("tag '{}' missing", tag_ref.name));
+                    continue;
+                }
+            };
+            if current.category_id == Some(target_category_id) {
+                skipped.push(format!("tag '{}' already in target category", tag_ref.name));
+                continue;
+            }
+            tag::move_to_category(conn, tag_ref.id, Some(target_category_id))?;
+            created += 1;
+        }
+    }
+
+    Ok(AcceptResult {
+        created_count: created,
+        skipped,
+    })
+}
+
+fn accept_cluster_proposal(
+    conn: &rusqlite::Connection,
+    payload: ClusterSuggestions,
+    selection: Value,
+) -> AppResult<AcceptResult> {
+    let selected = if let Some(proposals) = selection.get("proposals") {
+        serde_json::from_value::<Vec<SelectableClusterProposal>>(proposals.clone())
+            .map(|proposals| ClusterSuggestions {
+                proposals: proposals
+                    .into_iter()
+                    .filter(|proposal| proposal.cluster.accept)
+                    .map(|proposal| crate::ai::ClusterSuggestion {
+                        cluster: crate::ai::SuggestedClusterTarget {
+                            existing_cluster_id: proposal.cluster.existing_cluster_id,
+                            name: proposal.cluster.name,
+                            description: proposal.cluster.description,
+                        },
+                        categories: proposal
+                            .categories
+                            .into_iter()
+                            .filter(|category| category.accept)
+                            .map(|category| crate::ai::ExistingCategoryRef {
+                                id: category.id,
+                                name: category.name,
+                                description: category.description,
+                            })
+                            .collect(),
+                        rationale: None,
+                    })
+                    .collect(),
+            })
+            .map_err(|error| AppError::Invalid(format!("cluster selection parse: {error}")))?
+    } else {
+        payload
+    };
+
+    let mut created = 0usize;
+    let mut skipped = Vec::new();
+    for proposal in selected.proposals {
+        if proposal.categories.is_empty() {
+            skipped.push(format!(
+                "cluster '{}' has no selected categories",
+                proposal.cluster.name
+            ));
+            continue;
+        }
+        let target_cluster_id = if let Some(existing_cluster_id) =
+            resolve_existing_cluster_target(conn, &proposal.cluster, &mut skipped)?
+        {
+            existing_cluster_id
+        } else {
+            match cluster::create(
+                conn,
+                &proposal.cluster.name,
+                proposal.cluster.description.as_deref(),
+                None,
+            ) {
+                Ok(created_cluster) => {
+                    created += 1;
+                    created_cluster.id
+                }
+                Err(AppError::Conflict(_)) => {
+                    match find_cluster_by_name(conn, &proposal.cluster.name)? {
+                        Some(existing_cluster_id) => existing_cluster_id,
+                        None => {
+                            skipped.push(format!("cluster '{}' (exists)", proposal.cluster.name));
+                            continue;
+                        }
+                    }
+                }
+                Err(error) => return Err(error),
+            }
+        };
+
+        for category_ref in proposal.categories {
+            let current = match category::get(conn, category_ref.id) {
+                Ok(category) => category,
+                Err(_) => {
+                    skipped.push(format!("category '{}' missing", category_ref.name));
+                    continue;
+                }
+            };
+            if current.cluster_id == Some(target_cluster_id) {
+                skipped.push(format!(
+                    "category '{}' already in target cluster",
+                    category_ref.name
+                ));
+                continue;
+            }
+            category::move_to_cluster(conn, category_ref.id, Some(target_cluster_id))?;
+            created += 1;
+        }
+    }
+
+    Ok(AcceptResult {
+        created_count: created,
+        skipped,
+    })
+}
+
 #[tauri::command]
 pub async fn ai_proposal_reject(app: tauri::AppHandle, proposal_id: i64) -> AppResult<()> {
     let conn = project_conn(&app)?;
@@ -653,6 +1048,20 @@ pub async fn ai_proposal_accept(
                 created += 1;
             }
         }
+        ProposalKind::Categorize => {
+            let payload = serde_json::from_value::<CategorizeSuggestions>(p.payload.clone())
+                .map_err(|e| AppError::Invalid(format!("payload parse: {e}")))?;
+            let result = accept_categorize_proposal(&conn, payload, selection)?;
+            created = result.created_count;
+            skipped = result.skipped;
+        }
+        ProposalKind::Cluster => {
+            let payload = serde_json::from_value::<ClusterSuggestions>(p.payload.clone())
+                .map_err(|e| AppError::Invalid(format!("payload parse: {e}")))?;
+            let result = accept_cluster_proposal(&conn, payload, selection)?;
+            created = result.created_count;
+            skipped = result.skipped;
+        }
     }
     proposal::mark_accepted(&conn, proposal_id)?;
     Ok(AcceptResult {
@@ -672,7 +1081,7 @@ pub async fn ai_cost_estimate(
     let general = general_selection(&settings);
     let mut provider = general.provider.as_str().to_string();
     let mut model = general.model.clone();
-    let prompt = match kind.as_str() {
+    let (prompt, max_output_tokens) = match kind.as_str() {
         "codebook_gen" => {
             let interview_ids: Vec<i64> = args
                 .get("interview_ids")
@@ -684,15 +1093,18 @@ pub async fn ai_cost_estimate(
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
             let project_settings = effective_project_settings(&app, &conn)?;
-            codebook_gen::build_prompt(
-                &conn,
-                &codebook_gen::CodebookGenInput {
-                    interview_ids,
-                    include_existing_codebook: include,
-                },
-                project_settings.prompts.codebook_gen.as_deref(),
-                project_settings.language.as_deref().unwrap_or("English"),
-            )?
+            (
+                codebook_gen::build_prompt(
+                    &conn,
+                    &codebook_gen::CodebookGenInput {
+                        interview_ids,
+                        include_existing_codebook: include,
+                    },
+                    project_settings.prompts.codebook_gen.as_deref(),
+                    project_settings.language.as_deref().unwrap_or("English"),
+                )?,
+                32768,
+            )
         }
         "pretag" => {
             let iid = args
@@ -700,12 +1112,15 @@ pub async fn ai_cost_estimate(
                 .and_then(|v| v.as_i64())
                 .unwrap_or(-1);
             let project_settings = effective_project_settings(&app, &conn)?;
-            pretag::build_prompt(
-                &conn,
-                &pretag::PretagInput { interview_id: iid },
-                project_settings.prompts.pretag.as_deref(),
-                project_settings.language.as_deref().unwrap_or("English"),
-            )?
+            (
+                pretag::build_prompt(
+                    &conn,
+                    &pretag::PretagInput { interview_id: iid },
+                    project_settings.prompts.pretag.as_deref(),
+                    project_settings.language.as_deref().unwrap_or("English"),
+                )?,
+                16384,
+            )
         }
         "find_more" => {
             let tag_id = args.get("tag_id").and_then(|v| v.as_i64()).unwrap_or(-1);
@@ -714,15 +1129,42 @@ pub async fn ai_cost_estimate(
                 .and_then(|v| v.as_i64())
                 .unwrap_or(-1);
             let project_settings = effective_project_settings(&app, &conn)?;
-            find_more::build_prompt(
-                &conn,
-                &find_more::FindMoreInput {
-                    tag_id,
-                    interview_id: iid,
-                },
-                project_settings.prompts.find_more.as_deref(),
-                project_settings.language.as_deref().unwrap_or("English"),
-            )?
+            (
+                find_more::build_prompt(
+                    &conn,
+                    &find_more::FindMoreInput {
+                        tag_id,
+                        interview_id: iid,
+                    },
+                    project_settings.prompts.find_more.as_deref(),
+                    project_settings.language.as_deref().unwrap_or("English"),
+                )?,
+                8192,
+            )
+        }
+        "categorize" => {
+            let project_settings = effective_project_settings(&app, &conn)?;
+            (
+                categorize::build_prompt(
+                    &conn,
+                    &categorize::CategorizeInput,
+                    project_settings.prompts.categorize.as_deref(),
+                    project_settings.language.as_deref().unwrap_or("English"),
+                )?,
+                16384,
+            )
+        }
+        "cluster" => {
+            let project_settings = effective_project_settings(&app, &conn)?;
+            (
+                cluster_suggest::build_prompt(
+                    &conn,
+                    &cluster_suggest::ClusterInput,
+                    project_settings.prompts.cluster.as_deref(),
+                    project_settings.language.as_deref().unwrap_or("English"),
+                )?,
+                16384,
+            )
         }
         "transcribe" => {
             let interview_id = args
@@ -772,5 +1214,180 @@ pub async fn ai_cost_estimate(
         }
         _ => return Err(AppError::Invalid(format!("unknown kind: {kind}"))),
     };
-    Ok(cost::estimate(&provider, &model, &prompt, 8192))
+    Ok(cost::estimate(
+        &provider,
+        &model,
+        &prompt,
+        max_output_tokens,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{accept_categorize_proposal, accept_cluster_proposal};
+    use crate::ai::{CategorizeSuggestions, ClusterSuggestions};
+    use crate::db::migrations::apply_migrations;
+    use crate::db::queries::{category, cluster, project_meta, tag};
+    use rusqlite::Connection;
+    use serde_json::json;
+
+    fn fresh() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        apply_migrations(&mut conn).unwrap();
+        project_meta::insert(&conn, "Test").unwrap();
+        conn
+    }
+
+    #[test]
+    fn accept_categorize_creates_category_and_moves_selected_tags() {
+        let conn = fresh();
+        let first = tag::create(&conn, None, "Role ambiguity", None, None).unwrap();
+        let second = tag::create(&conn, None, "Escalation workaround", None, None).unwrap();
+        let payload: CategorizeSuggestions = serde_json::from_value(json!({
+            "proposals": [{
+                "category": { "name": "Coordination friction", "description": "Where ownership is unclear" },
+                "tags": [
+                    { "id": first.id, "name": first.name },
+                    { "id": second.id, "name": second.name }
+                ]
+            }]
+        }))
+        .unwrap();
+
+        let result = accept_categorize_proposal(
+            &conn,
+            payload,
+            json!({
+                "proposals": [{
+                    "category": {
+                        "name": "Coordination friction",
+                        "description": "Where ownership is unclear",
+                        "accept": true
+                    },
+                    "tags": [
+                        { "id": first.id, "name": first.name, "accept": true },
+                        { "id": second.id, "name": second.name, "accept": false }
+                    ]
+                }]
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(result.created_count, 2);
+        let created_category = category::list_all(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|category| category.name == "Coordination friction")
+            .unwrap();
+        assert_eq!(
+            tag::get(&conn, first.id).unwrap().category_id,
+            Some(created_category.id)
+        );
+        assert_eq!(tag::get(&conn, second.id).unwrap().category_id, None);
+    }
+
+    #[test]
+    fn accept_cluster_creates_cluster_and_moves_selected_categories() {
+        let conn = fresh();
+        let first = category::create(&conn, None, "Unclear roles", None, None).unwrap();
+        let second = category::create(&conn, None, "Escalation workarounds", None, None).unwrap();
+        let payload: ClusterSuggestions = serde_json::from_value(json!({
+            "proposals": [{
+                "cluster": { "name": "Organizing work", "description": "How work gets coordinated" },
+                "categories": [
+                    { "id": first.id, "name": first.name },
+                    { "id": second.id, "name": second.name }
+                ]
+            }]
+        }))
+        .unwrap();
+
+        let result = accept_cluster_proposal(
+            &conn,
+            payload,
+            json!({
+                "proposals": [{
+                    "cluster": {
+                        "name": "Organizing work",
+                        "description": "How work gets coordinated",
+                        "accept": true
+                    },
+                    "categories": [
+                        { "id": first.id, "name": first.name, "accept": true },
+                        { "id": second.id, "name": second.name, "accept": false }
+                    ]
+                }]
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(result.created_count, 2);
+        let created_cluster = cluster::list(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|cluster| cluster.name == "Organizing work")
+            .unwrap();
+        assert_eq!(
+            category::get(&conn, first.id).unwrap().cluster_id,
+            Some(created_cluster.id)
+        );
+        assert_eq!(category::get(&conn, second.id).unwrap().cluster_id, None);
+    }
+
+    #[test]
+    fn accept_categorize_ignores_missing_existing_category_target() {
+        let conn = fresh();
+        let standalone = tag::create(&conn, None, "Shadow process", None, None).unwrap();
+        let payload: CategorizeSuggestions = serde_json::from_value(json!({
+            "proposals": [{
+                "category": {
+                    "existing_category_id": 9999,
+                    "name": "Operational workarounds",
+                    "description": "Unofficial process fixes"
+                },
+                "tags": [{ "id": standalone.id, "name": standalone.name }]
+            }]
+        }))
+        .unwrap();
+
+        let result = accept_categorize_proposal(&conn, payload, json!({})).unwrap();
+
+        assert_eq!(result.created_count, 2);
+        assert!(result.skipped.iter().any(|item| item.contains("target 9999 missing")));
+        let created_category = category::list_all(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|category| category.name == "Operational workarounds")
+            .unwrap();
+        assert_eq!(tag::get(&conn, standalone.id).unwrap().category_id, Some(created_category.id));
+    }
+
+    #[test]
+    fn accept_cluster_ignores_missing_existing_cluster_target() {
+        let conn = fresh();
+        let standalone = category::create(&conn, None, "Informal escalation", None, None).unwrap();
+        let payload: ClusterSuggestions = serde_json::from_value(json!({
+            "proposals": [{
+                "cluster": {
+                    "existing_cluster_id": 9999,
+                    "name": "Coordination patterns",
+                    "description": "How people route work"
+                },
+                "categories": [{ "id": standalone.id, "name": standalone.name }]
+            }]
+        }))
+        .unwrap();
+
+        let result = accept_cluster_proposal(&conn, payload, json!({})).unwrap();
+
+        assert_eq!(result.created_count, 2);
+        assert!(result.skipped.iter().any(|item| item.contains("target 9999 missing")));
+        let created_cluster = cluster::list(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|cluster| cluster.name == "Coordination patterns")
+            .unwrap();
+        assert_eq!(category::get(&conn, standalone.id).unwrap().cluster_id, Some(created_cluster.id));
+    }
 }

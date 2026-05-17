@@ -6,6 +6,8 @@ export type PromptOverrides = {
   codebookGen: string | null;
   pretag: string | null;
   findMore: string | null;
+  categorize: string | null;
+  cluster: string | null;
 };
 
 export type TranscriptionParams = {
@@ -27,6 +29,8 @@ type RawPrompts = {
   codebook_gen: string | null;
   pretag: string | null;
   find_more: string | null;
+  categorize: string | null;
+  cluster: string | null;
 };
 type RawTranscription = {
   chunk_seconds: number;
@@ -48,6 +52,8 @@ const fromRaw = (r: RawSettings): ProjectSettings => ({
     codebookGen: r.prompts.codebook_gen,
     pretag: r.prompts.pretag,
     findMore: r.prompts.find_more,
+    categorize: r.prompts.categorize,
+    cluster: r.prompts.cluster,
   },
   transcription: {
     chunkSeconds: r.transcription.chunk_seconds,
@@ -65,6 +71,8 @@ const toRaw = (s: ProjectSettings): RawSettings => ({
     codebook_gen: s.prompts.codebookGen,
     pretag: s.prompts.pretag,
     find_more: s.prompts.findMore,
+    categorize: s.prompts.categorize,
+    cluster: s.prompts.cluster,
   },
   transcription: {
     chunk_seconds: s.transcription.chunkSeconds,

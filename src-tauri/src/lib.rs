@@ -113,6 +113,8 @@ pub fn run() {
             commands::ai::ai_codebook_gen_start,
             commands::ai::ai_pretag_start,
             commands::ai::ai_find_more_start,
+            commands::ai::ai_categorize_start,
+            commands::ai::ai_cluster_start,
             commands::ai::ai_run_list,
             commands::ai::ai_run_get,
             commands::ai::ai_run_detail,

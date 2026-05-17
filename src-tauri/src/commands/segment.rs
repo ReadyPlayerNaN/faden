@@ -85,6 +85,40 @@ pub async fn segment_set_speaker(
 }
 
 #[tauri::command]
+pub async fn segment_append(
+    app: tauri::AppHandle,
+    interview_id: i64,
+    speaker_id: Option<i64>,
+    text: String,
+    start_sec: f64,
+    end_sec: f64,
+) -> AppResult<i64> {
+    let mut conn = project_conn(&app)?;
+    if let Some(speaker_id) = speaker_id {
+        let sp = speaker::get(&conn, speaker_id)?;
+        if sp.interview_id != interview_id {
+            return Err(AppError::Invalid(
+                "speaker does not belong to the same interview as segment".into(),
+            ));
+        }
+    }
+    let new_id = segment::insert_batch(
+        &mut conn,
+        interview_id,
+        &[segment::NewSegment {
+            speaker_id,
+            start_sec,
+            end_sec,
+            text,
+        }],
+    )?
+    .into_iter()
+    .next()
+    .ok_or_else(|| AppError::Invalid("failed to append segment".into()))?;
+    Ok(new_id)
+}
+
+#[tauri::command]
 pub async fn segment_delete(app: tauri::AppHandle, segment_id: i64) -> AppResult<()> {
     let mut conn = project_conn(&app)?;
     let seg = segment::get(&conn, segment_id)?;

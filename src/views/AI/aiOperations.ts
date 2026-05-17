@@ -391,4 +391,8 @@ export const buildDisplayOperations = ({
 };
 
 export const isProposalKind = (kind: AiRunKind): kind is ProposalKind =>
-  kind === "codebook_gen" || kind === "pretag" || kind === "find_more";
+  kind === "codebook_gen" ||
+  kind === "pretag" ||
+  kind === "find_more" ||
+  kind === "categorize" ||
+  kind === "cluster";

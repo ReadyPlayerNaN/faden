@@ -56,6 +56,18 @@ export const segmentSetSpeaker = async (
   emitHistoryChanged();
 };
 
+export const segmentAppend = async (args: {
+  interviewId: number;
+  speakerId: number | null;
+  text: string;
+  startSec: number;
+  endSec: number;
+}): Promise<number> => {
+  const id = await invoke<number>("segment_append", args);
+  emitHistoryChanged();
+  return id;
+};
+
 export const segmentDelete = (segmentId: number): Promise<void> =>
   invoke("segment_delete", { segmentId });
 

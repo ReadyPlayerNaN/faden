@@ -17,6 +17,8 @@ const FIELDS = [
   { key: "codebookGen", labelKey: "settings.prompts.codebookGen" },
   { key: "pretag", labelKey: "settings.prompts.pretag" },
   { key: "findMore", labelKey: "settings.prompts.findMore" },
+  { key: "categorize", labelKey: "settings.prompts.categorize" },
+  { key: "cluster", labelKey: "settings.prompts.cluster" },
 ] as const;
 
 type FieldKey = (typeof FIELDS)[number]["key"];

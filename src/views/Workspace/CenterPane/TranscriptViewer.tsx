@@ -6,6 +6,7 @@ import {
   segmentListForInterview,
   segmentUpdateText,
   segmentSetSpeaker,
+  segmentAppend,
   segmentDelete,
   segmentSplit,
   segmentMerge,
@@ -116,6 +117,52 @@ type SegmentSelection = {
   startOffset: number;
   endOffset: number;
 } | null;
+
+const WORD_CHAR_RE = /[\p{L}\p{N}\p{M}_'-]/u;
+
+const isWordChar = (char: string) => WORD_CHAR_RE.test(char);
+
+const snapSelectionToWords = (
+  text: string,
+  startOffset: number,
+  endOffset: number,
+): { startOffset: number; endOffset: number } | null => {
+  const start = Math.max(0, Math.min(text.length, startOffset));
+  const end = Math.max(0, Math.min(text.length, endOffset));
+  if (end <= start) return null;
+
+  let firstWordIndex = -1;
+  for (let i = start; i < end; i++) {
+    if (isWordChar(text[i] ?? "")) {
+      firstWordIndex = i;
+      break;
+    }
+  }
+  if (firstWordIndex < 0) return null;
+
+  let lastWordIndex = -1;
+  for (let i = end - 1; i >= start; i--) {
+    if (isWordChar(text[i] ?? "")) {
+      lastWordIndex = i;
+      break;
+    }
+  }
+  if (lastWordIndex < 0) return null;
+
+  let snappedStart = firstWordIndex;
+  while (snappedStart > 0 && isWordChar(text[snappedStart - 1] ?? "")) {
+    snappedStart -= 1;
+  }
+
+  let snappedEnd = lastWordIndex + 1;
+  while (snappedEnd < text.length && isWordChar(text[snappedEnd] ?? "")) {
+    snappedEnd += 1;
+  }
+
+  return snappedEnd > snappedStart
+    ? { startOffset: snappedStart, endOffset: snappedEnd }
+    : null;
+};
 
 const computeRangesForSegment = (
   text: string,
@@ -553,12 +600,17 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       setActiveSelection(null);
       return;
     }
+    const snapped = snapSelectionToWords(segText, startOffset, endOffset);
+    if (!snapped) {
+      setActiveSelection(null);
+      return;
+    }
     const rect = range.getBoundingClientRect();
     setActiveSelection({
       segmentId: segId,
-      startOffset,
-      endOffset,
-      text: segText.slice(startOffset, endOffset),
+      startOffset: snapped.startOffset,
+      endOffset: snapped.endOffset,
+      text: segText.slice(snapped.startOffset, snapped.endOffset),
       anchorRect: {
         top: rect.top,
         left: rect.left,
@@ -636,6 +688,24 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     }
   };
 
+  const addSegment = async () => {
+    const last = segments[segments.length - 1] ?? null;
+    const startSec = last?.endSec ?? 0;
+    try {
+      setError(null);
+      await segmentAppend({
+        interviewId,
+        speakerId: null,
+        text: "",
+        startSec,
+        endSec: startSec,
+      });
+      await refetchSegments();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+
   const toolbar = (
     <div className={styles.toolbar}>
       <label className={styles.editToggle}>
@@ -646,6 +716,11 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
         />
         {t("transcript.editMode", { defaultValue: "Edit transcript" })}
       </label>
+      {editMode ? (
+        <Button variant="secondary" onClick={() => void addSegment()}>
+          {t("transcript.addSegment", { defaultValue: "Add segment" })}
+        </Button>
+      ) : null}
     </div>
   );
 
@@ -667,11 +742,27 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
               <Button variant="primary" onClick={() => void addAudio()}>
                 {t("audio.add", { defaultValue: "Add audio…" })}
               </Button>
+              {editMode ? (
+                <Button variant="secondary" onClick={() => void addSegment()}>
+                  {t("transcript.addSegment", { defaultValue: "Add segment" })}
+                </Button>
+              ) : null}
             </div>
           ) : transcriptStatus !== "in_progress" ? (
             <div className={styles.emptyActions}>
               <Button variant="primary" onClick={() => void requestTranscription()}>
                 {t("workspace.transcribe")}
+              </Button>
+              {editMode ? (
+                <Button variant="secondary" onClick={() => void addSegment()}>
+                  {t("transcript.addSegment", { defaultValue: "Add segment" })}
+                </Button>
+              ) : null}
+            </div>
+          ) : editMode ? (
+            <div className={styles.emptyActions}>
+              <Button variant="secondary" onClick={() => void addSegment()}>
+                {t("transcript.addSegment", { defaultValue: "Add segment" })}
               </Button>
             </div>
           ) : null}
@@ -888,6 +979,13 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
             </div>
           );
         })}
+        {editMode ? (
+          <div className={styles.addSegmentFooter}>
+            <Button variant="secondary" onClick={() => void addSegment()}>
+              {t("transcript.addSegment", { defaultValue: "Add segment" })}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </>
   );

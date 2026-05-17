@@ -227,15 +227,15 @@ export const StagingPanel = ({
 			)}
 			<Modal open={active !== null} onClose={() => void onClose()} size="lg">
 				{active &&
-					(active.kind === "codebook_gen" ? (
-						<CodebookProposalView
+					(active.kind === "pretag" || active.kind === "find_more" ? (
+						<SpanProposalView
 							proposal={active}
 							onAccepted={() => void onAccepted()}
 							onReject={() => void onReject(active.id)}
 							onDone={() => void onClose()}
 						/>
 					) : (
-						<SpanProposalView
+						<CodebookProposalView
 							proposal={active}
 							onAccepted={() => void onAccepted()}
 							onReject={() => void onReject(active.id)}

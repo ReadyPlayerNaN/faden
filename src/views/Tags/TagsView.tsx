@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { interviewList as fetchInterviewList } from "../../ipc/interview";
+import {
+  aiCategorizeStart,
+  aiClusterStart,
+  aiCostEstimate,
+  aiProposalList,
+  aiRunList,
+  type CostEstimate,
+  type ProposalKind,
+} from "../../ipc/ai";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
@@ -16,6 +25,12 @@ import {
 } from "../../ipc/codebook";
 import { codebookTreeAtom } from "../../state/codebook";
 import { interviewListAtom } from "../../state/interview";
+import {
+  activeAiOperationsAtom,
+  aiRunHistoryAtom,
+  pendingProposalsAtom,
+  skipCostConfirmAtom,
+} from "../../state/ai";
 import { AddClusterModal } from "./AddClusterModal";
 import { AddCategoryModal } from "./AddCategoryModal";
 import { AddTagModal } from "./AddTagModal";
@@ -23,6 +38,7 @@ import { EditCategoryModal } from "./EditCategoryModal";
 import { EditClusterModal } from "./EditClusterModal";
 import { EditTagModal } from "./EditTagModal";
 import { useFindMoreAction } from "../Workspace/AI/useFindMoreAction";
+import { CostPreviewModal } from "../Workspace/AI/CostPreviewModal";
 import styles from "./TagsView.module.css";
 
 type DeleteTarget =
@@ -37,10 +53,33 @@ type TagItem = {
   cluster: ClusterNode | null;
 };
 
+type PendingStructureAction = {
+  kind: Extract<ProposalKind, "categorize" | "cluster">;
+};
+
+type SectionMenuItem = {
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+};
+
+const errorMessage = (e: unknown): string => {
+  if (e && typeof e === "object" && "message" in e) {
+    const m = (e as { message?: unknown }).message;
+    if (typeof m === "string") return m;
+  }
+  return String(e);
+};
+
 export const TagsView = () => {
   const { t } = useTranslation();
   const [tree, setTree] = useAtom(codebookTreeAtom);
   const [interviews, setInterviews] = useAtom(interviewListAtom);
+  const skipCostConfirm = useAtomValue(skipCostConfirmAtom);
+  const setSkipCostConfirm = useSetAtom(skipCostConfirmAtom);
+  const setPendingProposals = useSetAtom(pendingProposalsAtom);
+  const setAiRunHistory = useSetAtom(aiRunHistoryAtom);
+  const setActiveAiOperations = useSetAtom(activeAiOperationsAtom);
   const [error, setError] = useState<string | null>(null);
 
   const [addClusterOpen, setAddClusterOpen] = useState(false);
@@ -54,6 +93,10 @@ export const TagsView = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [findMoreTag, setFindMoreTag] = useState<TagNode | null>(null);
   const [selectedInterviewIds, setSelectedInterviewIds] = useState<number[]>([]);
+  const [pendingStructureAction, setPendingStructureAction] = useState<PendingStructureAction | null>(null);
+  const [structureEstimate, setStructureEstimate] = useState<CostEstimate | null>(null);
+  const [structureBusy, setStructureBusy] = useState(false);
+  const [structureStatus, setStructureStatus] = useState<string | null>(null);
   const {
     busy: findMoreBusy,
     status: findMoreStatus,
@@ -123,6 +166,83 @@ export const TagsView = () => {
     ];
   }, [tree]);
 
+  const refreshProposals = async () => setPendingProposals(await aiProposalList());
+  const refreshRuns = async () => setAiRunHistory(await aiRunList());
+
+  const startLocalStructureOperation = (kind: PendingStructureAction["kind"]) => {
+    const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setActiveAiOperations((prev) => [
+      {
+        id,
+        runId: null,
+        kind,
+        startedAt: new Date().toISOString(),
+        interviewId: null,
+        label: t("ai.running"),
+        title: t(`ai.kinds.${kind}`),
+      },
+      ...prev,
+    ]);
+    return id;
+  };
+
+  const setLocalOperationRunId = (id: string, runId: number) => {
+    setActiveAiOperations((prev) => prev.map((op) => (op.id === id ? { ...op, runId } : op)));
+  };
+
+  const finishLocalStructureOperation = (id: string) => {
+    setActiveAiOperations((prev) => prev.filter((op) => op.id !== id));
+  };
+
+  const actuallyStartStructureAction = async (action: PendingStructureAction) => {
+    const localId = startLocalStructureOperation(action.kind);
+    setStructureBusy(true);
+    setStructureStatus(t("ai.running"));
+    try {
+      const runId =
+        action.kind === "categorize"
+          ? await aiCategorizeStart()
+          : await aiClusterStart();
+      setLocalOperationRunId(localId, runId);
+      await Promise.all([refreshProposals(), refreshRuns()]);
+      setStructureStatus(null);
+    } catch (e) {
+      await refreshRuns().catch(() => undefined);
+      setStructureStatus(errorMessage(e));
+    } finally {
+      finishLocalStructureOperation(localId);
+      setStructureBusy(false);
+      setPendingStructureAction(null);
+      setStructureEstimate(null);
+    }
+  };
+
+  const launchStructureAction = async (kind: PendingStructureAction["kind"]) => {
+    const action = { kind };
+    if (skipCostConfirm[kind]) {
+      await actuallyStartStructureAction(action);
+      return;
+    }
+    try {
+      setStructureEstimate(await aiCostEstimate(kind, {}));
+      setPendingStructureAction(action);
+      setStructureStatus(null);
+    } catch (e) {
+      setStructureStatus(errorMessage(e));
+    }
+  };
+
+  const onSendStructureAction = async (dontAsk: boolean) => {
+    const action = pendingStructureAction;
+    setPendingStructureAction(null);
+    setStructureEstimate(null);
+    if (!action) return;
+    if (dontAsk) {
+      setSkipCostConfirm({ ...skipCostConfirm, [action.kind]: true });
+    }
+    await actuallyStartStructureAction(action);
+  };
+
   const requestDelete = (target: DeleteTarget) => {
     setDeleteError(null);
     setDeleteTarget(target);
@@ -180,6 +300,37 @@ export const TagsView = () => {
     }
   };
 
+  const clusterMenuItems: SectionMenuItem[] = [
+    {
+      label: t("tags.createCluster", { defaultValue: "Create cluster" }),
+      onSelect: () => setAddClusterOpen(true),
+    },
+    {
+      label: t("ai.cluster", { defaultValue: "Cluster categories" }),
+      onSelect: () => void launchStructureAction("cluster"),
+      disabled: structureBusy || categories.length === 0,
+    },
+  ];
+
+  const categoryMenuItems: SectionMenuItem[] = [
+    {
+      label: t("tags.createCategory", { defaultValue: "Create category" }),
+      onSelect: () => setAddCategoryFor(null),
+    },
+    {
+      label: t("ai.categorize", { defaultValue: "Categorize tags" }),
+      onSelect: () => void launchStructureAction("categorize"),
+      disabled: structureBusy || tags.length === 0,
+    },
+  ];
+
+  const tagMenuItems: SectionMenuItem[] = [
+    {
+      label: t("tags.createTag", { defaultValue: "Create tag" }),
+      onSelect: () => setAddTagFor(null),
+    },
+  ];
+
   return (
     <div className={styles.shell}>
       <ProjectHeader activeView="labels" />
@@ -187,25 +338,15 @@ export const TagsView = () => {
       <div className={styles.wrap}>
         <h1 className={styles.title}>{t("tags.title", { defaultValue: "Tags" })}</h1>
 
-        <div className={styles.topActions}>
-          <Button variant="primary" onClick={() => setAddClusterOpen(true)}>
-            + {t("tags.addCluster", { defaultValue: "Add cluster" })}
-          </Button>
-          <Button onClick={() => setAddCategoryFor(null)}>
-            + {t("tags.addCategory", { defaultValue: "Add category" })}
-          </Button>
-          <Button onClick={() => setAddTagFor(null)}>
-            + {t("tags.addTag", { defaultValue: "Add tag" })}
-          </Button>
-        </div>
-
         {error && <div className={styles.error}>{error}</div>}
         {findMoreStatus && <div className={styles.notice}>{findMoreStatus}</div>}
+        {structureStatus && <div className={styles.notice}>{structureStatus}</div>}
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            {t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
-          </h2>
+          <SectionHeader
+            title={t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
+            items={clusterMenuItems}
+          />
           <div className={styles.flatList}>
             {tree && tree.clusters.length === 0 ? (
               <p className={styles.empty}>{t("tags.noClusters", { defaultValue: "No clusters yet" })}</p>
@@ -228,9 +369,10 @@ export const TagsView = () => {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            {t("tags.categoryManagementSection", { defaultValue: "Category management" })}
-          </h2>
+          <SectionHeader
+            title={t("tags.categoryManagementSection", { defaultValue: "Category management" })}
+            items={categoryMenuItems}
+          />
           <div className={styles.flatList}>
             {tree && categories.length === 0 ? (
               <p className={styles.empty}>{t("tags.noCategories", { defaultValue: "No categories yet" })}</p>
@@ -258,9 +400,10 @@ export const TagsView = () => {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            {t("tags.tagManagementSection", { defaultValue: "Tag management" })}
-          </h2>
+          <SectionHeader
+            title={t("tags.tagManagementSection", { defaultValue: "Tag management" })}
+            items={tagMenuItems}
+          />
           <div className={styles.flatList}>
             {tree && tags.length === 0 ? (
               <p className={styles.empty}>{t("tags.noTags", { defaultValue: "No tags yet" })}</p>
@@ -436,6 +579,83 @@ export const TagsView = () => {
         {deleteError && <div className={styles.modalError}>{deleteError}</div>}
       </Modal>
       {costPreviewModal}
+      {pendingStructureAction && structureEstimate ? (
+        <CostPreviewModal
+          estimate={structureEstimate}
+          prompt=""
+          onSend={(dontAsk) => void onSendStructureAction(dontAsk)}
+          onCancel={() => {
+            setPendingStructureAction(null);
+            setStructureEstimate(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+};
+
+type SectionHeaderProps = {
+  title: string;
+  items: SectionMenuItem[];
+};
+
+const SectionHeader = ({ title, items }: SectionHeaderProps) => {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className={styles.sectionHeader}>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <div className={styles.menuWrap} ref={menuRef}>
+        <button
+          type="button"
+          className={styles.menuBtn}
+          aria-label={t("common.actions", { defaultValue: "Actions" }) as string}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          ⋯
+        </button>
+        {open && (
+          <div className={styles.menuDropdown} role="menu">
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className={styles.menuItem}
+                role="menuitem"
+                disabled={item.disabled}
+                onClick={() => {
+                  setOpen(false);
+                  item.onSelect();
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -497,7 +717,7 @@ const ManagementRow = ({ name, color, count, subtitle, onEdit, onDelete, actionM
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
             >
-              {"⋯"}
+              ⋯
             </button>
             {menuOpen && (
               <div className={styles.menuDropdown} role="menu">

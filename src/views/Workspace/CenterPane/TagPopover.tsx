@@ -16,6 +16,7 @@ import styles from "./TagPopover.module.css";
 type FlatTag = {
   id: number;
   name: string;
+  description: string | null;
   categoryName: string;
   clusterName: string;
   color: string | null;
@@ -31,7 +32,7 @@ export const TagPopover = () => {
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newCategoryId, setNewCategoryId] = useState<number | null>(null);
+  const [newDescription, setNewDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const standaloneLabel = t("tagging.standalone", {
     defaultValue: "Standalone (no category)",
@@ -42,7 +43,7 @@ export const TagPopover = () => {
     setFilter("");
     setCreating(false);
     setNewName("");
-    setNewCategoryId(null);
+    setNewDescription("");
     setError(null);
   }, [selection?.segmentId, selection?.startOffset, selection?.endOffset]);
 
@@ -54,6 +55,7 @@ export const TagPopover = () => {
       out.push({
         id: tg.id,
         name: tg.name,
+        description: tg.description,
         categoryName: standaloneLabel,
         clusterName: standaloneLabel,
         color: tg.color,
@@ -65,6 +67,7 @@ export const TagPopover = () => {
         out.push({
           id: tg.id,
           name: tg.name,
+          description: tg.description,
           categoryName: cat.name,
           clusterName: noClusterLabel,
           color: tg.color,
@@ -78,6 +81,7 @@ export const TagPopover = () => {
           out.push({
             id: tg.id,
             name: tg.name,
+            description: tg.description,
             categoryName: cat.name,
             clusterName: cl.name,
             color: tg.color,
@@ -98,21 +102,6 @@ export const TagPopover = () => {
         tg.clusterName.toLowerCase().includes(q),
     );
   }, [flatTags, filter]);
-
-  const allCategories = useMemo(() => {
-    const out: { id: number; name: string; clusterName: string }[] = [];
-
-    tree?.standaloneCategories.forEach((cat) => {
-      out.push({ id: cat.id, name: cat.name, clusterName: noClusterLabel });
-    });
-
-    tree?.clusters.forEach((cl) => {
-      cl.categories.forEach((cat) => {
-        out.push({ id: cat.id, name: cat.name, clusterName: cl.name });
-      });
-    });
-    return out;
-  }, [noClusterLabel, tree]);
 
   const close = () => setSelection(null);
 
@@ -151,7 +140,11 @@ export const TagPopover = () => {
     }
 
     try {
-      const tg = await tagCreate(newCategoryId, trimmedName);
+      const tg = await tagCreate(
+        null,
+        trimmedName,
+        newDescription.trim() || null,
+      );
       setTree(await fetchTree());
       await applyTag(tg.id);
     } catch (e) {
@@ -210,6 +203,7 @@ export const TagPopover = () => {
                   <button
                     className={styles.tagBtn}
                     onClick={() => void applyTag(tg.id)}
+                    title={tg.description ?? undefined}
                   >
                     {tg.color && (
                       <span
@@ -218,9 +212,6 @@ export const TagPopover = () => {
                       />
                     )}
                     <span className={styles.tagName}>{tg.name}</span>
-                    <span className={styles.tagPath}>
-                      {tg.clusterName} › {tg.categoryName}
-                    </span>
                   </button>
                 </li>
               ))}
@@ -231,6 +222,7 @@ export const TagPopover = () => {
             onClick={() => {
               setCreating(true);
               setNewName(filter.trim());
+              setNewDescription("");
               setError(null);
             }}
           >
@@ -242,29 +234,18 @@ export const TagPopover = () => {
           <input
             className={styles.search}
             type="text"
-            placeholder="Tag name"
+            placeholder={t("tags.name", { defaultValue: "Name" })}
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
-          <select
+          <textarea
             className={styles.search}
-            value={newCategoryId ?? ""}
-            onChange={(e) =>
-              setNewCategoryId(e.target.value ? Number(e.target.value) : null)
-            }
-          >
-            <option value="">
-              {t("tagging.standalone", {
-                defaultValue: "Standalone (no category)",
-              })}
-            </option>
-            {allCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.clusterName} › {c.name}
-              </option>
-            ))}
-          </select>
+            rows={3}
+            placeholder={t("tags.description", { defaultValue: "Description" })}
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+          />
           {error && <div className={styles.error}>{error}</div>}
           <div className={styles.formActions}>
             <button

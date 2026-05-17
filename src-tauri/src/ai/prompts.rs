@@ -7,6 +7,10 @@ pub const DEFAULT_PRETAG: &str = "Given this interview transcript and codebook,\
 
 pub const DEFAULT_FIND_MORE: &str = "The researcher has tagged the following\npassages with the code \"{{tag_name}}\" (definition: \"{{tag_description}}\").\nFind other passages in the transcript below that fit the same code. Be\nconservative — only propose spans that genuinely match. Return spans as\nsegment_id + character offsets + a brief rationale.\n\nExample passages:\n{{example_spans}}\n\nTranscript:\n{{transcript}}";
 
+pub const DEFAULT_CATEGORIZE: &str = "You are helping a qualitative researcher organize an existing codebook.\nRead the existing tags below and suggest how they should be grouped into\ncategories. You may reuse an existing category by setting\nexisting_category_id, or suggest a new category by leaving\nexisting_category_id null and providing a category name and description.\nOnly group tags that belong together analytically. Do not invent new tags.\nAssign each tag to at most one suggested category. Be conservative and avoid\nweak catch-all groupings. Return JSON matching the provided schema.\n\nCurrent codebook:\n{{codebook}}\n\nExisting tags:\n{{tags}}";
+
+pub const DEFAULT_CLUSTER: &str = "You are helping a qualitative researcher organize an existing codebook.\nRead the existing categories below and suggest how they should be grouped into\nclusters. You may reuse an existing cluster by setting existing_cluster_id, or\nsuggest a new cluster by leaving existing_cluster_id null and providing a\ncluster name and description. Only group categories that belong together\nanalytically. Do not invent new categories. Assign each category to at most\none suggested cluster. Be conservative and avoid weak umbrella clusters.\nReturn JSON matching the provided schema.\n\nCurrent codebook:\n{{codebook}}\n\nExisting categories:\n{{categories}}";
+
 pub fn render(template: &str, vars: &HashMap<&str, String>) -> String {
     let mut out = template.to_string();
     for (key, value) in vars {

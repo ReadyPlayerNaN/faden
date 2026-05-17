@@ -12,7 +12,7 @@
   },
   "workspace": {
     "leftPaneTitle": "Projekt",
-    "centerPaneEmpty": "Vyberte rozhovor pro zobrazení přepisu.",
+    "centerPaneEmpty": "Vyberte rozhovor",
     "rightPaneEmpty": "Vyberte označený úsek pro zobrazení detailu.",
     "interviews": "Rozhovory",
     "edits": "Úpravy",
@@ -30,7 +30,7 @@
     "transcriptComplete": "✓",
     "transcriptFailed": "Selhalo",
     "audioFilter": "Zvuk",
-    "selectInterview": "Vyberte rozhovor pro zobrazení přepisu.",
+    "selectInterview": "Vyberte rozhovor",
     "noSegments": "Tento rozhovor zatím nemá přepis.",
     "noSegmentsNoAudio": "Tento rozhovor zatím nemá zvuk. Přidejte zvuk, aby bylo možné vytvořit přepis.",
     "speaker": "Mluvčí",
@@ -41,10 +41,7 @@
     "editProject": "Upravit projekt",
     "settings": "Nastavení",
     "openAnotherProject": "Otevřít jiný projekt",
-    "coding": "Kódování",
-    "interviewsSubtitle": "Spravujte zde rozhovory. Vybráním rozhovoru jej otevřete v režimu Kódování.",
-    "interviewSearch": "Filtrovat rozhovory",
-    "noMatchingInterviews": "Žádné odpovídající rozhovory"
+    "coding": "Kódování"
   },
   "codebook": {
     "addCluster": "+ Cluster",
@@ -109,6 +106,8 @@
       "codebookGen": "Odvozování číselníku",
       "pretag": "Doplnění štítků",
       "findMore": "Najít další podobné",
+      "categorize": "Kategorizovat štítky",
+      "cluster": "Seskupit kategorie do klastrů",
       "usesDefault": "(používá výchozí)"
     }
   },
@@ -219,6 +218,9 @@
     "editCluster": "Upravit klastr",
     "editCategory": "Upravit kategorii",
     "editTag": "Upravit štítek",
+    "createCluster": "Vytvořit klastr",
+    "createCategory": "Vytvořit kategorii",
+    "createTag": "Vytvořit štítek",
     "findMoreTargetsTitle": "Najít další výskyty",
     "findMoreTargetsHelp": "Vyberte, ve kterých rozhovorech se má tento štítek hledat.",
     "runFindMore": "Spustit hledání",
@@ -287,6 +289,8 @@
     "generateCodebook": "Odvodit číselník",
     "preTag": "Doplnit štítky",
     "findMore": "Najít další",
+    "categorize": "Kategorizovat štítky",
+    "cluster": "Seskupit kategorie do klastrů",
     "findMoreOccurrences": "Najít další výskyty",
     "selectAtLeastOneInterview": "Vyberte alespoň jeden rozhovor",
     "useExistingCodebook": "Rozšířit stávající číselník",
@@ -389,13 +393,19 @@
     },
     "operationWithInterview": "{{kind}} {{name}}",
     "findMoreTagTitle": "Najít další \"{{name}}\"",
+    "createCategory": "Vytvořit kategorii",
+    "createCluster": "Vytvořit klastr",
+    "useExistingCategory": "Použít existující kategorii #{{id}}",
+    "useExistingCluster": "Použít existující klastr #{{id}}",
     "projectWide": "Na úrovni projektu",
     "relatedInterviewValue": "Rozhovor: {{name}}",
     "kinds": {
       "transcribe": "Přepis",
       "codebook_gen": "Odvodit číselník",
       "pretag": "Doplnit štítky",
-      "find_more": "Najít další"
+      "find_more": "Najít další",
+      "categorize": "Kategorizovat štítky",
+      "cluster": "Seskupit kategorie do klastrů"
     }
   },
   "errors": {

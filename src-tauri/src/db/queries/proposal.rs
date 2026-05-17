@@ -9,6 +9,8 @@ pub enum ProposalKind {
     CodebookGen,
     Pretag,
     FindMore,
+    Categorize,
+    Cluster,
 }
 
 impl ProposalKind {
@@ -17,6 +19,8 @@ impl ProposalKind {
             Self::CodebookGen => "codebook_gen",
             Self::Pretag => "pretag",
             Self::FindMore => "find_more",
+            Self::Categorize => "categorize",
+            Self::Cluster => "cluster",
         }
     }
     pub fn parse(s: &str) -> AppResult<Self> {
@@ -24,6 +28,8 @@ impl ProposalKind {
             "codebook_gen" => Ok(Self::CodebookGen),
             "pretag" => Ok(Self::Pretag),
             "find_more" => Ok(Self::FindMore),
+            "categorize" => Ok(Self::Categorize),
+            "cluster" => Ok(Self::Cluster),
             other => Err(AppError::Invalid(format!("proposal kind: {other}"))),
         }
     }

@@ -92,6 +92,83 @@ pub fn format_available_tags(conn: &Connection) -> AppResult<String> {
     Ok(out)
 }
 
+pub fn format_tags_for_categorizing(conn: &Connection) -> AppResult<String> {
+    let tags = tag::list_all(conn)?;
+    let categories = category::list_all(conn)?;
+    let clusters = cluster::list(conn)?;
+    let mut out = String::new();
+    for tag in tags {
+        let category = tag
+            .category_id
+            .and_then(|id| categories.iter().find(|category| category.id == id));
+        let cluster = category
+            .and_then(|category| category.cluster_id)
+            .and_then(|id| clusters.iter().find(|cluster| cluster.id == id));
+        writeln!(
+            out,
+            "- [tag_id={}] {}{} | current category: {} | current cluster: {}",
+            tag.id,
+            tag.name,
+            tag.description
+                .as_ref()
+                .map(|description| format!(": {description}"))
+                .unwrap_or_default(),
+            category
+                .map(|category| category.name.as_str())
+                .unwrap_or("(none)"),
+            cluster
+                .map(|cluster| cluster.name.as_str())
+                .unwrap_or("(none)"),
+        )
+        .ok();
+    }
+    if out.is_empty() {
+        out.push_str("(none)\n");
+    }
+    Ok(out)
+}
+
+pub fn format_categories_for_clustering(conn: &Connection) -> AppResult<String> {
+    let categories = category::list_all(conn)?;
+    let clusters = cluster::list(conn)?;
+    let tags = tag::list_all(conn)?;
+    let mut out = String::new();
+    for category in categories {
+        let cluster = category
+            .cluster_id
+            .and_then(|id| clusters.iter().find(|cluster| cluster.id == id));
+        let tag_names: Vec<&str> = tags
+            .iter()
+            .filter(|tag| tag.category_id == Some(category.id))
+            .map(|tag| tag.name.as_str())
+            .collect();
+        writeln!(
+            out,
+            "- [category_id={}] {}{} | current cluster: {} | tags: {}",
+            category.id,
+            category.name,
+            category
+                .description
+                .as_ref()
+                .map(|description| format!(": {description}"))
+                .unwrap_or_default(),
+            cluster
+                .map(|cluster| cluster.name.as_str())
+                .unwrap_or("(none)"),
+            if tag_names.is_empty() {
+                "(none)".to_string()
+            } else {
+                tag_names.join(", ")
+            }
+        )
+        .ok();
+    }
+    if out.is_empty() {
+        out.push_str("(none)\n");
+    }
+    Ok(out)
+}
+
 pub fn format_transcript(conn: &Connection, interview_id: i64) -> AppResult<String> {
     let segs = segment::list_for_interview(conn, interview_id)?;
     let speakers = speaker::list_for_interview(conn, interview_id)?;
