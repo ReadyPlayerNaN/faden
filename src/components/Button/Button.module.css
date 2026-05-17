@@ -7,8 +7,24 @@
   font-size: 0.9rem;
 }
 .btn:hover { filter: brightness(1.1); }
-.btn:active:not(:disabled) { filter: brightness(0.94); }
+.btn:active:not(:disabled) {
+  background: var(--button-active-bg);
+  border-color: var(--button-active-border);
+  filter: none;
+}
 .btn:disabled { opacity: 0.5; }
-.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  --button-active-bg: color-mix(in srgb, var(--accent) 72%, black 28%);
+  --button-active-border: color-mix(in srgb, var(--accent) 58%, black 42%);
+}
 .secondary { /* default */ }
-.danger { background: var(--danger); border-color: var(--danger); color: #000; }
+.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #000;
+  --button-active-bg: color-mix(in srgb, var(--danger) 72%, black 28%);
+  --button-active-border: color-mix(in srgb, var(--danger) 58%, black 42%);
+}
