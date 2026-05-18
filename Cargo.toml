@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+  "src-tauri",
+  "crates/faden-core",
+  "crates/faden-core-sqlite",
+  "crates/faden-sync-protocol",
+  "crates/faden-sync-client",
+  "crates/faden-sync-server",
+]
+exclude = [".worktrees/*"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+authors = ["Pavel Žák"]
+homepage = "https://faden.space"
