@@ -13,9 +13,9 @@ import { projectOpen } from "../../ipc/project";
 import { segmentListForInterview, type SegmentDTO } from "../../ipc/segment";
 import { speakerListForInterview, type Speaker } from "../../ipc/speaker";
 import { spanListForInterview, type SpanDTO } from "../../ipc/tagging";
-import { codebookTreeAtom } from "../../state/codebook";
 import { interviewListAtom } from "../../state/interview";
 import { currentProjectAtom } from "../../state/project";
+import { normalizeAnalysisCodebook } from "./analysisCodebook";
 
 type SpanGroup = {
   interview: Interview;
@@ -216,7 +216,6 @@ export const AnalysisDataProvider = ({ children }: { children: ReactNode }) => {
   const decodedProjectPath = decodeURIComponent(projectPath);
   const cached = analysisCache.get(decodedProjectPath) ?? null;
   const [project, setProject] = useAtom(currentProjectAtom);
-  const setCodebookTree = useSetAtom(codebookTreeAtom);
   const setInterviewList = useSetAtom(interviewListAtom);
   const [codebook, setCodebook] = useState<CodebookTree | null>(cached?.codebook ?? null);
   const [interviews, setInterviews] = useState<Interview[]>(cached?.interviews ?? []);
@@ -238,7 +237,6 @@ export const AnalysisDataProvider = ({ children }: { children: ReactNode }) => {
     setSpeakerGroups(snapshot.speakerGroups);
     setEvidenceItems(snapshot.evidenceItems);
     setMemoItems(snapshot.memoItems);
-    setCodebookTree(snapshot.codebook);
     setInterviewList(snapshot.interviews);
     analysisCache.set(decodedProjectPath, snapshot);
   };
@@ -255,7 +253,8 @@ export const AnalysisDataProvider = ({ children }: { children: ReactNode }) => {
       if (showSpinner) setLoading(true);
       setError(null);
       try {
-        const nextCodebook = await fetchCodebookTree();
+        const rawCodebook = await fetchCodebookTree();
+        const nextCodebook = normalizeAnalysisCodebook(rawCodebook);
         const nextInterviews = await fetchInterviews();
         const [nextPeople, nextSpanGroups, nextSegmentGroups, nextSpeakerGroups] = await Promise.all([
           fetchPeople().catch((err: unknown) => {
