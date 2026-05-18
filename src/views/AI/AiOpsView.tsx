@@ -83,6 +83,16 @@ export const AiOpsView = () => {
     let unlisten: (() => void) | null = null;
     void onTranscriptionProgress((progress) => {
       setRuns((prev) => {
+        if (
+          progress.stage === "complete" ||
+          progress.stage === "failed" ||
+          progress.stage === "cancelled"
+        ) {
+          if (!(progress.interview_id in prev)) return prev;
+          const next = { ...prev };
+          delete next[progress.interview_id];
+          return next;
+        }
         const existing = prev[progress.interview_id];
         const runId = progress.run_id ?? existing?.runId ?? null;
         const startedAt =

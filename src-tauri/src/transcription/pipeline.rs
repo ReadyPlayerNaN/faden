@@ -659,15 +659,6 @@ pub async fn run_pipeline(
         Some(0),
     )?;
     interview::set_status(&conn, interview_id, TranscriptStatus::Complete)?;
-    ai_run::complete(
-        &conn,
-        run_id,
-        None,
-        Some(&format!(
-            "{completed_chunks}/{total_chunks} chunks, {total_segments} segments"
-        )),
-        None,
-    )?;
     ai_run_ops::set_stage_counts(
         &conn,
         run_id,
@@ -677,6 +668,16 @@ pub async fn run_pipeline(
         Some(0),
     )?;
     ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::Finalize)?;
+    ai_run_ops::finalize_run_as_complete(&conn, run_id)?;
+    sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
+    sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+    ai_run::complete(
+        &conn,
+        run_id,
+        None,
+        Some(&format!("{total_chunks}/{total_chunks} chunks, {total_segments} segments")),
+        None,
+    )?;
     emit(
         &app,
         &TranscriptionProgress::Complete {

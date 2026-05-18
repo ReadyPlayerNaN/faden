@@ -20,6 +20,7 @@ import { speakerListForInterview } from "../../../ipc/speaker";
 import { spanListForInterview } from "../../../ipc/tagging";
 import { transcribeCancel } from "../../../ipc/transcribe";
 import {
+  acknowledgedAiRunsAtom,
   activeAiOperationsAtom,
   aiRunHistoryAtom,
   pendingProposalsAtom,
@@ -82,6 +83,7 @@ export const InterviewList = ({ onAddInterview, onSelectInterview }: InterviewLi
   const [selected, setSelected] = useAtom(selectedInterviewIdAtom);
   const runs = useAtomValue(transcriptionRunsAtom);
   const skip = useAtomValue(skipCostConfirmAtom);
+  const acknowledgedRuns = useAtomValue(acknowledgedAiRunsAtom);
   const setSkip = useSetAtom(skipCostConfirmAtom);
   const setProposals = useSetAtom(pendingProposalsAtom);
   const aiRuns = useAtomValue(aiRunHistoryAtom);
@@ -279,6 +281,7 @@ export const InterviewList = ({ onAddInterview, onSelectInterview }: InterviewLi
               aiRuns={aiRuns}
               speakerNames={speakerNamesByInterviewId[i.id] ?? ""}
               taggedSegmentCount={taggedSegmentCountByInterviewId[i.id] ?? 0}
+              acknowledgedRuns={acknowledgedRuns}
             />
           ))}
         </ul>
@@ -307,6 +310,7 @@ type RowProps = {
   aiRuns: Awaited<ReturnType<typeof aiRunList>>;
   speakerNames: string;
   taggedSegmentCount: number;
+  acknowledgedRuns: Record<number, boolean>;
 };
 
 const InterviewRow = ({
@@ -321,18 +325,33 @@ const InterviewRow = ({
   aiRuns,
   speakerNames,
   taggedSegmentCount,
+  acknowledgedRuns,
 }: RowProps) => {
   const { t } = useTranslation();
   const setList = useSetAtom(interviewListAtom);
   const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
   const status = iv.transcriptStatus;
   const hasAudio = iv.audioPath !== null;
-  const isInProgress = status === "in_progress" || progress?.lastProgress.stage === "starting"
-    || progress?.lastProgress.stage === "analyzing_source"
-    || progress?.lastProgress.stage === "preparing_chunks"
-    || progress?.lastProgress.stage === "encoding_chunk"
-    || progress?.lastProgress.stage === "transcribing_chunk"
-    || progress?.lastProgress.stage === "composing_transcript";
+  const latestTranscriptionRun = aiRuns.find(
+    (run) => run.kind === "transcribe" && run.interviewId === iv.id,
+  );
+  const hasLiveProgress =
+    progress?.lastProgress.stage === "starting" ||
+    progress?.lastProgress.stage === "analyzing_source" ||
+    progress?.lastProgress.stage === "preparing_chunks" ||
+    progress?.lastProgress.stage === "encoding_chunk" ||
+    progress?.lastProgress.stage === "transcribing_chunk" ||
+    progress?.lastProgress.stage === "composing_transcript";
+  const progressMatchesRunningRun =
+    hasLiveProgress &&
+    (status === "in_progress" ||
+      latestTranscriptionRun?.status === "running" ||
+      latestTranscriptionRun === undefined);
+  const isInProgress = status === "in_progress" || progressMatchesRunningRun;
+  const isAcknowledgedFailedTranscription =
+    status === "failed" &&
+    latestTranscriptionRun?.status === "failed" &&
+    !!acknowledgedRuns[latestTranscriptionRun.id];
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -444,7 +463,7 @@ const InterviewRow = ({
         </span>
       );
     }
-    if (status === "failed") {
+    if (status === "failed" && !isAcknowledgedFailedTranscription) {
       return (
         <span className={styles.rowRight}>
           <span className={styles.statusFailed}>{t("workspace.transcriptFailed")}</span>

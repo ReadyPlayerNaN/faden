@@ -95,6 +95,45 @@ fn list_for_interview_orders_by_started_desc() {
 }
 
 #[test]
+fn finalize_run_as_complete_settles_descendant_nodes() {
+    let conn = fresh_conn();
+    let interview_row = interview::create(&conn, "I").unwrap();
+    let run_id = ai_run::start(
+        &conn,
+        AiRunKind::Transcribe,
+        Some(interview_row.id),
+        "model-x",
+        "prompt",
+        None,
+    )
+    .unwrap();
+    ai_run_ops::create_transcription_stages(&conn, run_id).unwrap();
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::AnalyzeSource).unwrap();
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::EncodeChunks).unwrap();
+    ai_run_ops::create_chunk_tasks(
+        &conn,
+        run_id,
+        AiRunStageKey::EncodeChunks,
+        AiRunTaskKind::EncodeChunk,
+        2,
+        1,
+    )
+    .unwrap();
+    ai_run_ops::mark_task_running(&conn, run_id, AiRunStageKey::EncodeChunks, 0, 1, 1).unwrap();
+
+    ai_run_ops::finalize_run_as_complete(&conn, run_id).unwrap();
+
+    let stages = ai_run_ops::list_stages(&conn, run_id).unwrap();
+    assert_eq!(stages[0].status, AiRunNodeStatus::Complete);
+    assert_eq!(stages[2].status, AiRunNodeStatus::Complete);
+    assert_eq!(stages[3].status, AiRunNodeStatus::Complete);
+
+    let tasks = ai_run_ops::list_tasks(&conn, run_id).unwrap();
+    assert_eq!(tasks[0].status, AiRunNodeStatus::Complete);
+    assert_eq!(tasks[1].status, AiRunNodeStatus::Complete);
+}
+
+#[test]
 fn reconcile_interrupted_runs_marks_transcription_failed() {
     let conn = fresh_conn();
     let interview_row = interview::create(&conn, "I").unwrap();

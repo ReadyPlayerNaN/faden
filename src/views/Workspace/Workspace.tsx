@@ -115,6 +115,12 @@ export const Workspace = () => {
     let unlisten: (() => void) | null = null;
     void onTranscriptionProgress((p) => {
       setRuns((prev) => {
+        if (p.stage === "complete" || p.stage === "failed" || p.stage === "cancelled") {
+          if (!(p.interview_id in prev)) return prev;
+          const next = { ...prev };
+          delete next[p.interview_id];
+          return next;
+        }
         const existing = prev[p.interview_id];
         const runId = p.run_id ?? existing?.runId ?? null;
         const startedAt = p.stage === "starting" ? Date.now() : existing?.startedAt ?? Date.now();
