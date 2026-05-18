@@ -152,6 +152,7 @@ pub struct AiRunTask {
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
     pub error: Option<String>,
+    pub log_json: Option<String>,
 }
 
 pub fn create_transcription_stages(conn: &Connection, ai_run_id: i64) -> AppResult<()> {
@@ -222,6 +223,7 @@ fn map_task_row(r: &rusqlite::Row) -> rusqlite::Result<AiRunTask> {
         started_at: r.get(8)?,
         completed_at: r.get(9)?,
         error: r.get(10)?,
+        log_json: r.get(11)?,
     })
 }
 
@@ -250,7 +252,7 @@ pub fn list_stages(conn: &Connection, ai_run_id: i64) -> AppResult<Vec<AiRunStag
 
 pub fn list_tasks(conn: &Connection, ai_run_id: i64) -> AppResult<Vec<AiRunTask>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.ai_run_stage_id, s.ai_run_id, t.kind, t.chunk_index, t.status, t.attempt, t.max_attempts, t.started_at, t.completed_at, t.error
+        "SELECT t.id, t.ai_run_stage_id, s.ai_run_id, t.kind, t.chunk_index, t.status, t.attempt, t.max_attempts, t.started_at, t.completed_at, t.error, t.log_json
          FROM ai_run_task t
          INNER JOIN ai_run_stage s ON s.id = t.ai_run_stage_id
          WHERE s.ai_run_id = ?1
@@ -420,6 +422,21 @@ pub fn mark_pending_tasks_cancelled(
         "UPDATE ai_run_task SET status = 'cancelled', completed_at = COALESCE(completed_at, ?1)
          WHERE ai_run_stage_id = ?2 AND status IN ('pending', 'running', 'retrying')",
         params![now, stage_id],
+    )?;
+    Ok(())
+}
+
+pub fn set_task_log_json(
+    conn: &Connection,
+    ai_run_id: i64,
+    stage_key: AiRunStageKey,
+    chunk_index: usize,
+    log_json: &str,
+) -> AppResult<()> {
+    let stage_id = stage_id(conn, ai_run_id, stage_key)?;
+    conn.execute(
+        "UPDATE ai_run_task SET log_json = ?1 WHERE ai_run_stage_id = ?2 AND chunk_index = ?3",
+        params![log_json, stage_id, chunk_index as i64],
     )?;
     Ok(())
 }

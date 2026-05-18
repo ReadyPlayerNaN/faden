@@ -92,6 +92,7 @@ export type AiRunTaskDTO = {
   startedAt: string | null;
   completedAt: string | null;
   error: string | null;
+  logJson: string | null;
 };
 
 export type AiRunDTO = {

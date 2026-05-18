@@ -258,23 +258,34 @@ const StageSection = ({ stage, tasks }: { stage: AiRunStageDTO; tasks: AiRunTask
       {stage.error && <p className={styles.error}>{stage.error}</p>}
       {tasks.length > 0 && (
         <ul className={styles.taskList}>
-          {tasks.map((task) => (
-            <li key={task.id} className={styles.taskItem}>
-              <div>
-                <strong>
-                  {t(`ai.taskKinds.${task.kind}`)} #{task.chunkIndex + 1}
-                </strong>
-                <div className={styles.suggestionMeta}>
-                  {t(`ai.stageStatus.${task.status}`)} · {t("ai.attemptSummary", {
-                    attempt: task.attempt,
-                    max: task.maxAttempts,
-                    defaultValue: "attempt {{attempt}}/{{max}}",
-                  })}
+          {tasks.map((task) => {
+            const parsedLog = tryParseJson<unknown>(task.logJson);
+            return (
+              <li key={task.id} className={styles.taskItem}>
+                <div>
+                  <strong>
+                    {t(`ai.taskKinds.${task.kind}`)} #{task.chunkIndex + 1}
+                  </strong>
+                  <div className={styles.suggestionMeta}>
+                    {t(`ai.stageStatus.${task.status}`)} · {t("ai.attemptSummary", {
+                      attempt: task.attempt,
+                      max: task.maxAttempts,
+                      defaultValue: "attempt {{attempt}}/{{max}}",
+                    })}
+                  </div>
+                  {task.logJson && (
+                    <div className={styles.taskLogWrap}>
+                      <div className={styles.metaLabel}>
+                        {t("ai.taskLog", { defaultValue: "Task log" })}
+                      </div>
+                      <pre className={styles.pre}>{parsedLog ? prettyJson(parsedLog) : task.logJson}</pre>
+                    </div>
+                  )}
                 </div>
-              </div>
-              {task.error && <span className={styles.error}>{task.error}</span>}
-            </li>
-          ))}
+                {task.error && <span className={styles.error}>{task.error}</span>}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

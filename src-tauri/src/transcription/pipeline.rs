@@ -7,12 +7,13 @@ use crate::error::{AppError, AppResult};
 use crate::transcription::{
     cache::ChunkCache,
     chunker, ffmpeg,
-    gemini::GeminiClient,
+    gemini::{GeminiClient, TokenUsage},
     progress::{TranscriptionProgress, EVENT_NAME},
     prompts, retry,
     schema::ParsedSegment,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use tauri::Emitter;
 use tokio_util::sync::CancellationToken;
 
@@ -90,6 +91,95 @@ fn sync_stage_counts(
         Some(total),
         Some(complete),
         Some(0),
+    )
+}
+
+const RESPONSE_PREVIEW_LIMIT: usize = 4000;
+
+#[derive(Debug, Default, Clone)]
+struct UsageTotals {
+    prompt_tokens: u64,
+    candidates_tokens: u64,
+    total_tokens: u64,
+    samples: u32,
+}
+
+impl UsageTotals {
+    fn record(&mut self, usage: &TokenUsage) {
+        self.prompt_tokens += usage.prompt_tokens as u64;
+        self.candidates_tokens += usage.candidates_tokens as u64;
+        self.total_tokens += usage.total_tokens as u64;
+        self.samples += 1;
+    }
+
+    fn to_json(&self) -> Option<String> {
+        if self.samples == 0 {
+            return None;
+        }
+        Some(
+            json!({
+                "scope": "transcription_chunk_responses",
+                "samples": self.samples,
+                "promptTokenCount": self.prompt_tokens,
+                "candidatesTokenCount": self.candidates_tokens,
+                "totalTokenCount": self.total_tokens,
+            })
+            .to_string(),
+        )
+    }
+}
+
+fn preview_text(text: &str) -> String {
+    let mut out = String::new();
+    let mut chars = text.chars();
+    for _ in 0..RESPONSE_PREVIEW_LIMIT {
+        match chars.next() {
+            Some(ch) => out.push(ch),
+            None => return out,
+        }
+    }
+    if chars.next().is_some() {
+        out.push_str("\n…(truncated)");
+    }
+    out
+}
+
+fn persist_task_log(
+    conn: &rusqlite::Connection,
+    run_id: i64,
+    plan: &chunker::ChunkPlan,
+    task_logs: &mut BTreeMap<usize, Value>,
+    prompt: &str,
+    prior_context_segments: usize,
+    audio_bytes: u64,
+    attempt_entry: Value,
+) -> AppResult<()> {
+    let task_log = task_logs.entry(plan.index).or_insert_with(|| {
+        json!({
+            "chunkIndex": plan.index,
+            "offsetSeconds": plan.offset_seconds,
+            "durationSeconds": plan.duration_seconds,
+            "attempts": [],
+        })
+    });
+    let obj = task_log
+        .as_object_mut()
+        .ok_or_else(|| AppError::Invalid("task log is not an object".into()))?;
+    obj.insert("promptChars".into(), json!(prompt.chars().count()));
+    obj.insert("priorContextSegments".into(), json!(prior_context_segments));
+    obj.insert("audioBytes".into(), json!(audio_bytes));
+    obj.entry("attempts".into()).or_insert_with(|| json!([]));
+    let attempts = obj
+        .get_mut("attempts")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| AppError::Invalid("task log attempts is not an array".into()))?;
+    attempts.push(attempt_entry);
+    ai_run_ops::set_task_log_json(
+        conn,
+        run_id,
+        AiRunStageKey::TranscribeChunks,
+        plan.index,
+        &task_log.to_string(),
     )
 }
 
@@ -381,6 +471,8 @@ pub async fn run_pipeline(
     ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
     let client =
         GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
+    let mut task_logs: BTreeMap<usize, Value> = BTreeMap::new();
+    let mut usage_totals = UsageTotals::default();
 
     let mut prior_segments_for_context: Vec<ParsedSegment> = match cache.load_all() {
         Ok(segments) => segments,
@@ -436,6 +528,7 @@ pub async fn run_pipeline(
             return Err(error);
         }
 
+        let audio_bytes = std::fs::metadata(&chunk_path).map(|meta| meta.len()).unwrap_or(0);
         let mut attempt: u32 = 0;
         let segments_for_chunk = loop {
             attempt += 1;
@@ -459,10 +552,25 @@ pub async fn run_pipeline(
             );
 
             let prompt = prompts::build_prompt(&prior_segments_for_context);
+            let prior_context_segments = prior_segments_for_context.len();
             let upload_result = client.upload_file(&chunk_path, "audio/mpeg").await;
             let uploaded = match upload_result {
                 Ok(file) => file,
                 Err(e) => {
+                    persist_task_log(
+                        &conn,
+                        run_id,
+                        plan,
+                        &mut task_logs,
+                        &prompt,
+                        prior_context_segments,
+                        audio_bytes,
+                        json!({
+                            "attempt": attempt,
+                            "outcome": if attempt < retry::MAX_RETRY_ATTEMPTS { "upload_retry" } else { "upload_failed" },
+                            "error": e.to_string(),
+                        }),
+                    )?;
                     if attempt < retry::MAX_RETRY_ATTEMPTS {
                         tokio::time::sleep(retry::delay_for_attempt(attempt)).await;
                         continue;
@@ -501,7 +609,28 @@ pub async fn run_pipeline(
 
             match gen_result {
                 Ok(resp) => {
+                    if let Some(usage) = resp.usage.as_ref() {
+                        usage_totals.record(usage);
+                        ai_run::set_token_usage_json(&conn, run_id, usage_totals.to_json().as_deref())?;
+                    }
                     if resp.finish_reason.as_deref() == Some("MAX_TOKENS") {
+                        persist_task_log(
+                            &conn,
+                            run_id,
+                            plan,
+                            &mut task_logs,
+                            &prompt,
+                            prior_context_segments,
+                            audio_bytes,
+                            json!({
+                                "attempt": attempt,
+                                "outcome": "max_tokens",
+                                "finishReason": resp.finish_reason,
+                                "usage": resp.usage,
+                                "responseChars": resp.text.chars().count(),
+                                "responsePreview": preview_text(&resp.text),
+                            }),
+                        )?;
                         let error = AppError::Invalid("MAX_TOKENS".into());
                         ai_run_ops::mark_task_failed(
                             &conn,
@@ -527,12 +656,68 @@ pub async fn run_pipeline(
                         &resp.text,
                         plan.duration_seconds,
                     ) {
-                        Ok(parsed) => break parsed,
-                        Err(_) if attempt < retry::MAX_RETRY_ATTEMPTS => {
+                        Ok(parsed) => {
+                            persist_task_log(
+                                &conn,
+                                run_id,
+                                plan,
+                                &mut task_logs,
+                                &prompt,
+                                prior_context_segments,
+                                audio_bytes,
+                                json!({
+                                    "attempt": attempt,
+                                    "outcome": "complete",
+                                    "finishReason": resp.finish_reason,
+                                    "usage": resp.usage,
+                                    "responseChars": resp.text.chars().count(),
+                                    "responsePreview": preview_text(&resp.text),
+                                    "parsedSegmentCount": parsed.len(),
+                                }),
+                            )?;
+                            break parsed;
+                        }
+                        Err(e) if attempt < retry::MAX_RETRY_ATTEMPTS => {
+                            persist_task_log(
+                                &conn,
+                                run_id,
+                                plan,
+                                &mut task_logs,
+                                &prompt,
+                                prior_context_segments,
+                                audio_bytes,
+                                json!({
+                                    "attempt": attempt,
+                                    "outcome": "parse_retry",
+                                    "finishReason": resp.finish_reason,
+                                    "usage": resp.usage,
+                                    "responseChars": resp.text.chars().count(),
+                                    "responsePreview": preview_text(&resp.text),
+                                    "error": e.to_string(),
+                                }),
+                            )?;
                             tokio::time::sleep(retry::delay_for_attempt(attempt)).await;
                             continue;
                         }
                         Err(e) => {
+                            persist_task_log(
+                                &conn,
+                                run_id,
+                                plan,
+                                &mut task_logs,
+                                &prompt,
+                                prior_context_segments,
+                                audio_bytes,
+                                json!({
+                                    "attempt": attempt,
+                                    "outcome": "parse_failed",
+                                    "finishReason": resp.finish_reason,
+                                    "usage": resp.usage,
+                                    "responseChars": resp.text.chars().count(),
+                                    "responsePreview": preview_text(&resp.text),
+                                    "error": e.to_string(),
+                                }),
+                            )?;
                             ai_run_ops::mark_task_failed(
                                 &conn,
                                 run_id,
@@ -553,6 +738,20 @@ pub async fn run_pipeline(
                     }
                 }
                 Err(e) => {
+                    persist_task_log(
+                        &conn,
+                        run_id,
+                        plan,
+                        &mut task_logs,
+                        &prompt,
+                        prior_context_segments,
+                        audio_bytes,
+                        json!({
+                            "attempt": attempt,
+                            "outcome": if attempt < retry::MAX_RETRY_ATTEMPTS { "generate_retry" } else { "generate_failed" },
+                            "error": e.to_string(),
+                        }),
+                    )?;
                     if attempt < retry::MAX_RETRY_ATTEMPTS {
                         tokio::time::sleep(retry::delay_for_attempt(attempt)).await;
                         continue;
@@ -671,10 +870,11 @@ pub async fn run_pipeline(
     ai_run_ops::finalize_run_as_complete(&conn, run_id)?;
     sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
     sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+    let token_usage_json = usage_totals.to_json();
     ai_run::complete(
         &conn,
         run_id,
-        None,
+        token_usage_json.as_deref(),
         Some(&format!("{total_chunks}/{total_chunks} chunks, {total_segments} segments")),
         None,
     )?;

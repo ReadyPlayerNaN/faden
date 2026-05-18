@@ -15,6 +15,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (11, include_str!("m011_people.sql")),
     (12, include_str!("m012_person_contact_details.sql")),
     (13, include_str!("m013_ai_structuring_kinds.sql")),
+    (14, include_str!("m014_ai_run_task_log.sql")),
 ];
 
 pub fn apply_migrations(conn: &mut Connection) -> AppResult<()> {

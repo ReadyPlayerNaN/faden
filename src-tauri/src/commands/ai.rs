@@ -315,6 +315,7 @@ pub struct AiRunTaskDTO {
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
     pub error: Option<String>,
+    pub log_json: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -375,6 +376,7 @@ fn ai_run_task_to_dto(task: ai_run_ops::AiRunTask) -> AiRunTaskDTO {
         started_at: task.started_at,
         completed_at: task.completed_at,
         error: task.error,
+        log_json: task.log_json,
     }
 }
 
