@@ -65,10 +65,14 @@ jobs:
           set -euo pipefail
 
           VERSION="${GITHUB_REF_NAME#v}"
+          TARGET_ROOT="target"
+          if [[ -d src-tauri/target/release ]]; then
+            TARGET_ROOT="src-tauri/target"
+          fi
           PORTABLE_ROOT="dist/release/faden-${VERSION}-linux-x86_64"
           mkdir -p "$PORTABLE_ROOT/usr/bin" "$PORTABLE_ROOT/usr/share/pixmaps" "$PORTABLE_ROOT/usr/share/licenses/faden" "$PORTABLE_ROOT/usr/share/applications"
 
-          install -Dm755 src-tauri/target/release/faden "$PORTABLE_ROOT/usr/bin/faden"
+          install -Dm755 "$TARGET_ROOT/release/faden" "$PORTABLE_ROOT/usr/bin/faden"
           install -Dm644 src-tauri/icons/128x128.png "$PORTABLE_ROOT/usr/share/pixmaps/faden.png"
           install -Dm644 LICENSE "$PORTABLE_ROOT/usr/share/licenses/faden/LICENSE"
           cat > "$PORTABLE_ROOT/usr/share/applications/faden.desktop" <<'EOF'
@@ -100,8 +104,12 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          DEB_PATH="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' | head -n1)"
-          RPM_PATH="$(find src-tauri/target/release/bundle/rpm -maxdepth 1 -type f -name '*.rpm' | head -n1)"
+          TARGET_ROOT="target"
+          if [[ -d src-tauri/target/release ]]; then
+            TARGET_ROOT="src-tauri/target"
+          fi
+          DEB_PATH="$(find "$TARGET_ROOT/release/bundle/deb" -maxdepth 1 -type f -name '*.deb' | head -n1)"
+          RPM_PATH="$(find "$TARGET_ROOT/release/bundle/rpm" -maxdepth 1 -type f -name '*.rpm' | head -n1)"
 
           if [[ -z "$DEB_PATH" || -z "$RPM_PATH" ]]; then
             echo "Expected .deb and .rpm bundles were not produced" >&2
