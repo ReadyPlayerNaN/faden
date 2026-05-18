@@ -1,13 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-  "src-tauri",
-  "crates/faden-core",
-  "crates/faden-core-sqlite",
-  "crates/faden-sync-protocol",
-  "crates/faden-sync-client",
-  "crates/faden-sync-server",
-]
+members = ["src-tauri"]
 exclude = [".worktrees/*"]
 
 [workspace.package]
