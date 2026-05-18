@@ -99,9 +99,9 @@ fn codebook_gen_prompt_prefers_enhancing_existing_codebook_without_duplicates() 
     .unwrap();
 
     assert!(prompt.contains("Produce all generated labels, descriptions, rationales, summaries, and other free-text output in Czech."));
-    assert!(prompt.contains("starting point and improve it"));
-    assert!(prompt.contains("Do not recreate existing tags"));
-    assert!(prompt.contains("near-duplicates or semantically equivalent tags"));
+    assert!(prompt.contains("treat it as the starting point"));
+    assert!(prompt.contains("Do not recreate existing codes"));
+    assert!(prompt.contains("near-duplicates or semantically equivalent codes"));
 }
 
 #[tokio::test]
