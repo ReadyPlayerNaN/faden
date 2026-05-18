@@ -168,7 +168,7 @@ fn persist_task_log(
     obj.insert("promptChars".into(), json!(prompt.chars().count()));
     obj.insert("priorContextSegments".into(), json!(prior_context_segments));
     obj.insert("audioBytes".into(), json!(audio_bytes));
-    obj.entry("attempts".into()).or_insert_with(|| json!([]));
+    obj.entry("attempts").or_insert_with(|| json!([]));
     let attempts = obj
         .get_mut("attempts")
         .and_then(Value::as_array_mut)

@@ -6,7 +6,7 @@ fn open_mem() -> Connection {
 }
 
 fn expected_versions() -> Vec<i64> {
-    (1..=13).collect()
+    (1..=14).collect()
 }
 
 #[test]
@@ -92,6 +92,20 @@ fn applies_m003_proposal_table() {
         )
         .unwrap();
     assert_eq!(count, 1);
+}
+
+#[test]
+fn applies_m014_ai_run_task_log_column() {
+    let mut conn = open_mem();
+    apply_migrations(&mut conn).unwrap();
+    let has_log_json: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('ai_run_task') WHERE name = 'log_json')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(has_log_json);
 }
 
 #[test]
