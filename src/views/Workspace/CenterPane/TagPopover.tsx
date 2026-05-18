@@ -165,6 +165,7 @@ export const TagPopover = () => {
     <div
       className={styles.popover}
       style={style}
+      data-tag-popover-root="true"
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className={styles.header}>

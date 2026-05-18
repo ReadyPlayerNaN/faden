@@ -650,9 +650,19 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest('[data-tag-popover-root="true"]')
+      ) {
+        pendingSelectionRef.current = activeSelection;
+        pointerSelectionStartedInTranscriptRef.current = activeSelection !== null;
+        return;
+      }
+
       const container = containerRef.current;
       pointerSelectionStartedInTranscriptRef.current = Boolean(
-        container?.contains(event.target as Node),
+        container?.contains(target as Node),
       );
       if (!pointerSelectionStartedInTranscriptRef.current) {
         pendingSelectionRef.current = null;
@@ -679,7 +689,7 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
       document.removeEventListener("selectionchange", onSelectionChange);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [editMode, setActiveSelection]);
+  }, [activeSelection, editMode, setActiveSelection]);
 
   const requestSegmentPlayback = (
     segment: SegmentDTO,
