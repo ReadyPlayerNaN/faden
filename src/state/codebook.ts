@@ -10,3 +10,15 @@ export type SelectedCodebookNode =
   | null;
 
 export const selectedCodebookNodeAtom = atom<SelectedCodebookNode>(null);
+
+export type CodebookManagementFilters = {
+  clusters: string;
+  categories: string;
+  tags: string;
+};
+
+export const codebookManagementFiltersAtom = atom<CodebookManagementFilters>({
+  clusters: "",
+  categories: "",
+  tags: "",
+});

@@ -18,6 +18,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { PageContainer } from "../../components/PageContainer/PageContainer";
 import { PageViewHeader } from "../../components/PageViewHeader/PageViewHeader";
 import { ProjectHeader } from "../../components/ProjectHeader/ProjectHeader";
+import { TextField } from "../../components/TextField/TextField";
 import {
   codebookTree as fetchTree,
   clusterDelete,
@@ -27,7 +28,7 @@ import {
   type CategoryNode,
   type TagNode,
 } from "../../ipc/codebook";
-import { codebookTreeAtom } from "../../state/codebook";
+import { codebookManagementFiltersAtom, codebookTreeAtom } from "../../state/codebook";
 import { interviewListAtom } from "../../state/interview";
 import {
   activeAiOperationsAtom,
@@ -64,6 +65,31 @@ type PendingProjectAiAction = {
 
 type SectionMenuItem = ActionMenuItem;
 
+const SEARCH_DEBOUNCE_MS = 300;
+
+const normalizeSearchText = (value: string | null | undefined): string =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase();
+
+const matchesSearch = (parts: Array<string | null | undefined>, query: string): boolean => {
+  const normalizedQuery = normalizeSearchText(query).trim();
+  if (!normalizedQuery) return true;
+  return normalizeSearchText(parts.filter(Boolean).join(" ")).includes(normalizedQuery);
+};
+
+const useDebouncedValue = <T,>(value: T, delayMs: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(handle);
+  }, [delayMs, value]);
+
+  return debouncedValue;
+};
+
 const errorMessage = (e: unknown): string => {
   if (e && typeof e === "object" && "message" in e) {
     const m = (e as { message?: unknown }).message;
@@ -76,6 +102,7 @@ export const TagsView = () => {
   const { t } = useTranslation();
   const [tree, setTree] = useAtom(codebookTreeAtom);
   const [interviews, setInterviews] = useAtom(interviewListAtom);
+  const [managementFilters, setManagementFilters] = useAtom(codebookManagementFiltersAtom);
   const skipCostConfirm = useAtomValue(skipCostConfirmAtom);
   const setSkipCostConfirm = useSetAtom(skipCostConfirmAtom);
   const setPendingProposals = useSetAtom(pendingProposalsAtom);
@@ -168,6 +195,34 @@ export const TagsView = () => {
       ),
     ];
   }, [tree]);
+
+  const debouncedClusterFilter = useDebouncedValue(managementFilters.clusters, SEARCH_DEBOUNCE_MS);
+  const debouncedCategoryFilter = useDebouncedValue(managementFilters.categories, SEARCH_DEBOUNCE_MS);
+  const debouncedTagFilter = useDebouncedValue(managementFilters.tags, SEARCH_DEBOUNCE_MS);
+
+  const filteredClusters = useMemo(
+    () =>
+      (tree?.clusters ?? []).filter((cluster) =>
+        matchesSearch([cluster.name, cluster.description], debouncedClusterFilter),
+      ),
+    [debouncedClusterFilter, tree],
+  );
+
+  const filteredCategories = useMemo(
+    () =>
+      categories.filter(({ cluster, category }) =>
+        matchesSearch([category.name, category.description, cluster?.name], debouncedCategoryFilter),
+      ),
+    [categories, debouncedCategoryFilter],
+  );
+
+  const filteredTags = useMemo(
+    () =>
+      tags.filter(({ tag, category, cluster }) =>
+        matchesSearch([tag.name, tag.description, category?.name, cluster?.name], debouncedTagFilter),
+      ),
+    [debouncedTagFilter, tags],
+  );
 
   const refreshProposals = async () => setPendingProposals(await aiProposalList());
   const refreshRuns = async () => setAiRunHistory(await aiRunList());
@@ -393,13 +448,22 @@ export const TagsView = () => {
         <section className={styles.section}>
           <SectionHeader
             title={t("tags.clusterManagementSection", { defaultValue: "Cluster management" })}
+            filterValue={managementFilters.clusters}
+            filterPlaceholder={t("tags.searchClusters", { defaultValue: "Search clusters…" })}
+            onFilterChange={(value) =>
+              setManagementFilters((prev) => ({ ...prev, clusters: value }))
+            }
             items={clusterMenuItems}
           />
           <div className={styles.flatList}>
             {tree && tree.clusters.length === 0 ? (
               <p className={styles.empty}>{t("tags.noClusters", { defaultValue: "No clusters yet" })}</p>
+            ) : filteredClusters.length === 0 ? (
+              <p className={styles.empty}>
+                {t("tags.noMatchingClusters", { defaultValue: "No matching clusters" })}
+              </p>
             ) : (
-              tree?.clusters.map((cluster) => (
+              filteredClusters.map((cluster) => (
                 <ManagementRow
                   key={cluster.id}
                   name={cluster.name}
@@ -419,13 +483,22 @@ export const TagsView = () => {
         <section className={styles.section}>
           <SectionHeader
             title={t("tags.categoryManagementSection", { defaultValue: "Category management" })}
+            filterValue={managementFilters.categories}
+            filterPlaceholder={t("tags.searchCategories", { defaultValue: "Search categories…" })}
+            onFilterChange={(value) =>
+              setManagementFilters((prev) => ({ ...prev, categories: value }))
+            }
             items={categoryMenuItems}
           />
           <div className={styles.flatList}>
             {tree && categories.length === 0 ? (
               <p className={styles.empty}>{t("tags.noCategories", { defaultValue: "No categories yet" })}</p>
+            ) : filteredCategories.length === 0 ? (
+              <p className={styles.empty}>
+                {t("tags.noMatchingCategories", { defaultValue: "No matching categories" })}
+              </p>
             ) : (
-              categories.map(({ cluster, category }) => (
+              filteredCategories.map(({ cluster, category }) => (
                 <ManagementRow
                   key={category.id}
                   name={category.name}
@@ -450,13 +523,20 @@ export const TagsView = () => {
         <section className={styles.section}>
           <SectionHeader
             title={t("tags.tagManagementSection", { defaultValue: "Tag management" })}
+            filterValue={managementFilters.tags}
+            filterPlaceholder={t("tags.searchTags", { defaultValue: "Search tags…" })}
+            onFilterChange={(value) =>
+              setManagementFilters((prev) => ({ ...prev, tags: value }))
+            }
             items={tagMenuItems}
           />
           <div className={styles.flatList}>
             {tree && tags.length === 0 ? (
               <p className={styles.empty}>{t("tags.noTags", { defaultValue: "No tags yet" })}</p>
+            ) : filteredTags.length === 0 ? (
+              <p className={styles.empty}>{t("tags.noResults", { defaultValue: "No matching tags" })}</p>
             ) : (
-              tags.map(({ tag, category, cluster }) => (
+              filteredTags.map(({ tag, category, cluster }) => (
                 <ManagementRow
                   key={tag.id}
                   name={tag.name}
@@ -719,19 +799,37 @@ export const TagsView = () => {
 
 type SectionHeaderProps = {
   title: string;
+  filterValue: string;
+  filterPlaceholder: string;
+  onFilterChange: (value: string) => void;
   items: SectionMenuItem[];
 };
 
-const SectionHeader = ({ title, items }: SectionHeaderProps) => {
+const SectionHeader = ({
+  title,
+  filterValue,
+  filterPlaceholder,
+  onFilterChange,
+  items,
+}: SectionHeaderProps) => {
   const { t } = useTranslation();
 
   return (
     <div className={styles.sectionHeader}>
       <h2 className={styles.sectionTitle}>{title}</h2>
-      <ActionMenu
-        ariaLabel={t("common.actions", { defaultValue: "Actions" }) as string}
-        items={items}
-      />
+      <div className={styles.sectionHeaderControls}>
+        <TextField
+          value={filterValue}
+          onChange={(event) => onFilterChange(event.target.value)}
+          placeholder={filterPlaceholder}
+          aria-label={filterPlaceholder}
+          className={styles.sectionSearchInput}
+        />
+        <ActionMenu
+          ariaLabel={t("common.actions", { defaultValue: "Actions" }) as string}
+          items={items}
+        />
+      </div>
     </div>
   );
 };
