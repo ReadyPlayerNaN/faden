@@ -12,6 +12,7 @@ import { spanListForInterview } from "../../../ipc/tagging";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { TagPopover } from "./TagPopover";
 import { SpeakerList } from "./SpeakerList";
+import { SuggestionReviewPopover } from "../AI/SuggestionReviewPopover";
 import type { TranscriptionLens } from "./transcriptionLens";
 import styles from "./CenterPane.module.css";
 
@@ -56,6 +57,7 @@ export const CenterPane = () => {
         </>
       )}
       <TagPopover />
+      <SuggestionReviewPopover />
     </section>
   );
 };

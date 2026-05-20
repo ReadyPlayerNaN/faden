@@ -359,7 +359,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
 
   if (!showAudioControls) {
     return (
-      <div className={styles.bar}>
+      <div className={styles.bar} data-audio-bar="true">
         <div className={styles.barInner}>
           <div className={styles.audioPanelPlaceholder} aria-hidden="true" />
           <div className={styles.statusArea}>
@@ -373,7 +373,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
 
   if (!interview?.audioPath) {
     return (
-      <div className={styles.bar}>
+      <div className={styles.bar} data-audio-bar="true">
         <div className={styles.barInner}>
           <div className={styles.audioPanel}>
             <span className={styles.empty}>{t("workspace.audioFilter")}</span>
@@ -388,7 +388,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   }
 
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} data-audio-bar="true">
       <div className={styles.barInner}>
         <div className={styles.audioPanel}>
         <button

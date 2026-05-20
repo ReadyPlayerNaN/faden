@@ -18,6 +18,25 @@ export const pendingProposalsAtom = atom<ProposalDTO[]>([]);
 export const activeProposalIdAtom = atom<number | null>(null);
 export const aiRunHistoryAtom = atom<AiRunDTO[]>([]);
 export const activeAiOperationsAtom = atom<LocalAiOperation[]>([]);
+
+export type SuggestionReviewItem = {
+  segmentId: number;
+  startOffset: number;
+  endOffset: number;
+  tagNames: string[];
+  rationale?: string | null;
+};
+
+export type ActiveSuggestionReview = {
+  proposalId: number;
+  proposalKind: "pretag" | "find_more";
+  interviewId: number;
+  suggestions: SuggestionReviewItem[];
+  currentIndex: number;
+  decisions: Array<"accepted" | "declined" | null>;
+};
+
+export const activeSuggestionReviewAtom = atom<ActiveSuggestionReview | null>(null);
 export const acknowledgedAiRunsAtom = atomWithStorage<Record<number, boolean>>(
   "faden.acknowledged-ai-runs",
   {},

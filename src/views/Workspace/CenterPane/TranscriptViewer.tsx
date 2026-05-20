@@ -34,7 +34,10 @@ import {
 } from "../../../state/tagging";
 import { buildTagMetaMap } from "../../../ipc/codebook";
 import { codebookTreeAtom } from "../../../state/codebook";
-import { skipCostConfirmAtom } from "../../../state/ai";
+import {
+  activeSuggestionReviewAtom,
+  skipCostConfirmAtom,
+} from "../../../state/ai";
 import {
   aiCostEstimate,
   type CostEstimate,
@@ -257,6 +260,52 @@ const textOffsetWithin = (
     range.selectNodeContents(root);
     range.setEnd(node, offsetInNode);
     return range.toString().length;
+  } catch {
+    return null;
+  }
+};
+
+const resolveTextPosition = (root: Node, targetOffset: number) => {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let traversed = 0;
+  let current = walker.nextNode();
+  while (current) {
+    const textContent = current.textContent ?? "";
+    const nextTraversed = traversed + textContent.length;
+    if (targetOffset <= nextTraversed) {
+      return {
+        node: current,
+        offset: Math.max(0, Math.min(textContent.length, targetOffset - traversed)),
+      };
+    }
+    traversed = nextTraversed;
+    current = walker.nextNode();
+  }
+  return {
+    node: root,
+    offset: root.textContent?.length ?? 0,
+  };
+};
+
+const rangeRectWithin = (
+  segmentEl: HTMLElement,
+  startOffset: number,
+  endOffset: number,
+) => {
+  const textRoot = segmentEl.querySelector<HTMLElement>(`.${styles.text}`);
+  const root: Node = textRoot ?? segmentEl;
+  try {
+    const start = resolveTextPosition(root, startOffset);
+    const end = resolveTextPosition(root, endOffset);
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0) {
+      return rect;
+    }
+    const firstRect = range.getClientRects()[0];
+    return firstRect ?? null;
   } catch {
     return null;
   }
@@ -523,6 +572,7 @@ export const TranscriptViewer = ({
   const setSegmentPlaybackRequest = useSetAtom(segmentPlaybackRequestAtom);
   const spans = useAtomValue(spansForCurrentInterviewAtom);
   const activeSelection = useAtomValue(activeTextSelectionAtom);
+  const activeSuggestionReview = useAtomValue(activeSuggestionReviewAtom);
   const selectedSpanId = useAtomValue(selectedSpanIdAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
@@ -629,6 +679,10 @@ export const TranscriptViewer = ({
     () => new Map(Array.from(tagMetaById.entries()).map(([tagId, meta]) => [tagId, meta.tag.name])),
     [tagMetaById],
   );
+  const selectedSpan = useMemo(
+    () => (selectedSpanId === null ? null : spans.find((span) => span.id === selectedSpanId) ?? null),
+    [selectedSpanId, spans],
+  );
 
   const readActiveSelectionFromDom = (): ActiveSelection => {
     if (editMode) return null;
@@ -688,7 +742,7 @@ export const TranscriptViewer = ({
   };
 
   useEffect(() => {
-    if (editMode) return;
+    if (editMode || activeSuggestionReview) return;
 
     let frame = 0;
     const queueSync = (mode: "preview" | "commit") => {
@@ -758,7 +812,67 @@ export const TranscriptViewer = ({
       document.removeEventListener("selectionchange", onSelectionChange);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [activeSelection, editMode, setActiveSelection]);
+  }, [activeSelection, activeSuggestionReview, editMode, setActiveSelection]);
+
+  useEffect(() => {
+    if (!activeSelection) return;
+    const target = containerRef.current?.querySelector<HTMLElement>(
+      `[data-segment-id="${activeSelection.segmentId}"]`,
+    );
+    if (!target) return;
+    const rect = rangeRectWithin(
+      target,
+      activeSelection.startOffset,
+      activeSelection.endOffset,
+    );
+    const text = (target.dataset.text ?? "").slice(
+      activeSelection.startOffset,
+      activeSelection.endOffset,
+    );
+    const rectChanged =
+      (!activeSelection.anchorRect && !!rect) ||
+      (!!activeSelection.anchorRect &&
+        !!rect &&
+        (Math.abs(activeSelection.anchorRect.top - rect.top) > 1 ||
+          Math.abs(activeSelection.anchorRect.left - rect.left) > 1 ||
+          Math.abs(activeSelection.anchorRect.bottom - rect.bottom) > 1 ||
+          Math.abs(activeSelection.anchorRect.right - rect.right) > 1));
+    if (rectChanged || (!activeSelection.text && text)) {
+      setActiveSelection({
+        ...activeSelection,
+        text,
+        anchorRect: rect
+          ? {
+              top: rect.top,
+              left: rect.left,
+              bottom: rect.bottom,
+              right: rect.right,
+            }
+          : activeSelection.anchorRect,
+      });
+    }
+  }, [
+    activeSelection,
+    segments.length,
+    setActiveSelection,
+  ]);
+
+  useEffect(() => {
+    const targetSegmentId = activeSelection?.segmentId ?? selectedSpan?.segmentId ?? null;
+    if (targetSegmentId === null) return;
+    const target = containerRef.current?.querySelector<HTMLElement>(
+      `[data-segment-id="${targetSegmentId}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [
+    activeSelection?.segmentId,
+    activeSelection?.startOffset,
+    activeSelection?.endOffset,
+    selectedSpan?.segmentId,
+    selectedSpanId,
+    segments.length,
+  ]);
 
   const requestSegmentPlayback = (
     segment: SegmentDTO,
@@ -1031,7 +1145,7 @@ export const TranscriptViewer = ({
                       .join(" ");
                     return (
                       <mark
-                        key={covering.map((span) => span.key).join("|")}
+                        key={`${s.id}:${r.start}:${r.end}:${covering.map((span) => span.key).join("|")}`}
                         className={markClassName}
                         style={{
                           backgroundImage: buildStripeBackground(

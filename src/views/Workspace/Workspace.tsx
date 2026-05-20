@@ -23,6 +23,7 @@ import {
 } from "../../state/interview";
 import { onTranscriptionProgress } from "../../ipc/transcribe";
 import { transcriptionRunsAtom } from "../../state/transcription";
+import { activeSuggestionReviewAtom } from "../../state/ai";
 import {
   activeTextSelectionAtom,
   selectedSpanIdAtom,
@@ -37,6 +38,32 @@ import styles from "./Workspace.module.css";
 const RIGHT_PANE_WIDTH_STORAGE_KEY = "faden.workspace-right-pane-width";
 const OPEN_SPAN_HANDOFF_STORAGE_KEY = "faden.workspace.open-span";
 const DEFAULT_RIGHT_PANE_WIDTH = 320;
+
+type WorkspaceHandoffPayload = {
+  projectPath?: string;
+  interviewId?: number;
+  spanId?: number;
+  selection?: {
+    segmentId?: number;
+    startOffset?: number;
+    endOffset?: number;
+    text?: string;
+  };
+  review?: {
+    proposalId: number;
+    proposalKind: "pretag" | "find_more";
+    interviewId: number;
+    suggestions: Array<{
+      segmentId: number;
+      startOffset: number;
+      endOffset: number;
+      tagNames: string[];
+      rationale?: string | null;
+    }>;
+    currentIndex: number;
+    decisions: Array<"accepted" | "declined" | null>;
+  };
+};
 const MIN_RIGHT_PANE_WIDTH = 240;
 const MAX_RIGHT_PANE_WIDTH = 520;
 const MIN_CENTER_PANE_WIDTH = 320;
@@ -74,6 +101,7 @@ export const Workspace = () => {
   const setActiveSelection = useSetAtom(activeTextSelectionAtom);
   const setSelectedSpan = useSetAtom(selectedSpanIdAtom);
   const setSelectedInterviewId = useSetAtom(selectedInterviewIdAtom);
+  const setActiveSuggestionReview = useSetAtom(activeSuggestionReviewAtom);
   const [mobilePane, setMobilePane] = useState<"edits" | "right">("edits");
   const [rightPaneWidth, setRightPaneWidth] = useState(readStoredRightPaneWidth);
   const [isResizingRightPane, setIsResizingRightPane] = useState(false);
@@ -94,22 +122,46 @@ export const Workspace = () => {
     const raw = window.localStorage.getItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
     if (!raw) return;
     try {
-      const payload = JSON.parse(raw) as {
-        projectPath?: string;
-        interviewId?: number;
-        spanId?: number;
-      };
+      const payload = JSON.parse(raw) as WorkspaceHandoffPayload;
       if (payload.projectPath !== decodeURIComponent(projectPath)) return;
-      if (typeof payload.interviewId === "number") setSelectedInterviewId(payload.interviewId);
+      if (typeof payload.interviewId === "number") {
+        setSelectedInterviewId(payload.interviewId);
+      }
+      if (payload.review) {
+        setActiveSuggestionReview(payload.review);
+      } else {
+        setActiveSuggestionReview(null);
+      }
       if (typeof payload.spanId === "number") {
+        setActiveSelection(null);
         setSelectedSpan(payload.spanId);
         window.dispatchEvent(new Event("workspace:open-right-pane"));
+      } else if (
+        typeof payload.selection?.segmentId === "number" &&
+        typeof payload.selection?.startOffset === "number" &&
+        typeof payload.selection?.endOffset === "number"
+      ) {
+        setSelectedSpan(null);
+        setActiveSelection({
+          segmentId: payload.selection.segmentId,
+          startOffset: payload.selection.startOffset,
+          endOffset: payload.selection.endOffset,
+          text: payload.selection.text ?? "",
+          anchorRect: null,
+        });
       }
       window.localStorage.removeItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
     } catch {
       window.localStorage.removeItem(OPEN_SPAN_HANDOFF_STORAGE_KEY);
     }
-  }, [projectPath, setSelectedInterviewId, setSelectedSpan, interviews.length]);
+  }, [
+    projectPath,
+    setActiveSelection,
+    setActiveSuggestionReview,
+    setSelectedInterviewId,
+    setSelectedSpan,
+    interviews.length,
+  ]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;

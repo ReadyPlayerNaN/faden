@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { activeSuggestionReviewAtom } from "../../../state/ai";
 import {
   activeTextSelectionAtom,
   spansForCurrentInterviewAtom,
@@ -25,6 +26,7 @@ type FlatTag = {
 export const TagPopover = () => {
   const { t } = useTranslation();
   const [selection, setSelection] = useAtom(activeTextSelectionAtom);
+  const activeSuggestionReview = useAtomValue(activeSuggestionReviewAtom);
   const interviewId = useAtomValue(effectiveSelectedInterviewIdAtom);
   const [tree, setTree] = useAtom(codebookTreeAtom);
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
@@ -152,6 +154,7 @@ export const TagPopover = () => {
     }
   };
 
+  if (activeSuggestionReview) return null;
   if (!selection) return null;
   const anchor = selection.anchorRect;
   if (!anchor) return null;

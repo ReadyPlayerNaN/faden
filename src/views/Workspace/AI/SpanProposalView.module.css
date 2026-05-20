@@ -52,6 +52,19 @@
   font-style: italic;
   font-size: 0.85em;
 }
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.45rem 0 0 1.5rem;
+}
+.jumpButton {
+  font-size: 0.82rem;
+}
+.itemHint {
+  opacity: 0.6;
+  font-size: 0.8rem;
+}
 .actions {
   display: flex;
   align-items: center;
