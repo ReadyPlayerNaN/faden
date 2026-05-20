@@ -151,6 +151,7 @@
     "noPerson": "No linked person",
     "details": "Speaker details",
     "currentInheritance": "Currently inheriting from: {{name}}",
+    "interviewer": "Interviewer",
     "source": "Source speaker",
     "target": "Target speaker",
     "mergeHelp": "Select multiple speakers to merge, then give the merged speaker a new name.",
@@ -186,6 +187,8 @@
     "search": "Search tags…",
     "noResults": "No matching tags",
     "tags": "Tags",
+    "categories": "Categories",
+    "clusters": "Clusters",
     "memo": "Memo",
     "memoPlaceholder": "Optional notes about this quote",
     "deleteSpan": "Delete span",
@@ -256,6 +259,11 @@
     "errorDuplicate": "A person with that name already exists"
   },
   "transcript": {
+    "viewLens": "Transcript lens",
+    "lensCodes": "Codes",
+    "lensCategories": "Categories",
+    "lensClusters": "Clusters",
+    "cycleOverlappingSpans": "Click to cycle overlapping spans",
     "editMode": "Edit transcript",
     "delete": "Delete",
     "split": "Split here",

@@ -12,6 +12,7 @@ import { spanListForInterview } from "../../../ipc/tagging";
 import { TranscriptViewer } from "./TranscriptViewer";
 import { TagPopover } from "./TagPopover";
 import { SpeakerList } from "./SpeakerList";
+import type { TranscriptionLens } from "./transcriptionLens";
 import styles from "./CenterPane.module.css";
 
 export const CenterPane = () => {
@@ -21,6 +22,7 @@ export const CenterPane = () => {
   const setSpans = useSetAtom(spansForCurrentInterviewAtom);
   const setCodebookTree = useSetAtom(codebookTreeAtom);
   const [speakerVersion, setSpeakerVersion] = useState(0);
+  const [transcriptionLens, setTranscriptionLens] = useState<TranscriptionLens>("codes");
 
   useEffect(() => {
     void fetchCodebookTree().then(setCodebookTree);
@@ -42,11 +44,14 @@ export const CenterPane = () => {
         <>
           <SpeakerList
             interviewId={interviewId}
+            transcriptionLens={transcriptionLens}
+            onTranscriptionLensChange={setTranscriptionLens}
             onChanged={() => setSpeakerVersion((value) => value + 1)}
           />
           <TranscriptViewer
             interviewId={interviewId}
             speakerVersion={speakerVersion}
+            transcriptionLens={transcriptionLens}
           />
         </>
       )}

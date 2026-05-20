@@ -150,6 +150,7 @@
     "noPerson": "Bez propojené osoby",
     "details": "Detail mluvčího",
     "currentInheritance": "Aktuálně se přebírá od: {{name}}",
+    "interviewer": "Tazatel",
     "source": "Zdrojový mluvčí",
     "target": "Cílový mluvčí",
     "mergeHelp": "Vyberte více mluvčích ke sloučení a potom zadejte nové jméno sloučeného mluvčího.",
@@ -185,6 +186,8 @@
     "search": "Hledat štítky…",
     "noResults": "Žádný štítek nevyhovuje",
     "tags": "Kódy",
+    "categories": "Kategorie",
+    "clusters": "Clustery",
     "memo": "Poznámka",
     "memoPlaceholder": "Volitelné poznámky k citaci",
     "deleteSpan": "Smazat výběr",
@@ -255,6 +258,11 @@
     "errorDuplicate": "Osoba s tímto jménem už existuje"
   },
   "transcript": {
+    "viewLens": "Pohled přepisu",
+    "lensCodes": "Kódy",
+    "lensCategories": "Kategorie",
+    "lensClusters": "Clustery",
+    "cycleOverlappingSpans": "Kliknutím přepínáte překrývající se úseky",
     "editMode": "Upravit přepis",
     "delete": "Smazat",
     "split": "Rozdělit zde",

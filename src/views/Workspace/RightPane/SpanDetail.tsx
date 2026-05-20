@@ -17,6 +17,7 @@ import { codebookTreeAtom } from "../../../state/codebook";
 import { effectiveSelectedInterviewIdAtom } from "../../../state/interview";
 import { Button } from "../../../components/Button/Button";
 import { useFindMoreAction } from "../AI/useFindMoreAction";
+import { TRANSCRIPTION_FALLBACK_COLOR } from "../CenterPane/transcriptionLens";
 import styles from "./SpanDetail.module.css";
 
 type Props = { span: SpanDTO };
@@ -116,6 +117,36 @@ export const SpanDetail = ({ span }: Props) => {
       );
     });
 
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    return span.tags.flatMap((tg) => {
+      const meta = tagMetaById.get(tg.tagId);
+      const key = meta?.category ? `category:${meta.category.id}` : "uncategorized";
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{
+        key,
+        label: meta?.category?.name ?? t("analysis.peopleLens.uncategorized", { defaultValue: "Uncategorized" }),
+        color: meta?.category?.color ?? TRANSCRIPTION_FALLBACK_COLOR,
+      }];
+    });
+  }, [span.tags, t, tagMetaById]);
+
+  const clusters = useMemo(() => {
+    const seen = new Set<string>();
+    return span.tags.flatMap((tg) => {
+      const meta = tagMetaById.get(tg.tagId);
+      const key = meta?.cluster ? `cluster:${meta.cluster.id}` : "unclustered";
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{
+        key,
+        label: meta?.cluster?.name ?? t("analysis.peopleLens.unclustered", { defaultValue: "Unclustered" }),
+        color: meta?.cluster?.color ?? TRANSCRIPTION_FALLBACK_COLOR,
+      }];
+    });
+  }, [span.tags, t, tagMetaById]);
+
   return (
     <div className={styles.wrap}>
       <blockquote className={styles.quote}>"{span.textSnapshot}"</blockquote>
@@ -201,6 +232,36 @@ export const SpanDetail = ({ span }: Props) => {
             {t("ai.findMoreOccurrences", { defaultValue: "Find more occurrences" })}
           </Button>
           {findMoreStatus ? <p className={styles.status}>{findMoreStatus}</p> : null}
+        </div>
+      </section>
+
+      <section>
+        <h4 className={styles.sectionTitle}>{t("tagging.categories", { defaultValue: "Categories" })}</h4>
+        <div className={styles.tagList}>
+          {categories.map((category) => (
+            <span
+              key={category.key}
+              className={styles.chip}
+              style={{ background: `${category.color}22`, borderColor: category.color }}
+            >
+              {category.label}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h4 className={styles.sectionTitle}>{t("tagging.clusters", { defaultValue: "Clusters" })}</h4>
+        <div className={styles.tagList}>
+          {clusters.map((cluster) => (
+            <span
+              key={cluster.key}
+              className={styles.chip}
+              style={{ background: `${cluster.color}22`, borderColor: cluster.color }}
+            >
+              {cluster.label}
+            </span>
+          ))}
         </div>
       </section>
 

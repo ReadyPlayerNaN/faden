@@ -22,6 +22,40 @@
 	flex: 1 1 auto;
 }
 
+.lensSelector {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	overflow: hidden;
+	background: var(--bg-muted);
+}
+
+.lensButton {
+	background: transparent;
+	border: none;
+	color: var(--fg);
+	padding: 0.25rem 0.6rem;
+	font: inherit;
+	font-size: 0.85rem;
+	line-height: 1.2;
+	opacity: 0.8;
+}
+
+.lensButton:hover {
+	background: color-mix(in srgb, var(--bg-muted) 84%, transparent);
+}
+
+.lensButton:active {
+	background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
+}
+
+.lensButtonActive {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	color: var(--accent);
+	opacity: 1;
+}
+
 .actions {
 	position: relative;
 	display: flex;
@@ -103,6 +137,13 @@
 	padding: 0.1rem 0.4rem;
 	border-radius: 3px;
 	font: inherit;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.nameInterviewer {
+	border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
 .name:hover {
@@ -113,6 +154,15 @@
 	background: color-mix(in srgb, var(--bg-muted) 92%, transparent);
 }
 
+.badge {
+	font-size: 0.72rem;
+	line-height: 1;
+	padding: 0.16rem 0.35rem;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	color: var(--accent);
+	border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
 
 .error {
 	color: #d04848;

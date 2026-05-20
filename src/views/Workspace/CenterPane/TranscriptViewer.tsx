@@ -40,6 +40,10 @@ import {
   type CostEstimate,
 } from "../../../ipc/ai";
 import {
+  TRANSCRIPTION_FALLBACK_COLOR,
+  type TranscriptionLens,
+} from "./transcriptionLens";
+import {
   interviewList as fetchInterviews,
   interviewSetAudio,
 } from "../../../ipc/interview";
@@ -53,6 +57,7 @@ import styles from "./TranscriptViewer.module.css";
 type Props = {
   interviewId: number;
   speakerVersion?: number;
+  transcriptionLens: TranscriptionLens;
 };
 
 const formatTimestamp = (seconds: number): string => {
@@ -68,11 +73,15 @@ const formatTimestamp = (seconds: number): string => {
 };
 
 type SegmentSpan = {
+  key: string;
   spanId: number;
   startOffset: number;
   endOffset: number;
   tagIds: number[];
   source: "manual" | "ai_suggested" | "ai_accepted";
+  label: string;
+  stripeColors: string[];
+  activeColor: string;
 };
 
 const sortCoveringSpans = (spans: SegmentSpan[]) =>
@@ -104,14 +113,30 @@ const buildStripeBackground = (colors: string[], selected: boolean) => {
 const buildRangeTitle = (
   covering: SegmentSpan[],
   tagLabelById: Map<number, string>,
+  lens: TranscriptionLens,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ) => {
   if (covering.length === 0) return undefined;
   const lines = covering.map((span, index) => {
     const labels = span.tagIds.map((tagId) => tagLabelById.get(tagId) ?? `#${tagId}`);
-    return `Span ${index + 1}: ${labels.join(", ") || `#${span.spanId}`}`;
+    if (lens === "codes") {
+      return `Span ${index + 1}: ${labels.join(", ") || `#${span.spanId}`}`;
+    }
+    return `Span ${index + 1}: ${span.label}${labels.length > 0 ? ` — ${labels.join(", ")}` : ""}`;
   });
-  if (covering.length > 1) lines.push("Click to cycle overlapping spans");
+  if (new Set(covering.map((span) => span.spanId)).size > 1) {
+    lines.push(t("transcript.cycleOverlappingSpans", { defaultValue: "Click to cycle overlapping spans" }));
+  }
   return lines.join("\n");
+};
+
+const dedupeCoveringSpansBySpanId = (covering: SegmentSpan[]) => {
+  const seen = new Set<number>();
+  return covering.filter((span) => {
+    if (seen.has(span.spanId)) return false;
+    seen.add(span.spanId);
+    return true;
+  });
 };
 
 type SegmentSelection = {
@@ -417,7 +442,10 @@ const SegmentEditor = ({
             </option>
             {speakers.map((sp) => (
               <option key={sp.id} value={String(sp.id)}>
-                {sp.displayName ?? sp.labelRaw}
+                {sp.effectiveName}
+                {sp.interviewer
+                  ? ` (${t("speakers.interviewer", { defaultValue: "Interviewer" })})`
+                  : ""}
               </option>
             ))}
             <option value="__add__">
@@ -481,7 +509,11 @@ const SegmentEditor = ({
   );
 };
 
-export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => {
+export const TranscriptViewer = ({
+  interviewId,
+  speakerVersion = 0,
+  transcriptionLens,
+}: Props) => {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
@@ -529,35 +561,72 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
     void speakerListForInterview(interviewId).then(setSpeakers);
   }, [interviewId, lastProgress?.stage, speakerVersion, interviewContentVersion]);
 
+  const speakerById = useMemo(
+    () => new Map(speakers.map((speaker) => [speaker.id, speaker] as const)),
+    [speakers],
+  );
+
+  const tagMetaById = useMemo(() => buildTagMetaMap(codebook), [codebook]);
+
   const spansBySegment = useMemo(() => {
     const map = new Map<number, SegmentSpan[]>();
-    for (const s of spans) {
-      const arr = map.get(s.segmentId) ?? [];
-      arr.push({
-        spanId: s.id,
-        startOffset: s.startOffset,
-        endOffset: s.endOffset,
-        tagIds: s.tags.map((tg) => tg.tagId),
-        source: s.tags[0]?.source ?? "manual",
-      });
-      map.set(s.segmentId, arr);
+    const uncategorizedLabel = t("analysis.peopleLens.uncategorized", {
+      defaultValue: "Uncategorized",
+    });
+    const unclusteredLabel = t("analysis.peopleLens.unclustered", {
+      defaultValue: "Unclustered",
+    });
+
+    for (const span of spans) {
+      const arr = map.get(span.segmentId) ?? [];
+      if (transcriptionLens === "codes") {
+        const tagIds = span.tags.map((tg) => tg.tagId);
+        arr.push({
+          key: `span:${span.id}`,
+          spanId: span.id,
+          startOffset: span.startOffset,
+          endOffset: span.endOffset,
+          tagIds,
+          source: span.tags[0]?.source ?? "manual",
+          label: tagIds.map((tagId) => tagMetaById.get(tagId)?.tag.name ?? `#${tagId}`).join(", "),
+          stripeColors: tagIds.map(
+            (tagId) => tagMetaById.get(tagId)?.effectiveColor ?? TRANSCRIPTION_FALLBACK_COLOR,
+          ),
+          activeColor:
+            tagIds
+              .map((tagId) => tagMetaById.get(tagId)?.effectiveColor)
+              .find((color): color is string => Boolean(color)) ?? TRANSCRIPTION_FALLBACK_COLOR,
+        });
+      } else {
+        span.tags.forEach((tagOnSpan, index) => {
+          const meta = tagMetaById.get(tagOnSpan.tagId);
+          const isCategoryLens = transcriptionLens === "categories";
+          const label = isCategoryLens
+            ? meta?.category?.name ?? uncategorizedLabel
+            : meta?.cluster?.name ?? unclusteredLabel;
+          const color = isCategoryLens
+            ? meta?.category?.color ?? TRANSCRIPTION_FALLBACK_COLOR
+            : meta?.cluster?.color ?? TRANSCRIPTION_FALLBACK_COLOR;
+          arr.push({
+            key: `span:${span.id}:${transcriptionLens}:${tagOnSpan.tagId}:${index}`,
+            spanId: span.id,
+            startOffset: span.startOffset,
+            endOffset: span.endOffset,
+            tagIds: [tagOnSpan.tagId],
+            source: tagOnSpan.source,
+            label,
+            stripeColors: [color],
+            activeColor: color,
+          });
+        });
+      }
+      map.set(span.segmentId, arr);
     }
     return map;
-  }, [spans]);
-
-  const tagMetaById = useMemo(() => {
-    const m = new Map<number, { color: string; label: string }>();
-    buildTagMetaMap(codebook).forEach((meta, tagId) => {
-      m.set(tagId, {
-        color: meta.effectiveColor ?? "#5b9aff",
-        label: meta.tag.name,
-      });
-    });
-    return m;
-  }, [codebook]);
+  }, [spans, t, tagMetaById, transcriptionLens]);
 
   const tagLabelById = useMemo(
-    () => new Map(Array.from(tagMetaById.entries()).map(([tagId, meta]) => [tagId, meta.label])),
+    () => new Map(Array.from(tagMetaById.entries()).map(([tagId, meta]) => [tagId, meta.tag.name])),
     [tagMetaById],
   );
 
@@ -898,6 +967,14 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                   ),
                 )
               : 0;
+          const speaker =
+            (s.speakerId !== null ? speakerById.get(s.speakerId) : undefined) ?? null;
+          const speakerName =
+            speaker?.effectiveName ??
+            s.speakerDisplayName ??
+            s.speakerLabelRaw ??
+            t("speakers.unassigned", { defaultValue: "Unassigned" });
+          const isInterviewer = speaker?.interviewer ?? false;
           return (
             <div
               key={s.id}
@@ -911,10 +988,15 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                     <span className={styles.timestamp}>
                       [{formatTimestamp(s.startSec)}]
                     </span>
-                    <span className={styles.speaker}>
-                      {s.speakerDisplayName ??
-                        s.speakerLabelRaw ??
-                        t("speakers.unassigned", { defaultValue: "Unassigned" })}
+                    <span
+                      className={`${styles.speaker} ${isInterviewer ? styles.speakerInterviewer : ""}`}
+                    >
+                      {speakerName}
+                      {isInterviewer ? (
+                        <span className={styles.speakerBadge}>
+                          {t("speakers.interviewer", { defaultValue: "Interviewer" })}
+                        </span>
+                      ) : null}
                       :
                     </span>
                   </div>
@@ -926,14 +1008,13 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                       return <span key={i}>{slice}</span>;
                     }
                     const covering = sortCoveringSpans(r.covering);
+                    const clickableCovering = dedupeCoveringSpansBySpanId(covering);
                     const selectedCoveringSpan =
                       selectedSpanId !== null
-                        ? covering.find((span) => span.spanId === selectedSpanId)
+                        ? clickableCovering.find((span) => span.spanId === selectedSpanId)
                         : undefined;
                     const activeSpan = selectedCoveringSpan ?? covering[0];
-                    const stripeColors = covering
-                      .flatMap((span) => span.tagIds)
-                      .map((tagId) => tagMetaById.get(tagId)?.color ?? "#5b9aff");
+                    const stripeColors = covering.flatMap((span) => span.stripeColors);
                     const hasSuggested = covering.some(
                       (span) => span.source === "ai_suggested",
                     );
@@ -948,21 +1029,17 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                     ]
                       .filter(Boolean)
                       .join(" ");
-                    const activeColor =
-                      activeSpan?.tagIds
-                        .map((tagId) => tagMetaById.get(tagId)?.color)
-                        .find((color): color is string => Boolean(color)) ?? "#5b9aff";
                     return (
                       <mark
-                        key={i}
+                        key={covering.map((span) => span.key).join("|")}
                         className={markClassName}
                         style={{
                           backgroundImage: buildStripeBackground(
                             stripeColors,
                             r.selected,
                           ),
-                          borderBottomColor: activeColor,
-                          color: activeColor,
+                          borderBottomColor: activeSpan?.activeColor ?? TRANSCRIPTION_FALLBACK_COLOR,
+                          color: activeSpan?.activeColor ?? TRANSCRIPTION_FALLBACK_COLOR,
                         }}
                         data-span-id={activeSpan?.spanId}
                         data-overlap-count={covering.length > 1 ? covering.length : undefined}
@@ -970,24 +1047,24 @@ export const TranscriptViewer = ({ interviewId, speakerVersion = 0 }: Props) => 
                           activeSpan
                             ? (e) => {
                                 e.stopPropagation();
-                                if (covering.length === 1) {
-                                  setSelectedSpan(activeSpan.spanId);
+                                if (clickableCovering.length === 1) {
+                                  setSelectedSpan(clickableCovering[0].spanId);
                                   window.dispatchEvent(new CustomEvent("workspace:open-right-pane"));
                                   return;
                                 }
-                                const currentIndex = covering.findIndex(
+                                const currentIndex = clickableCovering.findIndex(
                                   (span) => span.spanId === selectedSpanId,
                                 );
                                 const nextSpan =
                                   currentIndex >= 0
-                                    ? covering[(currentIndex + 1) % covering.length]
-                                    : covering[0];
+                                    ? clickableCovering[(currentIndex + 1) % clickableCovering.length]
+                                    : clickableCovering[0];
                                 setSelectedSpan(nextSpan.spanId);
                                 window.dispatchEvent(new CustomEvent("workspace:open-right-pane"));
                               }
                             : undefined
                         }
-                        title={buildRangeTitle(covering, tagLabelById)}
+                        title={buildRangeTitle(covering, tagLabelById, transcriptionLens, t)}
                       >
                         {slice}
                         {hasSuggested && <sup className={styles.aiBadge}>AI</sup>}

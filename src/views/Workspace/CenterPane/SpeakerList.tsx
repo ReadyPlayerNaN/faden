@@ -16,6 +16,7 @@ import {
 	speakerListForInterview,
 	speakerMerge,
 	speakerSetDisplayName,
+	speakerSetInterviewer,
 	speakerSetPerson,
 	type Speaker,
 } from "../../../ipc/speaker";
@@ -30,10 +31,13 @@ import {
 } from "../../../state/ai";
 import { interviewListAtom } from "../../../state/interview";
 import { CostPreviewModal } from "../AI/CostPreviewModal";
+import type { TranscriptionLens } from "./transcriptionLens";
 import styles from "./SpeakerList.module.css";
 
 type Props = {
 	interviewId: number;
+	transcriptionLens: TranscriptionLens;
+	onTranscriptionLensChange: (lens: TranscriptionLens) => void;
 	onChanged?: () => void;
 };
 
@@ -43,7 +47,12 @@ type PendingAction = {
 	kind: "codebook_gen" | "pretag";
 };
 
-export const SpeakerList = ({ interviewId, onChanged }: Props) => {
+export const SpeakerList = ({
+	interviewId,
+	transcriptionLens,
+	onTranscriptionLensChange,
+	onChanged,
+}: Props) => {
 	const { t } = useTranslation();
 	const interviews = useAtomValue(interviewListAtom);
 	const skipCostConfirm = useAtomValue(skipCostConfirmAtom);
@@ -68,6 +77,7 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 	const [detailSpeaker, setDetailSpeaker] = useState<Speaker | null>(null);
 	const [detailDisplayName, setDetailDisplayName] = useState("");
 	const [detailPersonId, setDetailPersonId] = useState("");
+	const [detailInterviewer, setDetailInterviewer] = useState(false);
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const interviewName = useMemo(
 		() => interviews.find((item) => item.id === interviewId)?.name ?? `#${interviewId}`,
@@ -142,12 +152,14 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 		setDetailPersonId(
 			speaker.personId === null ? "" : String(speaker.personId),
 		);
+		setDetailInterviewer(speaker.interviewer);
 	};
 
 	const closeSpeakerDetail = () => {
 		setDetailSpeaker(null);
 		setDetailDisplayName("");
 		setDetailPersonId("");
+		setDetailInterviewer(false);
 	};
 
 	const refreshProposals = async () => setPendingProposals(await aiProposalList());
@@ -300,6 +312,7 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 				detailSpeaker.id,
 				detailPersonId ? Number(detailPersonId) : null,
 			);
+			await speakerSetInterviewer(detailSpeaker.id, detailInterviewer);
 			await refresh();
 			closeSpeakerDetail();
 		} catch (err) {
@@ -329,12 +342,34 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 					{speakers.map((speaker) => (
 						<span key={speaker.id} className={styles.item}>
 							<button
-								className={styles.name}
+								className={`${styles.name} ${speaker.interviewer ? styles.nameInterviewer : ""}`}
 								onClick={() => openSpeakerDetail(speaker)}
 							>
 								{speaker.effectiveName}
+								{speaker.interviewer ? (
+									<span className={styles.badge}>
+										{t("speakers.interviewer", { defaultValue: "Interviewer" })}
+									</span>
+								) : null}
 							</button>
 						</span>
+					))}
+				</div>
+				<div className={styles.lensSelector} role="group" aria-label={t("transcript.viewLens", { defaultValue: "Transcript lens" })}>
+					{([
+						["codes", t("transcript.lensCodes", { defaultValue: "Codes" })],
+						["categories", t("transcript.lensCategories", { defaultValue: "Categories" })],
+						["clusters", t("transcript.lensClusters", { defaultValue: "Clusters" })],
+					] as const).map(([lens, label]) => (
+						<button
+							key={lens}
+							type="button"
+							className={`${styles.lensButton} ${transcriptionLens === lens ? styles.lensButtonActive : ""}`}
+							onClick={() => onTranscriptionLensChange(lens)}
+							aria-pressed={transcriptionLens === lens}
+						>
+							{label}
+						</button>
 					))}
 				</div>
 				<div className={styles.actions} ref={containerRef}>
@@ -597,6 +632,16 @@ export const SpeakerList = ({ interviewId, onChanged }: Props) => {
 								</option>
 							))}
 						</select>
+					</label>
+					<label className={styles.checkboxItem}>
+						<input
+							type="checkbox"
+							checked={detailInterviewer}
+							onChange={(e) => setDetailInterviewer(e.target.checked)}
+						/>
+						<span>
+							{t("speakers.interviewer", { defaultValue: "Interviewer" })}
+						</span>
 					</label>
 					{detailSpeaker?.personName ? (
 						<p className={styles.help}>
