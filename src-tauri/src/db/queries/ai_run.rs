@@ -130,7 +130,11 @@ pub fn fail(conn: &Connection, id: i64, error: &str, raw_output: Option<&str>) -
     Ok(())
 }
 
-pub fn set_token_usage_json(conn: &Connection, id: i64, token_usage_json: Option<&str>) -> AppResult<()> {
+pub fn set_token_usage_json(
+    conn: &Connection,
+    id: i64,
+    token_usage_json: Option<&str>,
+) -> AppResult<()> {
     let affected = conn.execute(
         "UPDATE ai_run SET token_usage_json = ?1 WHERE id = ?2",
         params![token_usage_json, id],

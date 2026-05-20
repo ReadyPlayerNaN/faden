@@ -1,6 +1,8 @@
 use faden_app_lib::ai::{categorize, cluster_suggest, text};
 use faden_app_lib::db::migrations::apply_migrations;
-use faden_app_lib::db::queries::{category, cluster, interview, segment, span_tag, tag, tagged_span};
+use faden_app_lib::db::queries::{
+    category, cluster, interview, segment, span_tag, tag, tagged_span,
+};
 use rusqlite::Connection;
 
 fn fresh() -> Connection {
@@ -11,7 +13,13 @@ fn fresh() -> Connection {
 }
 
 fn seed_structuring_fixture(conn: &mut Connection) -> (i64, i64) {
-    let work_cluster = cluster::create(conn, "Work organization", Some("Coordination structure"), None).unwrap();
+    let work_cluster = cluster::create(
+        conn,
+        "Work organization",
+        Some("Coordination structure"),
+        None,
+    )
+    .unwrap();
     let coordination = category::create(
         conn,
         Some(work_cluster.id),
@@ -78,15 +86,28 @@ fn seed_structuring_fixture(conn: &mut Connection) -> (i64, i64) {
             segment_id: segment_ids[1],
             start_offset: 0,
             end_offset: 62,
-            text_snapshot: "I ended up messaging a manager privately because the normal queue never moved",
+            text_snapshot:
+                "I ended up messaging a manager privately because the normal queue never moved",
             audio_start_sec: 5.0,
             audio_end_sec: 8.0,
         },
     )
     .unwrap();
 
-    span_tag::attach(conn, span_one.id, role_ambiguity.id, span_tag::SpanTagSource::Manual).unwrap();
-    span_tag::attach(conn, span_two.id, escalation.id, span_tag::SpanTagSource::Manual).unwrap();
+    span_tag::attach(
+        conn,
+        span_one.id,
+        role_ambiguity.id,
+        span_tag::SpanTagSource::Manual,
+    )
+    .unwrap();
+    span_tag::attach(
+        conn,
+        span_two.id,
+        escalation.id,
+        span_tag::SpanTagSource::Manual,
+    )
+    .unwrap();
 
     (coordination.id, work_cluster.id)
 }
@@ -99,18 +120,24 @@ fn categorize_prompt_context_includes_reusable_ids_counts_and_evidence() {
     let formatted = text::format_tags_for_categorizing(&conn).unwrap();
 
     assert!(formatted.contains("Existing categories available for reuse:"));
-    assert!(formatted.contains(&format!("[category_id={coordination_id}] Coordination friction")));
+    assert!(formatted.contains(&format!(
+        "[category_id={coordination_id}] Coordination friction"
+    )));
     assert!(formatted.contains(&format!("[cluster_id={work_cluster_id}] Work organization")));
     assert!(formatted.contains("tagged spans: 1"));
     assert!(formatted.contains("member tags: [tag_id="));
     assert!(formatted.contains("evidence: \"Nobody knew who was supposed to approve the request\""));
 
-    let prompt = categorize::build_prompt(&conn, &categorize::CategorizeInput, None, "English").unwrap();
+    let prompt =
+        categorize::build_prompt(&conn, &categorize::CategorizeInput, None, "English").unwrap();
     assert!(prompt.contains("Prioritize analytic coherence"));
     assert!(prompt.contains("Reuse an existing category whenever the fit is genuinely"));
     assert!(prompt.contains("leave a tag unassigned"));
     assert!(prompt.contains("omit tags that do not have a strong home"));
-    assert!(prompt.contains("Rationales\nmust be evidence-based") || prompt.contains("Rationales must be evidence-based"));
+    assert!(
+        prompt.contains("Rationales\nmust be evidence-based")
+            || prompt.contains("Rationales must be evidence-based")
+    );
 }
 
 #[test]
@@ -127,8 +154,23 @@ fn category_and_cluster_usage_counts_deduplicate_shared_spans() {
     .unwrap();
     let shared_span = tagged_span::list_for_tag(&conn, second_tag.id).unwrap();
     assert!(shared_span.is_empty());
-    let first_span = tagged_span::list_for_tag(&conn, tag::list_all(&conn).unwrap().into_iter().find(|t| t.name == "Role ambiguity").unwrap().id).unwrap();
-    span_tag::attach(&conn, first_span[0].id, second_tag.id, span_tag::SpanTagSource::Manual).unwrap();
+    let first_span = tagged_span::list_for_tag(
+        &conn,
+        tag::list_all(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|t| t.name == "Role ambiguity")
+            .unwrap()
+            .id,
+    )
+    .unwrap();
+    span_tag::attach(
+        &conn,
+        first_span[0].id,
+        second_tag.id,
+        span_tag::SpanTagSource::Manual,
+    )
+    .unwrap();
 
     let categories_text = text::format_tags_for_categorizing(&conn).unwrap();
     let category_line = categories_text
@@ -154,14 +196,21 @@ fn cluster_prompt_context_includes_reusable_ids_counts_and_evidence() {
 
     assert!(formatted.contains("Existing clusters available for reuse:"));
     assert!(formatted.contains(&format!("[cluster_id={work_cluster_id}] Work organization")));
-    assert!(formatted.contains(&format!("[category_id={coordination_id}] Coordination friction")));
+    assert!(formatted.contains(&format!(
+        "[category_id={coordination_id}] Coordination friction"
+    )));
     assert!(formatted.contains("member categories: "));
     assert!(formatted.contains("tag count: 1"));
     assert!(formatted.contains("evidence: \"Nobody knew who was supposed to approve the request\""));
 
-    let prompt = cluster_suggest::build_prompt(&conn, &cluster_suggest::ClusterInput, None, "English").unwrap();
+    let prompt =
+        cluster_suggest::build_prompt(&conn, &cluster_suggest::ClusterInput, None, "English")
+            .unwrap();
     assert!(prompt.contains("Prioritize analytic coherence"));
-    assert!(prompt.contains("Reuse an existing cluster\nwhenever the fit is genuinely") || prompt.contains("Reuse an existing cluster whenever the fit is genuinely"));
+    assert!(
+        prompt.contains("Reuse an existing cluster\nwhenever the fit is genuinely")
+            || prompt.contains("Reuse an existing cluster whenever the fit is genuinely")
+    );
     assert!(prompt.contains("leave a category unassigned"));
     assert!(prompt.contains("omit categories that do not have a strong home"));
     assert!(prompt.contains("Rationales must be evidence-based"));

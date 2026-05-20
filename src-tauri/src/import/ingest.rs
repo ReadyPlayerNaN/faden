@@ -56,8 +56,13 @@ pub async fn ingest_impl(
         let mut speaker_map: std::collections::HashMap<String, i64> =
             std::collections::HashMap::new();
         for sp in &pt.speakers {
-            let s =
-                speaker::create_or_get(&conn, iv.id, &sp.label_raw, sp.display_name.as_deref(), None)?;
+            let s = speaker::create_or_get(
+                &conn,
+                iv.id,
+                &sp.label_raw,
+                sp.display_name.as_deref(),
+                None,
+            )?;
             speaker_map.insert(sp.label_raw.clone(), s.id);
         }
         // Make sure all segments have a speaker; if a segment references an unseen label, create it

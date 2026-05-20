@@ -85,7 +85,10 @@ pub fn finalize(
     let known_tags = tag::list_all(conn)?;
     let known_tag_ids: HashSet<i64> = known_tags.iter().map(|tag| tag.id).collect();
     let known_categories = crate::db::queries::category::list_all(conn)?;
-    let known_category_ids: HashSet<i64> = known_categories.iter().map(|category| category.id).collect();
+    let known_category_ids: HashSet<i64> = known_categories
+        .iter()
+        .map(|category| category.id)
+        .collect();
     let mut seen_tags = HashSet::new();
     let mut filtered = Vec::new();
     let mut skipped = 0usize;

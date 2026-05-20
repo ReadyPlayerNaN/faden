@@ -480,8 +480,7 @@ fn persist_segments(
     let new_segments: Vec<segment::NewSegment> = segments_in
         .iter()
         .map(|item| {
-            let speaker =
-                speaker::create_or_get(conn, interview_id, &item.speaker, None, None)?;
+            let speaker = speaker::create_or_get(conn, interview_id, &item.speaker, None, None)?;
             Ok(segment::NewSegment {
                 speaker_id: Some(speaker.id),
                 start_sec: item.start,
