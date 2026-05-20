@@ -32,7 +32,8 @@ pub fn write_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
         let mut s_strs = Vec::new();
         for sp in &speaker_list {
             let name = sp.effective_display_name().unwrap_or("?");
-            s_strs.push(format!("{} = {}", sp.label_raw, name));
+            let role = if sp.interviewer { " (interviewer)" } else { "" };
+            s_strs.push(format!("{} = {}{}", sp.label_raw, name, role));
         }
         writeln!(writer, "**Speakers:** {}", s_strs.join(", "))?;
         writeln!(writer)?;
@@ -45,11 +46,16 @@ pub fn write_markdown<W: Write>(data: &ProjectExportData, writer: &mut W) -> App
         for seg in &iv.segments {
             let speaker = seg.speaker_id.and_then(|id| iv.speakers.get(&id));
             let speaker_label = speaker.map(|s| s.label_raw.as_str()).unwrap_or("?");
+            let speaker_suffix = if speaker.map(|s| s.interviewer).unwrap_or(false) {
+                " [interviewer]"
+            } else {
+                ""
+            };
             let timestamp = format_seconds(seg.start_sec);
             writeln!(
                 writer,
-                "[{}] **{}:** {}",
-                timestamp, speaker_label, seg.text
+                "[{}] **{}{}:** {}",
+                timestamp, speaker_label, speaker_suffix, seg.text
             )?;
             if let Some(spans) = spans_by_seg.get(&seg.id) {
                 for span in spans {

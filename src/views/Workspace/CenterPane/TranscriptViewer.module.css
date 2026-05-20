@@ -86,7 +86,26 @@
   color: var(--accent);
 }
 .timestamp { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.85em; opacity: 0.8; white-space: nowrap; }
-.speaker { font-weight: 600; opacity: 0.85; white-space: nowrap; }
+.speaker {
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.speakerInterviewer {
+  color: color-mix(in srgb, var(--accent) 78%, var(--fg));
+}
+.speakerBadge {
+  font-size: 0.68em;
+  line-height: 1;
+  padding: 0.16rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
 .text { word-wrap: break-word; min-width: 0; }
 .segmentProgressTrack {
   position: relative;

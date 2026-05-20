@@ -7,6 +7,7 @@ export type Speaker = {
 	displayName: string | null;
 	personId: number | null;
 	personName: string | null;
+	interviewer: boolean;
 	effectiveName: string;
 };
 
@@ -17,6 +18,7 @@ type Raw = {
 	display_name: string | null;
 	person_id: number | null;
 	person_name: string | null;
+	interviewer: boolean;
 };
 
 export type SpeakerCreateInput = {
@@ -32,6 +34,7 @@ const fromRaw = (r: Raw): Speaker => ({
 	displayName: r.display_name,
 	personId: r.person_id,
 	personName: r.person_name,
+	interviewer: r.interviewer,
 	effectiveName: r.display_name ?? r.person_name ?? r.label_raw,
 });
 
@@ -52,6 +55,11 @@ export const speakerSetPerson = (
 	speakerId: number,
 	personId: number | null,
 ): Promise<void> => invoke("speaker_set_person", { speakerId, personId });
+
+export const speakerSetInterviewer = (
+	speakerId: number,
+	interviewer: boolean,
+): Promise<void> => invoke("speaker_set_interviewer", { speakerId, interviewer });
 
 export const speakerCreate = async (
 	interviewId: number,

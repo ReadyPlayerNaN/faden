@@ -259,6 +259,7 @@ pub struct SpeakerDTO {
     pub display_name: Option<String>,
     pub person_id: Option<i64>,
     pub person_name: Option<String>,
+    pub interviewer: bool,
 }
 
 impl From<Speaker> for SpeakerDTO {
@@ -270,6 +271,7 @@ impl From<Speaker> for SpeakerDTO {
             display_name: s.display_name,
             person_id: s.person_id,
             person_name: s.person_name,
+            interviewer: s.interviewer,
         }
     }
 }
@@ -332,6 +334,16 @@ pub async fn speaker_set_person(
 ) -> AppResult<()> {
     let conn = project_conn(&app)?;
     speaker::set_person(&conn, speaker_id, person_id)
+}
+
+#[tauri::command]
+pub async fn speaker_set_interviewer(
+    app: tauri::AppHandle,
+    speaker_id: i64,
+    interviewer: bool,
+) -> AppResult<()> {
+    let conn = project_conn(&app)?;
+    speaker::set_interviewer(&conn, speaker_id, interviewer)
 }
 
 #[tauri::command]

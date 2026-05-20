@@ -87,6 +87,7 @@ pub fn run() {
             commands::interview::speaker_create,
             commands::interview::speaker_set_display_name,
             commands::interview::speaker_set_person,
+            commands::interview::speaker_set_interviewer,
             commands::interview::speaker_merge,
             commands::interview::speaker_delete,
             commands::interview::interview_set_audio,

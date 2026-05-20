@@ -109,6 +109,17 @@ fn speaker_set_display_name() {
 }
 
 #[test]
+fn speaker_set_interviewer() {
+    let conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let s = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    assert!(!speaker::get(&conn, s.id).unwrap().interviewer);
+
+    speaker::set_interviewer(&conn, s.id, true).unwrap();
+    assert!(speaker::get(&conn, s.id).unwrap().interviewer);
+}
+
+#[test]
 fn speaker_can_link_to_person_and_inherit_name() {
     let conn = fresh_conn();
     let i = interview::create(&conn, "I").unwrap();
@@ -221,6 +232,19 @@ fn speaker_merge_preserves_person_link() {
     assert_eq!(merged.person_name.as_deref(), Some("Alice"));
     assert_eq!(merged.display_name, None);
     assert_eq!(merged.effective_display_name(), Some("Alice"));
+}
+
+#[test]
+fn speaker_merge_preserves_interviewer_role() {
+    let mut conn = fresh_conn();
+    let i = interview::create(&conn, "I").unwrap();
+    let a = speaker::create_or_get(&conn, i.id, "A", Some("Alice"), None).unwrap();
+    let b = speaker::create_or_get(&conn, i.id, "B", Some("Bob"), None).unwrap();
+    speaker::set_interviewer(&conn, b.id, true).unwrap();
+
+    let merged = speaker::merge_many_into_new(&mut conn, i.id, &[a.id, b.id], "Merged").unwrap();
+
+    assert!(merged.interviewer);
 }
 
 #[test]

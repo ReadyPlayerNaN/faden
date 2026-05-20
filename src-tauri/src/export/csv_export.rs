@@ -9,6 +9,7 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
         "interview_name",
         "speaker_label",
         "speaker_display_name",
+        "speaker_interviewer",
         "segment_start_sec",
         "segment_end_sec",
         "span_start_sec",
@@ -62,6 +63,11 @@ pub fn write_csv<W: Write>(data: &ProjectExportData, writer: &mut W) -> AppResul
                     speaker
                         .and_then(|s| s.effective_display_name())
                         .unwrap_or(""),
+                    if speaker.map(|s| s.interviewer).unwrap_or(false) {
+                        "true"
+                    } else {
+                        "false"
+                    },
                     seg_start.as_str(),
                     seg_end.as_str(),
                     span_start.as_str(),

@@ -12,6 +12,7 @@ pub struct Speaker {
     pub display_name: Option<String>,
     pub person_id: Option<i64>,
     pub person_name: Option<String>,
+    pub interviewer: bool,
 }
 
 impl Speaker {
@@ -34,7 +35,7 @@ fn map_constraint(err: rusqlite::Error, label: &str) -> AppError {
 }
 
 fn select_sql() -> &'static str {
-    "SELECT s.id, s.interview_id, s.label_raw, s.display_name, s.person_id, p.name
+    "SELECT s.id, s.interview_id, s.label_raw, s.display_name, s.person_id, p.name, s.interviewer
      FROM speaker s
      LEFT JOIN person p ON p.id = s.person_id"
 }
@@ -47,6 +48,7 @@ fn map_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Speaker> {
         display_name: r.get(3)?,
         person_id: r.get(4)?,
         person_name: r.get(5)?,
+        interviewer: r.get(6)?,
     })
 }
 
@@ -187,6 +189,17 @@ pub fn set_person(conn: &Connection, id: i64, person_id: Option<i64>) -> AppResu
     Ok(())
 }
 
+pub fn set_interviewer(conn: &Connection, id: i64, interviewer: bool) -> AppResult<()> {
+    let affected = conn.execute(
+        "UPDATE speaker SET interviewer = ?1 WHERE id = ?2",
+        params![interviewer, id],
+    )?;
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("speaker {id}")));
+    }
+    Ok(())
+}
+
 pub fn merge_many_into_new(
     conn: &mut Connection,
     interview_id: i64,
@@ -206,6 +219,7 @@ pub fn merge_many_into_new(
 
     let mut reusable_target_id: Option<i64> = None;
     let mut merged_person_id: Option<i64> = None;
+    let mut merged_interviewer = false;
     for source_id in &unique_ids {
         let source = get(conn, *source_id)?;
         if source.interview_id != interview_id {
@@ -216,6 +230,7 @@ pub fn merge_many_into_new(
         if source.label_raw == new_name {
             reusable_target_id = Some(source.id);
         }
+        merged_interviewer |= source.interviewer;
         if let Some(pid) = source.person_id {
             if let Some(existing) = merged_person_id {
                 if existing != pid {
@@ -237,14 +252,19 @@ pub fn merge_many_into_new(
     };
     let new_id = if let Some(target_id) = reusable_target_id {
         tx.execute(
-            "UPDATE speaker SET display_name = ?1, person_id = ?2 WHERE id = ?3",
-            params![inherited_display_name, merged_person_id, target_id],
+            "UPDATE speaker SET display_name = ?1, person_id = ?2, interviewer = ?3 WHERE id = ?4",
+            params![
+                inherited_display_name,
+                merged_person_id,
+                merged_interviewer,
+                target_id
+            ],
         )?;
         target_id
     } else {
         tx.execute(
-            "INSERT INTO speaker (interview_id, label_raw, display_name, person_id) VALUES (?1, ?2, ?3, ?4)",
-            params![interview_id, new_name, inherited_display_name, merged_person_id],
+            "INSERT INTO speaker (interview_id, label_raw, display_name, person_id, interviewer) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![interview_id, new_name, inherited_display_name, merged_person_id, merged_interviewer],
         )
         .map_err(|e| map_constraint(e, "speaker"))?;
         tx.last_insert_rowid()
