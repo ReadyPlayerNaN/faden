@@ -145,7 +145,7 @@ async fn pretag_skips_empty_filtered_suggestions() {
 }
 
 #[test]
-fn pretag_prompt_includes_all_available_tags_with_descriptions() {
+fn pretag_prompt_includes_codebook_without_duplicate_available_tags_section() {
     let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
     let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
@@ -184,7 +184,7 @@ fn pretag_prompt_includes_all_available_tags_with_descriptions() {
     assert!(prompt.contains("Produce all generated labels, descriptions, rationales, summaries, and other free-text output in Czech."));
     assert!(prompt.contains("existing tags from the provided codebook"));
     assert!(prompt.contains("Avoid unnecessary duplication"));
-    assert!(prompt.contains("All available tags (name: description)"));
+    assert!(!prompt.contains("All available tags (name: description)"));
     assert!(prompt.contains("- known: Known description"));
     assert!(prompt.contains("- standalone: Standalone description"));
     assert!(prompt.contains("# Standalone tags"));

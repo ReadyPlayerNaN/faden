@@ -21,12 +21,10 @@ pub fn build_prompt(
     let template = override_template.unwrap_or(prompts::DEFAULT_PRETAG);
     let transcript = text::format_transcript(conn, input.interview_id)?;
     let codebook = text::format_codebook(conn)?;
-    let available_tags = text::format_available_tags(conn)?;
     let existing_tagged_spans = text::format_existing_tagged_spans(conn, input.interview_id)?;
     let mut vars = HashMap::new();
     vars.insert("transcript", transcript);
     vars.insert("codebook", codebook);
-    vars.insert("available_tags", available_tags);
     vars.insert("existing_tagged_spans", existing_tagged_spans);
     Ok(prompts::with_project_language(
         &prompts::render(template, &vars),
