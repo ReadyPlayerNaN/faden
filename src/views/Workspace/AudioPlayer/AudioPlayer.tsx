@@ -47,6 +47,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
   const pendingAutoplayRef = useRef(false);
+  const lastHandledSegmentRequestIdRef = useRef<number | null>(null);
   const lastRetriedSrcRef = useRef<string | null>(null);
   const srcRef = useRef<string | null>(null);
   const timeRef = useRef(0);
@@ -121,6 +122,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
     });
     pendingSeekRef.current = null;
     pendingAutoplayRef.current = false;
+    lastHandledSegmentRequestIdRef.current = null;
     lastRetriedSrcRef.current = null;
 
     if (!interview?.audioPath) return;
@@ -163,6 +165,11 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
       return;
     }
 
+    if (lastHandledSegmentRequestIdRef.current === segmentPlaybackRequest.requestId) {
+      return;
+    }
+    lastHandledSegmentRequestIdRef.current = segmentPlaybackRequest.requestId;
+
     const current = segmentPlaybackStateRef.current;
 
     setSegmentPlaybackState((prev) => ({
@@ -172,6 +179,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
         [segmentPlaybackRequest.segmentId]: segmentPlaybackRequest.loop,
       },
     }));
+    setSegmentPlaybackRequest(null);
 
     if (segmentPlaybackRequest.action === "set-loop") {
       if (current.activeSegmentId === segmentPlaybackRequest.segmentId) {
@@ -230,7 +238,7 @@ export const AudioPlayer = ({ showAudioControls = true }: AudioPlayerProps) => {
         });
       }
     });
-  }, [audioEl, interview?.audioPath, resolveStreamUrl, segmentPlaybackRequest, setSegmentPlaybackState]);
+  }, [audioEl, interview?.audioPath, resolveStreamUrl, segmentPlaybackRequest, setSegmentPlaybackRequest, setSegmentPlaybackState]);
 
   const togglePlay = useCallback(async () => {
     if (!audioEl || !interview?.audioPath) return;
