@@ -6,7 +6,7 @@ fn open_mem() -> Connection {
 }
 
 fn expected_versions() -> Vec<i64> {
-    (1..=14).collect()
+    (1..=15).collect()
 }
 
 #[test]
@@ -125,6 +125,20 @@ fn applies_m005_category_cluster_can_be_null() {
         )
         .unwrap();
     assert_eq!(cluster_id, None);
+}
+
+#[test]
+fn applies_m015_speaker_interviewer_column() {
+    let mut conn = open_mem();
+    apply_migrations(&mut conn).unwrap();
+    let has_interviewer: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('speaker') WHERE name = 'interviewer')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(has_interviewer);
 }
 
 #[test]
