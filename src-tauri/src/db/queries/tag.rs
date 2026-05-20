@@ -1,5 +1,6 @@
 use crate::db::queries::category;
 use crate::error::{AppError, AppResult};
+use rand::Rng;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +52,16 @@ fn next_order(conn: &Connection, category_id: Option<i64>) -> AppResult<i64> {
     Ok(next)
 }
 
+fn random_color() -> String {
+    let mut rng = rand::thread_rng();
+    format!(
+        "#{:02X}{:02X}{:02X}",
+        rng.gen_range(64..=223),
+        rng.gen_range(64..=223),
+        rng.gen_range(64..=223)
+    )
+}
+
 pub fn create(
     conn: &Connection,
     category_id: Option<i64>,
@@ -62,10 +73,11 @@ pub fn create(
     if let Some(cid) = category_id {
         category::get(conn, cid)?;
     }
+    let color = color.map(str::to_owned).unwrap_or_else(random_color);
     let order_index = next_order(conn, category_id)?;
     conn.execute(
         "INSERT INTO tag (category_id, name, description, color, order_index) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![category_id, name, description, color, order_index],
+        params![category_id, name, description, &color, order_index],
     )
     .map_err(|e| map_constraint(e, "tag"))?;
     let id = conn.last_insert_rowid();
@@ -74,7 +86,7 @@ pub fn create(
         category_id,
         name: name.into(),
         description: description.map(String::from),
-        color: color.map(String::from),
+        color: Some(color),
         order_index,
     })
 }
@@ -239,4 +251,36 @@ pub fn reorder(conn: &mut Connection, category_id: i64, ids_in_order: &[i64]) ->
     }
     tx.commit()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::create;
+    use crate::db::migrations::apply_migrations;
+    use rusqlite::Connection;
+
+    fn fresh() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        apply_migrations(&mut conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn create_assigns_random_color_when_missing() {
+        let conn = fresh();
+        let tag = create(&conn, None, "Generated color", None, None).unwrap();
+
+        let color = tag.color.unwrap();
+        assert_eq!(color.len(), 7);
+        assert!(color.starts_with('#'));
+    }
+
+    #[test]
+    fn create_preserves_explicit_color() {
+        let conn = fresh();
+        let tag = create(&conn, None, "Explicit color", None, Some("#123456")).unwrap();
+
+        assert_eq!(tag.color.as_deref(), Some("#123456"));
+    }
 }

@@ -6,6 +6,12 @@ import { TextField } from "../../components/TextField/TextField";
 import { tagCreate, type CategoryNode, type ClusterNode } from "../../ipc/codebook";
 import styles from "./TagsView.module.css";
 
+const randomChannel = () => Math.floor(Math.random() * 160) + 64;
+const randomCodeColor = () =>
+  `#${[randomChannel(), randomChannel(), randomChannel()]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -26,7 +32,7 @@ export const AddTagModal = ({
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [color, setColor] = useState("#888888");
+  const [color, setColor] = useState(randomCodeColor);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(
     categoryId,
   );
@@ -38,7 +44,7 @@ export const AddTagModal = ({
       setSelectedCategory(categoryId);
       setName("");
       setDescription("");
-      setColor("#888888");
+      setColor(randomCodeColor());
       setError(null);
       setBusy(false);
     }
