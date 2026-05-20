@@ -165,6 +165,8 @@ fn persist_task_log(
     let obj = task_log
         .as_object_mut()
         .ok_or_else(|| AppError::Invalid("task log is not an object".into()))?;
+    obj.insert("offsetSeconds".into(), json!(plan.offset_seconds));
+    obj.insert("durationSeconds".into(), json!(plan.duration_seconds));
     obj.insert("promptChars".into(), json!(prompt.chars().count()));
     obj.insert("priorContextSegments".into(), json!(prior_context_segments));
     obj.insert("audioBytes".into(), json!(audio_bytes));
@@ -181,6 +183,68 @@ fn persist_task_log(
         plan.index,
         &task_log.to_string(),
     )
+}
+
+fn ensure_chunk_task_capacity(
+    conn: &rusqlite::Connection,
+    run_id: i64,
+    total: usize,
+) -> AppResult<()> {
+    ai_run_ops::create_chunk_tasks(
+        conn,
+        run_id,
+        AiRunStageKey::EncodeChunks,
+        AiRunTaskKind::EncodeChunk,
+        total,
+        1,
+    )?;
+    ai_run_ops::create_chunk_tasks(
+        conn,
+        run_id,
+        AiRunStageKey::TranscribeChunks,
+        AiRunTaskKind::TranscribeChunk,
+        total,
+        retry::MAX_RETRY_ATTEMPTS,
+    )?;
+    sync_stage_counts(conn, run_id, AiRunStageKey::EncodeChunks)?;
+    sync_stage_counts(conn, run_id, AiRunStageKey::TranscribeChunks)
+}
+
+fn sync_chunk_totals(conn: &rusqlite::Connection, run_id: i64, total: usize) -> AppResult<()> {
+    ai_run_ops::set_stage_counts(
+        conn,
+        run_id,
+        AiRunStageKey::PrepareChunks,
+        Some(total as i64),
+        Some(total as i64),
+        Some(0),
+    )?;
+    ensure_chunk_task_capacity(conn, run_id, total)
+}
+
+fn shrink_chunk_window(
+    plans: &mut Vec<chunker::ChunkPlan>,
+    current_pos: usize,
+    total_duration: f64,
+) -> AppResult<f64> {
+    let current = plans
+        .get(current_pos)
+        .ok_or_else(|| AppError::Invalid("missing current chunk plan".into()))?
+        .clone();
+    let subplans = chunker::plan_subchunks(current.duration_seconds, chunker::MIN_SPLIT_CHUNK_SECONDS)?;
+    let next_chunk_seconds = subplans
+        .first()
+        .map(|plan| plan.duration_seconds)
+        .ok_or_else(|| AppError::Invalid("subchunk plan is empty".into()))?;
+    let replacement = chunker::plan_chunks_from(
+        current.offset_seconds,
+        total_duration,
+        next_chunk_seconds,
+        current.index,
+    );
+    plans.truncate(current_pos);
+    plans.extend(replacement);
+    Ok(next_chunk_seconds)
 }
 
 pub async fn run_pipeline(
@@ -328,8 +392,7 @@ pub async fn run_pipeline(
             return Err(e);
         }
     };
-    let plans = chunker::plan_chunks(duration, config.chunk_seconds);
-    let total = plans.len();
+    let mut plans = chunker::plan_chunks(duration, config.chunk_seconds);
     ai_run_ops::set_stage_counts(
         &conn,
         run_id,
@@ -346,71 +409,43 @@ pub async fn run_pipeline(
         &TranscriptionProgress::PreparingChunks {
             interview_id,
             run_id,
-            total_chunks: total,
+            total_chunks: plans.len(),
         },
     );
-    ai_run_ops::create_chunk_tasks(
-        &conn,
-        run_id,
-        AiRunStageKey::EncodeChunks,
-        AiRunTaskKind::EncodeChunk,
-        total,
-        1,
-    )?;
-    ai_run_ops::create_chunk_tasks(
-        &conn,
-        run_id,
-        AiRunStageKey::TranscribeChunks,
-        AiRunTaskKind::TranscribeChunk,
-        total,
-        retry::MAX_RETRY_ATTEMPTS,
-    )?;
-    ai_run_ops::set_stage_counts(
-        &conn,
-        run_id,
-        AiRunStageKey::PrepareChunks,
-        Some(total as i64),
-        Some(total as i64),
-        Some(0),
-    )?;
-    ai_run_ops::set_stage_counts(
-        &conn,
-        run_id,
-        AiRunStageKey::EncodeChunks,
-        Some(total as i64),
-        Some(0),
-        Some(0),
-    )?;
-    ai_run_ops::set_stage_counts(
-        &conn,
-        run_id,
-        AiRunStageKey::TranscribeChunks,
-        Some(total as i64),
-        Some(0),
-        Some(0),
-    )?;
+    sync_chunk_totals(&conn, run_id, plans.len())?;
     ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::PrepareChunks)?;
 
     ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::EncodeChunks)?;
-    for plan in &plans {
+    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+    let client =
+        GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
+    let mut task_logs: BTreeMap<usize, Value> = BTreeMap::new();
+    let mut usage_totals = UsageTotals::default();
+
+    let mut prior_segments_for_context: Vec<ParsedSegment> = match cache.load_all() {
+        Ok(segments) => segments,
+        Err(e) => {
+            fail(
+                &conn,
+                &app,
+                AiRunStageKey::TranscribeChunks,
+                format!("load cache: {e}"),
+            );
+            return Err(e);
+        }
+    };
+    let mut total_segments = prior_segments_for_context.len();
+    let mut current_pos = 0usize;
+
+    while current_pos < plans.len() {
         if cancel.is_cancelled() {
             cancel_run(&conn, &app, AiRunStageKey::EncodeChunks);
             return Ok(());
         }
 
+        let plan = plans[current_pos].clone();
+        let total = plans.len();
         let chunk_path = chunks_dir.join(format!("chunk_{:03}.mp3", plan.index));
-        if chunk_path.exists() {
-            ai_run_ops::mark_task_complete(
-                &conn,
-                run_id,
-                AiRunStageKey::EncodeChunks,
-                plan.index,
-                1,
-                1,
-            )?;
-            sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
-            continue;
-        }
 
         emit(
             &app,
@@ -465,34 +500,6 @@ pub async fn run_pipeline(
             1,
         )?;
         sync_stage_counts(&conn, run_id, AiRunStageKey::EncodeChunks)?;
-    }
-    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::EncodeChunks)?;
-
-    ai_run_ops::mark_stage_running(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
-    let client =
-        GeminiClient::with_base_url(config.api_key.clone(), config.gemini_base_url.clone());
-    let mut task_logs: BTreeMap<usize, Value> = BTreeMap::new();
-    let mut usage_totals = UsageTotals::default();
-
-    let mut prior_segments_for_context: Vec<ParsedSegment> = match cache.load_all() {
-        Ok(segments) => segments,
-        Err(e) => {
-            fail(
-                &conn,
-                &app,
-                AiRunStageKey::TranscribeChunks,
-                format!("load cache: {e}"),
-            );
-            return Err(e);
-        }
-    };
-    let mut total_segments = prior_segments_for_context.len();
-
-    for plan in &plans {
-        if cancel.is_cancelled() {
-            cancel_run(&conn, &app, AiRunStageKey::TranscribeChunks);
-            return Ok(());
-        }
 
         if cache.exists(plan.index) {
             ai_run_ops::mark_task_complete(
@@ -504,32 +511,15 @@ pub async fn run_pipeline(
                 retry::MAX_RETRY_ATTEMPTS,
             )?;
             sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+            current_pos += 1;
             continue;
         }
 
-        let chunk_path = chunks_dir.join(format!("chunk_{:03}.mp3", plan.index));
-        if !chunk_path.exists() {
-            let error = AppError::NotFound(chunk_path.to_string_lossy().to_string());
-            ai_run_ops::mark_task_failed(
-                &conn,
-                run_id,
-                AiRunStageKey::TranscribeChunks,
-                plan.index,
-                1,
-                retry::MAX_RETRY_ATTEMPTS,
-                &error.to_string(),
-            )?;
-            fail(
-                &conn,
-                &app,
-                AiRunStageKey::TranscribeChunks,
-                format!("missing chunk file: {}", chunk_path.display()),
-            );
-            return Err(error);
-        }
-
-        let audio_bytes = std::fs::metadata(&chunk_path).map(|meta| meta.len()).unwrap_or(0);
+        let audio_bytes = std::fs::metadata(&chunk_path)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
         let mut attempt: u32 = 0;
+        let mut repartitioned = false;
         let segments_for_chunk = loop {
             attempt += 1;
             ai_run_ops::mark_task_running(
@@ -560,7 +550,7 @@ pub async fn run_pipeline(
                     persist_task_log(
                         &conn,
                         run_id,
-                        plan,
+                        &plan,
                         &mut task_logs,
                         &prompt,
                         prior_context_segments,
@@ -611,13 +601,48 @@ pub async fn run_pipeline(
                 Ok(resp) => {
                     if let Some(usage) = resp.usage.as_ref() {
                         usage_totals.record(usage);
-                        ai_run::set_token_usage_json(&conn, run_id, usage_totals.to_json().as_deref())?;
+                        ai_run::set_token_usage_json(
+                            &conn,
+                            run_id,
+                            usage_totals.to_json().as_deref(),
+                        )?;
                     }
                     if resp.finish_reason.as_deref() == Some("MAX_TOKENS") {
+                        if plan.duration_seconds >= 2.0 * chunker::MIN_SPLIT_CHUNK_SECONDS {
+                            let next_chunk_seconds = shrink_chunk_window(
+                                &mut plans,
+                                current_pos,
+                                duration,
+                            )?;
+                            persist_task_log(
+                                &conn,
+                                run_id,
+                                &plan,
+                                &mut task_logs,
+                                &prompt,
+                                prior_context_segments,
+                                audio_bytes,
+                                json!({
+                                    "attempt": attempt,
+                                    "outcome": "max_tokens_replanned",
+                                    "finishReason": resp.finish_reason,
+                                    "usage": resp.usage,
+                                    "responseChars": resp.text.chars().count(),
+                                    "responsePreview": preview_text(&resp.text),
+                                    "nextChunkSeconds": next_chunk_seconds,
+                                    "newTotalChunks": plans.len(),
+                                }),
+                            )?;
+                            let _ = std::fs::remove_file(&chunk_path);
+                            sync_chunk_totals(&conn, run_id, plans.len())?;
+                            repartitioned = true;
+                            break Vec::new();
+                        }
+
                         persist_task_log(
                             &conn,
                             run_id,
-                            plan,
+                            &plan,
                             &mut task_logs,
                             &prompt,
                             prior_context_segments,
@@ -646,8 +671,9 @@ pub async fn run_pipeline(
                             &app,
                             AiRunStageKey::TranscribeChunks,
                             format!(
-                                "chunk {} hit MAX_TOKENS (sub-chunking not yet implemented)",
-                                plan.index
+                                "chunk {} hit MAX_TOKENS after shrinking to {:.1}s",
+                                plan.index,
+                                plan.duration_seconds
                             ),
                         );
                         return Err(error);
@@ -660,7 +686,7 @@ pub async fn run_pipeline(
                             persist_task_log(
                                 &conn,
                                 run_id,
-                                plan,
+                                &plan,
                                 &mut task_logs,
                                 &prompt,
                                 prior_context_segments,
@@ -681,7 +707,7 @@ pub async fn run_pipeline(
                             persist_task_log(
                                 &conn,
                                 run_id,
-                                plan,
+                                &plan,
                                 &mut task_logs,
                                 &prompt,
                                 prior_context_segments,
@@ -703,7 +729,7 @@ pub async fn run_pipeline(
                             persist_task_log(
                                 &conn,
                                 run_id,
-                                plan,
+                                &plan,
                                 &mut task_logs,
                                 &prompt,
                                 prior_context_segments,
@@ -741,7 +767,7 @@ pub async fn run_pipeline(
                     persist_task_log(
                         &conn,
                         run_id,
-                        plan,
+                        &plan,
                         &mut task_logs,
                         &prompt,
                         prior_context_segments,
@@ -776,18 +802,17 @@ pub async fn run_pipeline(
             }
         };
 
+        if repartitioned {
+            continue;
+        }
+
         cache.save(plan.index, &segments_for_chunk)?;
 
         let new_segments: Vec<segment_q::NewSegment> = {
             let mut out = Vec::with_capacity(segments_for_chunk.len());
             for segment in &segments_for_chunk {
-                let speaker = speaker_q::create_or_get(
-                    &conn,
-                    interview_id,
-                    &segment.speaker,
-                    None,
-                    None,
-                )?;
+                let speaker =
+                    speaker_q::create_or_get(&conn, interview_id, &segment.speaker, None, None)?;
                 out.push(segment_q::NewSegment {
                     speaker_id: Some(speaker.id),
                     start_sec: segment.start + plan.offset_seconds,
@@ -815,7 +840,9 @@ pub async fn run_pipeline(
             retry::MAX_RETRY_ATTEMPTS,
         )?;
         sync_stage_counts(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
+        current_pos += 1;
     }
+    ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::EncodeChunks)?;
     ai_run_ops::mark_stage_complete(&conn, run_id, AiRunStageKey::TranscribeChunks)?;
 
     let (total_chunks, completed_chunks) =
@@ -875,7 +902,9 @@ pub async fn run_pipeline(
         &conn,
         run_id,
         token_usage_json.as_deref(),
-        Some(&format!("{total_chunks}/{total_chunks} chunks, {total_segments} segments")),
+        Some(&format!(
+            "{total_chunks}/{total_chunks} chunks, {total_segments} segments"
+        )),
         None,
     )?;
     emit(

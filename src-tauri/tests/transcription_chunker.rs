@@ -41,6 +41,15 @@ fn subchunks_rejects_below_minimum() {
 }
 
 #[test]
+fn plan_chunks_from_offset_reindexes_remaining_window() {
+    let plans = plan_chunks_from(420.0, 900.0, 210.0, 1);
+    assert_eq!(plans.len(), 3);
+    assert_eq!(plans[0].index, 1);
+    assert!((plans[0].offset_seconds - 420.0).abs() < 0.001);
+    assert!((plans[2].duration_seconds - 60.0).abs() < 0.001);
+}
+
+#[test]
 fn subchunks_handles_uneven_split() {
     let plans = plan_subchunks(100.0, 45.0).unwrap();
     // sub_duration = max(50.0, 45.0) = 50.0; two chunks of 50/50

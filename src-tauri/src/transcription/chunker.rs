@@ -11,17 +11,26 @@ pub struct ChunkPlan {
 }
 
 pub fn plan_chunks(total_duration: f64, chunk_seconds: u32) -> Vec<ChunkPlan> {
-    if total_duration <= 0.0 {
+    plan_chunks_from(0.0, total_duration, chunk_seconds as f64, 0)
+}
+
+pub fn plan_chunks_from(
+    start_offset_seconds: f64,
+    total_duration: f64,
+    chunk_seconds: f64,
+    start_index: usize,
+) -> Vec<ChunkPlan> {
+    if total_duration <= start_offset_seconds || chunk_seconds <= 0.0 {
         return vec![];
     }
-    let chunk = chunk_seconds as f64;
-    let count = (total_duration / chunk).ceil() as usize;
+    let remaining_duration = total_duration - start_offset_seconds;
+    let count = (remaining_duration / chunk_seconds).ceil() as usize;
     let mut out = Vec::with_capacity(count);
     for i in 0..count {
-        let offset = i as f64 * chunk;
-        let duration = (chunk).min(total_duration - offset);
+        let offset = start_offset_seconds + i as f64 * chunk_seconds;
+        let duration = chunk_seconds.min(total_duration - offset);
         out.push(ChunkPlan {
-            index: i,
+            index: start_index + i,
             offset_seconds: offset,
             duration_seconds: duration,
         });
