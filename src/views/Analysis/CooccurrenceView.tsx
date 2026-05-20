@@ -115,7 +115,7 @@ export const CooccurrenceView = () => {
         <p className={styles.explainerText}>
           {t("analysis.cooccurrence.readOnlyHint", {
             defaultValue:
-              "This view is read-only. Use transcript coding and Labels to change the underlying structure, then return here to inspect relationships.",
+              "This view is read-only. Use transcript coding and Codes to change the underlying structure, then return here to inspect relationships.",
           })}
         </p>
       </section>

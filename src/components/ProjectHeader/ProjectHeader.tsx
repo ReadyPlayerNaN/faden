@@ -22,7 +22,7 @@ const getViewLabel = (t: ReturnType<typeof useTranslation>["t"], activeView: Vie
 		case "interviews":
 			return t("workspace.interviews", { defaultValue: "Interviews" });
 		case "labels":
-			return t("tags.title", { defaultValue: "Labels" });
+			return t("tags.title", { defaultValue: "Codes" });
 		case "people":
 			return t("people.title", { defaultValue: "People" });
 		case "analysis":
@@ -122,7 +122,7 @@ export const ProjectHeader = ({
 		},
 		{
 			view: "labels",
-			label: t("tags.title", { defaultValue: "Labels" }),
+			label: t("tags.title", { defaultValue: "Codes" }),
 			onClick: () => {
 				void navigate({ to: "/tags" });
 			},

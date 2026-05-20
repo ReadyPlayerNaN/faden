@@ -282,7 +282,7 @@ export const ThemeMapView = () => {
         <p className={styles.explainerText}>
           {t("analysis.themeMap.readOnlyHint", {
             defaultValue:
-              "This view is read-only. Use Labels to change the structure, then return here to review the hierarchy.",
+              "This view is read-only. Use Codes to change the structure, then return here to review the hierarchy.",
           })}
         </p>
         <div className={styles.metrics}>
@@ -313,7 +313,7 @@ export const ThemeMapView = () => {
         ) : !tree || (branches.length === 0 && tree.standaloneTags.length === 0) ? (
           <p className={styles.empty}>
             {t("analysis.themeMap.emptyProject", {
-              defaultValue: "No hierarchy yet. Create clusters, categories, or tags in Labels to see the theme map here.",
+              defaultValue: "No hierarchy yet. Create clusters, categories, or tags in Codes to see the theme map here.",
             })}
           </p>
         ) : (
@@ -417,7 +417,7 @@ export const ThemeMapView = () => {
         ) : !tree || tree.clusters.length === 0 ? (
           <p className={styles.empty}>
             {t("analysis.themeMap.matrixEmptyClusters", {
-              defaultValue: "Add clusters in Labels to see the prevalence matrix.",
+              defaultValue: "Add clusters in Codes to see the prevalence matrix.",
             })}
           </p>
         ) : interviews.length === 0 ? (
