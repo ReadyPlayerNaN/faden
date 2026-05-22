@@ -72,6 +72,19 @@ struct Part {
     text: Option<String>,
 }
 
+fn extract_text_parts(content: Option<&Content>) -> Option<String> {
+    let out = content?
+        .parts
+        .iter()
+        .filter_map(|part| part.text.as_deref())
+        .collect::<String>();
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
 impl GeminiClient {
     pub fn new(api_key: String) -> Self {
         Self {
@@ -182,13 +195,16 @@ impl GeminiClient {
         if !status.is_success() {
             return Err(Self::map_status(status.as_u16(), &text));
         }
-        let parsed: serde_json::Value = serde_json::from_str(&text)
+        let parsed: GenerateContentResponse = serde_json::from_str(&text)
             .map_err(|e| AppError::Invalid(format!("generate json: {e}")))?;
-        let inner = parsed
-            .pointer("/candidates/0/content/parts/0/text")
-            .and_then(|v| v.as_str())
+        let candidate = parsed
+            .candidates
+            .as_ref()
+            .and_then(|c| c.first())
+            .ok_or_else(|| AppError::Invalid("no candidates in response".into()))?;
+        let inner = extract_text_parts(candidate.content.as_ref())
             .ok_or_else(|| AppError::Invalid("no text in candidate".into()))?;
-        Ok(inner.to_string())
+        Ok(inner)
     }
 
     pub async fn generate_content(
@@ -243,11 +259,7 @@ impl GeminiClient {
             .and_then(|c| c.first())
             .cloned()
             .ok_or_else(|| AppError::Invalid("no candidates in response".into()))?;
-        let text_out = candidate
-            .content
-            .as_ref()
-            .and_then(|c| c.parts.first())
-            .and_then(|p| p.text.clone())
+        let text_out = extract_text_parts(candidate.content.as_ref())
             .ok_or_else(|| AppError::Invalid("no text in candidate".into()))?;
         Ok(GenerateResponse {
             text: text_out,

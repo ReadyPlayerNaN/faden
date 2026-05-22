@@ -78,7 +78,10 @@ async fn generate_content_returns_text() {
         .with_body(
             json!({
                 "candidates": [{
-                    "content": {"parts": [{"text": "{\"segments\":[]}"}]},
+                    "content": {"parts": [
+                        {"text": "{\"segments\":"},
+                        {"text": "[]}"}
+                    ]},
                     "finishReason": "STOP"
                 }],
                 "usageMetadata": {
@@ -111,6 +114,68 @@ async fn generate_content_returns_text() {
     assert_eq!(resp.text, "{\"segments\":[]}");
     assert_eq!(resp.finish_reason.as_deref(), Some("STOP"));
     assert_eq!(resp.usage.as_ref().unwrap().total_tokens, 150);
+}
+
+#[tokio::test]
+async fn post_generate_concatenates_multiple_text_parts() {
+    let mut server = Server::new_async().await;
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"^/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "candidates": [{
+                    "content": {"parts": [
+                        {"text": "{\"proposals\":"},
+                        {"text": "["},
+                        {"text": "]}"}
+                    ]}
+                }]
+            })
+            .to_string(),
+        )
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let url = client.text_generate_url("gemini-3-flash-preview");
+    let resp = client.post_generate(&url, &json!({"contents": []})).await.unwrap();
+    assert_eq!(resp, "{\"proposals\":[]}");
+}
+
+#[tokio::test]
+async fn post_generate_ignores_null_text_parts() {
+    let mut server = Server::new_async().await;
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"^/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            json!({
+                "candidates": [{
+                    "content": {"parts": [
+                        {"text": "{\"proposals\":"},
+                        {"text": null},
+                        {"text": "[]}"}
+                    ]}
+                }]
+            })
+            .to_string(),
+        )
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let url = client.text_generate_url("gemini-3-flash-preview");
+    let resp = client.post_generate(&url, &json!({"contents": []})).await.unwrap();
+    assert_eq!(resp, "{\"proposals\":[]}");
 }
 
 #[tokio::test]
