@@ -143,7 +143,10 @@ async fn post_generate_concatenates_multiple_text_parts() {
 
     let client = GeminiClient::with_base_url("k".into(), server.url());
     let url = client.text_generate_url("gemini-3-flash-preview");
-    let resp = client.post_generate(&url, &json!({"contents": []})).await.unwrap();
+    let resp = client
+        .post_generate(&url, &json!({"contents": []}))
+        .await
+        .unwrap();
     assert_eq!(resp, "{\"proposals\":[]}");
 }
 
@@ -174,7 +177,10 @@ async fn post_generate_ignores_null_text_parts() {
 
     let client = GeminiClient::with_base_url("k".into(), server.url());
     let url = client.text_generate_url("gemini-3-flash-preview");
-    let resp = client.post_generate(&url, &json!({"contents": []})).await.unwrap();
+    let resp = client
+        .post_generate(&url, &json!({"contents": []}))
+        .await
+        .unwrap();
     assert_eq!(resp, "{\"proposals\":[]}");
 }
 

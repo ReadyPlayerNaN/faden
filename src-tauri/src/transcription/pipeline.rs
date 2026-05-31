@@ -231,7 +231,8 @@ fn shrink_chunk_window(
         .get(current_pos)
         .ok_or_else(|| AppError::Invalid("missing current chunk plan".into()))?
         .clone();
-    let subplans = chunker::plan_subchunks(current.duration_seconds, chunker::MIN_SPLIT_CHUNK_SECONDS)?;
+    let subplans =
+        chunker::plan_subchunks(current.duration_seconds, chunker::MIN_SPLIT_CHUNK_SECONDS)?;
     let next_chunk_seconds = subplans
         .first()
         .map(|plan| plan.duration_seconds)
@@ -609,11 +610,8 @@ pub async fn run_pipeline(
                     }
                     if resp.finish_reason.as_deref() == Some("MAX_TOKENS") {
                         if plan.duration_seconds >= 2.0 * chunker::MIN_SPLIT_CHUNK_SECONDS {
-                            let next_chunk_seconds = shrink_chunk_window(
-                                &mut plans,
-                                current_pos,
-                                duration,
-                            )?;
+                            let next_chunk_seconds =
+                                shrink_chunk_window(&mut plans, current_pos, duration)?;
                             persist_task_log(
                                 &conn,
                                 run_id,
@@ -672,8 +670,7 @@ pub async fn run_pipeline(
                             AiRunStageKey::TranscribeChunks,
                             format!(
                                 "chunk {} hit MAX_TOKENS after shrinking to {:.1}s",
-                                plan.index,
-                                plan.duration_seconds
+                                plan.index, plan.duration_seconds
                             ),
                         );
                         return Err(error);
