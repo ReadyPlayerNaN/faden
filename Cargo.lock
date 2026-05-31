@@ -1222,7 +1222,7 @@ dependencies = [
 
 [[package]]
 name = "faden"
-version = "0.2.3"
+version = "0.2.5"
 dependencies = [
  "async-trait",
  "axum",

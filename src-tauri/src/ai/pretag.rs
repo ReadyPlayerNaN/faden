@@ -1,4 +1,6 @@
-use crate::ai::{prompts, SpanSuggestion, SpanSuggestions, SPAN_SUGGESTIONS_SCHEMA};
+use crate::ai::{
+    prompts, SpanSuggestion, SpanSuggestionKind, SpanSuggestions, SPAN_SUGGESTIONS_SCHEMA,
+};
 use crate::db::queries::ai_run::{self, AiRunKind};
 use crate::db::queries::proposal::{self, ProposalKind};
 use crate::db::queries::{category, cluster, segment, span_tag, speaker, tag, tagged_span};
@@ -7,6 +9,15 @@ use crate::transcription::gemini::GeminiClient;
 use rusqlite::Connection;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write;
+
+#[derive(Debug, Clone)]
+struct ExistingTaggedRange {
+    span_id: i64,
+    segment_id: i64,
+    start_offset: i32,
+    end_offset: i32,
+    tag_names: HashSet<String>,
+}
 
 const TRANSCRIPT_CHUNK_TARGET_CHARS: usize = 24_000;
 const TRANSCRIPT_CHUNK_MAX_SEGMENTS: usize = 160;
@@ -56,14 +67,19 @@ pub fn build_requests(
     let transcript_chunks = chunk_segments(&segments);
     let tag_chunks = chunk_tags(&tags);
     let speakers = speaker::list_for_interview(conn, input.interview_id)?;
-    let speaker_labels: HashMap<i64, &str> = speakers
+    let speaker_meta: HashMap<i64, (&str, bool)> = speakers
         .iter()
-        .map(|speaker| (speaker.id, speaker.label_raw.as_str()))
+        .map(|speaker| {
+            (
+                speaker.id,
+                (speaker.label_raw.as_str(), speaker.interviewer),
+            )
+        })
         .collect();
 
     let mut requests = Vec::new();
     for (transcript_chunk_index, transcript_chunk) in transcript_chunks.iter().enumerate() {
-        let transcript = format_transcript_chunk(transcript_chunk, &speaker_labels);
+        let transcript = format_transcript_chunk(transcript_chunk, &speaker_meta);
         for (tag_chunk_index, tag_chunk) in tag_chunks.iter().enumerate() {
             let codebook = format_codebook_subset(conn, tag_chunk)?;
             let user_parts = vec![
@@ -154,18 +170,28 @@ fn chunk_tags(tags: &[tag::Tag]) -> Vec<Vec<tag::Tag>> {
 
 fn format_transcript_chunk(
     segments: &[segment::Segment],
-    speaker_labels: &HashMap<i64, &str>,
+    speaker_meta: &HashMap<i64, (&str, bool)>,
 ) -> String {
     let mut out = String::new();
     for segment in segments {
-        let label = segment
+        let (label, role) = segment
             .speaker_id
-            .and_then(|id| speaker_labels.get(&id).copied())
-            .unwrap_or("?");
+            .and_then(|id| speaker_meta.get(&id).copied())
+            .map(|(label, interviewer)| {
+                (
+                    label,
+                    if interviewer {
+                        "interviewer"
+                    } else {
+                        "participant"
+                    },
+                )
+            })
+            .unwrap_or(("?", "unknown"));
         writeln!(
             out,
-            "[segment_id={}] [{:.1}-{:.1}] {}: {}",
-            segment.id, segment.start_sec, segment.end_sec, label, segment.text
+            "[segment_id={}] [speaker_role={}] [{:.1}-{:.1}] {}: {}",
+            segment.id, role, segment.start_sec, segment.end_sec, label, segment.text
         )
         .ok();
     }
@@ -341,24 +367,176 @@ pub fn prompt_for_run_record(requests: &[PretagRequest]) -> String {
     }
 }
 
-fn existing_tag_names_by_span_key(
+fn is_word_char(ch: char) -> bool {
+    ch.is_alphanumeric()
+}
+
+fn is_clause_boundary_char(ch: char) -> bool {
+    matches!(ch, '.' | '!' | '?' | ';' | ':' | ',' | '—' | '-')
+}
+
+fn is_boundary_separator(ch: char) -> bool {
+    ch.is_whitespace() || is_clause_boundary_char(ch)
+}
+
+fn conjunction_boundary(chars: &[char], index: usize) -> Option<(usize, usize)> {
+    const CONJUNCTIONS: &[&str] = &[
+        "a", "ale", "nebo", "protože", "že", "který", "která", "které", "kterou",
+        "and", "but", "or", "because", "that", "which",
+    ];
+    if index >= chars.len() || !is_word_char(chars[index]) {
+        return None;
+    }
+    let mut end = index;
+    while end < chars.len() && is_word_char(chars[end]) {
+        end += 1;
+    }
+    let token: String = chars[index..end].iter().collect();
+    let normalized = token.to_lowercase();
+    if !CONJUNCTIONS.iter().any(|candidate| *candidate == normalized) {
+        return None;
+    }
+    let before_ok = index == 0 || is_boundary_separator(chars[index - 1]);
+    let after_ok = end == chars.len() || is_boundary_separator(chars[end]);
+    if before_ok && after_ok {
+        Some((index, end))
+    } else {
+        None
+    }
+}
+
+fn move_to_clause_start(chars: &[char], mut index: i32) -> i32 {
+    let mut candidate = 0_i32;
+    let mut pos = index;
+    while pos > 0 {
+        let prev = chars[(pos - 1) as usize];
+        if is_clause_boundary_char(prev) {
+            candidate = pos;
+            break;
+        }
+        pos -= 1;
+        if let Some((_start, end)) = conjunction_boundary(chars, pos as usize) {
+            candidate = end as i32;
+            break;
+        }
+    }
+    index = candidate;
+    while index < chars.len() as i32 && chars[index as usize].is_whitespace() {
+        index += 1;
+    }
+    index
+}
+
+fn move_to_clause_end(chars: &[char], mut index: i32) -> i32 {
+    let len = chars.len() as i32;
+    while index < len {
+        if let Some((start, _end)) = conjunction_boundary(chars, index as usize) {
+            index = start as i32;
+            break;
+        }
+        let ch = chars[index as usize];
+        index += 1;
+        if is_clause_boundary_char(ch) {
+            break;
+        }
+    }
+    while index > 0 && chars[(index - 1) as usize].is_whitespace() {
+        index -= 1;
+    }
+    index
+}
+
+fn normalize_span_to_word_boundaries(
+    text: &str,
+    start_offset: i32,
+    end_offset: i32,
+) -> Option<(i32, i32)> {
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len() as i32;
+    if len == 0 {
+        return None;
+    }
+
+    let mut start = start_offset.clamp(0, len);
+    let mut end = end_offset.clamp(0, len);
+    if end <= start {
+        return None;
+    }
+
+    while start < end && !is_word_char(chars[start as usize]) {
+        start += 1;
+    }
+    while end > start && !is_word_char(chars[(end - 1) as usize]) {
+        end -= 1;
+    }
+    if end <= start {
+        return None;
+    }
+
+    while start > 0
+        && is_word_char(chars[start as usize])
+        && is_word_char(chars[(start - 1) as usize])
+    {
+        start -= 1;
+    }
+    while end < len && is_word_char(chars[(end - 1) as usize]) && is_word_char(chars[end as usize])
+    {
+        end += 1;
+    }
+
+    start = move_to_clause_start(&chars, start);
+    end = move_to_clause_end(&chars, end);
+
+    while start < end && !is_word_char(chars[start as usize]) {
+        start += 1;
+    }
+    while end > start && !is_word_char(chars[(end - 1) as usize]) {
+        end -= 1;
+    }
+
+    if end <= start {
+        None
+    } else {
+        Some((start, end))
+    }
+}
+
+fn existing_tagged_ranges(
     conn: &Connection,
     interview_id: i64,
-) -> AppResult<HashMap<(i64, i32, i32), HashSet<String>>> {
+) -> AppResult<Vec<ExistingTaggedRange>> {
     let spans = tagged_span::list_for_interview(conn, interview_id)?;
     let tags = tag::list_all(conn)?;
     let tag_names_by_id: HashMap<i64, &str> =
         tags.iter().map(|tag| (tag.id, tag.name.as_str())).collect();
-    let mut out: HashMap<(i64, i32, i32), HashSet<String>> = HashMap::new();
+    let mut out = Vec::new();
 
     for span in spans {
-        let key = (span.segment_id, span.start_offset, span.end_offset);
-        let entry = out.entry(key).or_default();
+        let segment = match segment::get(conn, span.segment_id) {
+            Ok(segment) if segment.interview_id == interview_id => segment,
+            _ => continue,
+        };
+        let Some((start_offset, end_offset)) =
+            normalize_span_to_word_boundaries(&segment.text, span.start_offset, span.end_offset)
+        else {
+            continue;
+        };
+        let mut tag_names = HashSet::new();
         for (tag_id, _) in span_tag::list_for_span(conn, span.id)? {
             if let Some(name) = tag_names_by_id.get(&tag_id) {
-                entry.insert((*name).to_string());
+                tag_names.insert((*name).to_string());
             }
         }
+        if tag_names.is_empty() {
+            continue;
+        }
+        out.push(ExistingTaggedRange {
+            span_id: span.id,
+            segment_id: span.segment_id,
+            start_offset,
+            end_offset,
+            tag_names,
+        });
     }
     Ok(out)
 }
@@ -368,12 +546,16 @@ fn validate_and_merge_suggestions(
     interview_id: i64,
     suggestions: Vec<SpanSuggestion>,
 ) -> AppResult<(SpanSuggestions, usize)> {
-    let known_tags: HashSet<String> = tag::list_all(conn)?
-        .into_iter()
-        .map(|tag| tag.name)
+    let tags = tag::list_all(conn)?;
+    let known_tags: HashSet<String> = tags.iter().map(|tag| tag.name.clone()).collect();
+    let speakers = speaker::list_for_interview(conn, interview_id)?;
+    let interviewer_speaker_ids: HashSet<i64> = speakers
+        .iter()
+        .filter(|speaker| speaker.interviewer)
+        .map(|speaker| speaker.id)
         .collect();
-    let existing_by_span = existing_tag_names_by_span_key(conn, interview_id)?;
-    let mut merged: BTreeMap<(i64, i32, i32), SpanSuggestion> = BTreeMap::new();
+    let existing_ranges = existing_tagged_ranges(conn, interview_id)?;
+    let mut merged: BTreeMap<(Option<i64>, i64, i32, i32), SpanSuggestion> = BTreeMap::new();
     let mut skipped = 0_usize;
 
     for suggestion in suggestions {
@@ -384,6 +566,13 @@ fn validate_and_merge_suggestions(
                 continue;
             }
         };
+        if segment
+            .speaker_id
+            .is_some_and(|speaker_id| interviewer_speaker_ids.contains(&speaker_id))
+        {
+            skipped += 1;
+            continue;
+        }
         let text_len = segment.text.chars().count() as i32;
         if suggestion.start_offset < 0
             || suggestion.end_offset <= suggestion.start_offset
@@ -393,17 +582,19 @@ fn validate_and_merge_suggestions(
             continue;
         }
 
-        let key = (
-            suggestion.segment_id,
+        let Some((start_offset, end_offset)) = normalize_span_to_word_boundaries(
+            &segment.text,
             suggestion.start_offset,
             suggestion.end_offset,
-        );
-        let already_present = existing_by_span.get(&key);
+        ) else {
+            skipped += 1;
+            continue;
+        };
+
         let mut tag_names: Vec<String> = suggestion
             .tag_names
             .into_iter()
             .filter(|name| known_tags.contains(name))
-            .filter(|name| !already_present.is_some_and(|present| present.contains(name)))
             .collect();
         if tag_names.is_empty() {
             skipped += 1;
@@ -412,26 +603,96 @@ fn validate_and_merge_suggestions(
         tag_names.sort();
         tag_names.dedup();
 
+        let same_tag_overlaps: Vec<&ExistingTaggedRange> = existing_ranges
+            .iter()
+            .filter(|existing| {
+                existing.segment_id == suggestion.segment_id
+                    && existing.start_offset < end_offset
+                    && existing.end_offset > start_offset
+                    && tag_names
+                        .iter()
+                        .any(|name| existing.tag_names.contains(name))
+            })
+            .collect();
+
+        let contained_by_same_tag = same_tag_overlaps.iter().any(|existing| {
+            existing.start_offset <= start_offset
+                && existing.end_offset >= end_offset
+                && tag_names
+                    .iter()
+                    .all(|name| existing.tag_names.contains(name))
+        });
+        if contained_by_same_tag {
+            skipped += 1;
+            continue;
+        }
+
+        let extension_target = same_tag_overlaps.iter().find(|existing| {
+            (start_offset < existing.start_offset || end_offset > existing.end_offset)
+                && tag_names
+                    .iter()
+                    .any(|name| existing.tag_names.contains(name))
+        });
+
+        let normalized = if let Some(existing) = extension_target {
+            SpanSuggestion {
+                kind: Some(SpanSuggestionKind::ExtendSpan),
+                existing_span_id: Some(existing.span_id),
+                segment_id: suggestion.segment_id,
+                start_offset: start_offset.min(existing.start_offset),
+                end_offset: end_offset.max(existing.end_offset),
+                tag_names,
+                rationale: suggestion.rationale,
+            }
+        } else {
+            SpanSuggestion {
+                kind: Some(SpanSuggestionKind::NewSpan),
+                existing_span_id: None,
+                segment_id: suggestion.segment_id,
+                start_offset,
+                end_offset,
+                tag_names,
+                rationale: suggestion.rationale,
+            }
+        };
+
+        let key = match normalized.kind {
+            Some(SpanSuggestionKind::ExtendSpan) => {
+                (normalized.existing_span_id, normalized.segment_id, 0, 0)
+            }
+            _ => (
+                normalized.existing_span_id,
+                normalized.segment_id,
+                normalized.start_offset,
+                normalized.end_offset,
+            ),
+        };
         merged
             .entry(key)
             .and_modify(|existing| {
-                for tag_name in &tag_names {
+                for tag_name in &normalized.tag_names {
                     if !existing.tag_names.iter().any(|current| current == tag_name) {
                         existing.tag_names.push(tag_name.clone());
                     }
                 }
                 existing.tag_names.sort();
+                if matches!(existing.kind, Some(SpanSuggestionKind::ExtendSpan))
+                    && matches!(normalized.kind, Some(SpanSuggestionKind::ExtendSpan))
+                {
+                    existing.start_offset = existing.start_offset.min(normalized.start_offset);
+                    existing.end_offset = existing.end_offset.max(normalized.end_offset);
+                }
                 if existing.rationale.is_none() {
-                    existing.rationale = suggestion.rationale.clone();
+                    existing.rationale = normalized.rationale.clone();
+                }
+                if existing.kind.is_none() {
+                    existing.kind = normalized.kind;
+                }
+                if existing.existing_span_id.is_none() {
+                    existing.existing_span_id = normalized.existing_span_id;
                 }
             })
-            .or_insert_with(|| SpanSuggestion {
-                segment_id: suggestion.segment_id,
-                start_offset: suggestion.start_offset,
-                end_offset: suggestion.end_offset,
-                tag_names,
-                rationale: suggestion.rationale,
-            });
+            .or_insert(normalized);
     }
 
     Ok((

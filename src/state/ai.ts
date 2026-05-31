@@ -20,6 +20,8 @@ export const aiRunHistoryAtom = atom<AiRunDTO[]>([]);
 export const activeAiOperationsAtom = atom<LocalAiOperation[]>([]);
 
 export type SuggestionReviewItem = {
+  kind?: "new_span" | "extend_span" | null;
+  existingSpanId?: number | null;
   segmentId: number;
   startOffset: number;
   endOffset: number;

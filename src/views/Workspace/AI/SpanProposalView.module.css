@@ -46,6 +46,26 @@
   font-size: 0.8em;
   font-family: ui-monospace, monospace;
 }
+.previewBlock {
+  margin: 0.4rem 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+}
+
+.previewRow {
+  opacity: 0.82;
+  line-height: 1.35;
+}
+
+.previewRow mark {
+  background: rgba(255, 216, 102, 0.45);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 0.1rem;
+}
+
 .rationale {
   margin: 0.3rem 0 0 1.5rem;
   opacity: 0.75;

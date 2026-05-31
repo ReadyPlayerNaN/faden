@@ -46,6 +46,39 @@ fn start_accepts_structuring_run_kinds_after_migrations() {
 }
 
 #[test]
+fn start_populates_uid_for_sync_augmented_ai_run_tables() {
+    let conn = fresh_conn();
+    conn.execute(
+        "ALTER TABLE ai_run ADD COLUMN uid TEXT NOT NULL DEFAULT ''",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "ALTER TABLE ai_run ADD COLUMN version INTEGER NOT NULL DEFAULT 1",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "ALTER TABLE ai_run ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+        [],
+    )
+    .unwrap();
+    conn.execute("ALTER TABLE ai_run ADD COLUMN deleted_at TEXT", [])
+        .unwrap();
+    conn.execute("CREATE UNIQUE INDEX idx_ai_run_uid ON ai_run(uid)", [])
+        .unwrap();
+
+    let first = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p", None).unwrap();
+    let second = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p", None).unwrap();
+
+    assert_ne!(first, second);
+    let distinct_uid_count: i64 = conn
+        .query_row("SELECT COUNT(DISTINCT uid) FROM ai_run", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(distinct_uid_count, 2);
+}
+
+#[test]
 fn complete_transitions_to_complete() {
     let conn = fresh_conn();
     let id = ai_run::start(&conn, AiRunKind::Pretag, None, "m", "p", None).unwrap();

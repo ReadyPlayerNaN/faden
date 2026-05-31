@@ -166,6 +166,11 @@ export const SuggestionReviewPopover = () => {
         {selection.text || t("ai.selectedRange", { defaultValue: "Selected range" })}
       </blockquote>
 
+      <p className={styles.progress}>
+        {currentSuggestion.kind === "extend_span"
+          ? t("ai.extendExistingSpan", { defaultValue: "Extend existing span" })
+          : t("ai.newSpanSuggestion", { defaultValue: "New span suggestion" })}
+      </p>
       <div className={styles.tags}>
         {currentSuggestion.tagNames.map((tagName) => (
           <span key={tagName} className={styles.tag}>

@@ -2,6 +2,7 @@ use crate::db::queries::{ai_run_ops, interview};
 use crate::error::{AppError, AppResult};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -84,6 +85,17 @@ pub struct AiRun {
     pub raw_output: Option<String>,
 }
 
+fn ai_run_has_column(conn: &Connection, column: &str) -> AppResult<bool> {
+    let mut stmt = conn.prepare("PRAGMA table_info(ai_run)")?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    for row in rows {
+        if row? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub fn start(
     conn: &Connection,
     kind: AiRunKind,
@@ -93,10 +105,70 @@ pub fn start(
     input_json: Option<&str>,
 ) -> AppResult<i64> {
     let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT INTO ai_run (kind, interview_id, model, prompt, input_json, started_at, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'running')",
-        params![kind.as_str(), interview_id, model, prompt, input_json, now],
-    )?;
+    let has_uid = ai_run_has_column(conn, "uid")?;
+    let has_version = ai_run_has_column(conn, "version")?;
+    let has_updated_at = ai_run_has_column(conn, "updated_at")?;
+    let has_deleted_at = ai_run_has_column(conn, "deleted_at")?;
+
+    let sql = format!(
+        "INSERT INTO ai_run (kind, interview_id, model, prompt, input_json, started_at, status{}{}{}{}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'running'{}{}{}{})",
+        if has_uid { ", uid" } else { "" },
+        if has_version { ", version" } else { "" },
+        if has_updated_at { ", updated_at" } else { "" },
+        if has_deleted_at { ", deleted_at" } else { "" },
+        if has_uid { ", ?7" } else { "" },
+        if has_version { ", 1" } else { "" },
+        if has_updated_at {
+            if has_uid { ", ?8" } else { ", ?7" }
+        } else {
+            ""
+        },
+        if has_deleted_at { ", NULL" } else { "" },
+    );
+    let uid = Uuid::new_v4().to_string();
+    match (has_uid, has_updated_at) {
+        (true, true) => conn.execute(
+            &sql,
+            params![
+                kind.as_str(),
+                interview_id,
+                model,
+                prompt,
+                input_json,
+                now,
+                uid,
+                now
+            ],
+        )?,
+        (true, false) => conn.execute(
+            &sql,
+            params![
+                kind.as_str(),
+                interview_id,
+                model,
+                prompt,
+                input_json,
+                now,
+                uid
+            ],
+        )?,
+        (false, true) => conn.execute(
+            &sql,
+            params![
+                kind.as_str(),
+                interview_id,
+                model,
+                prompt,
+                input_json,
+                now,
+                now
+            ],
+        )?,
+        (false, false) => conn.execute(
+            &sql,
+            params![kind.as_str(), interview_id, model, prompt, input_json, now],
+        )?,
+    };
     Ok(conn.last_insert_rowid())
 }
 

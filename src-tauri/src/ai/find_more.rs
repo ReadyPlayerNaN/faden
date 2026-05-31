@@ -112,6 +112,8 @@ pub fn finalize(
             continue;
         }
         valid.push(SpanSuggestion {
+            kind: None,
+            existing_span_id: None,
             segment_id: s.segment_id,
             start_offset: s.start_offset,
             end_offset: s.end_offset,

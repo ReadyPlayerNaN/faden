@@ -49,8 +49,19 @@ pub struct SpanSuggestions {
     pub suggestions: Vec<SpanSuggestion>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SpanSuggestionKind {
+    NewSpan,
+    ExtendSpan,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanSuggestion {
+    #[serde(default)]
+    pub kind: Option<SpanSuggestionKind>,
+    #[serde(default)]
+    pub existing_span_id: Option<i64>,
     pub segment_id: i64,
     pub start_offset: i32,
     pub end_offset: i32,
@@ -148,6 +159,8 @@ pub const SPAN_SUGGESTIONS_SCHEMA: &str = r#"{
         "type": "object",
         "required": ["segment_id", "start_offset", "end_offset", "tag_names"],
         "properties": {
+          "kind": {"type": ["string", "null"], "enum": ["new_span", "extend_span", null]},
+          "existing_span_id": {"type": ["integer", "null"]},
           "segment_id": {"type": "integer"},
           "start_offset": {"type": "integer"},
           "end_offset": {"type": "integer"},

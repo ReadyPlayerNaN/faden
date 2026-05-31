@@ -1,8 +1,9 @@
 use crate::ai::cost::{self, CostEstimate};
 use crate::ai::{
     categorize, cluster_suggest, codebook_gen, find_more, pretag, CategorizeSuggestions,
-    ClusterSuggestions, SpanSuggestion, SpanSuggestions, CATEGORIZE_SUGGESTIONS_SCHEMA,
-    CLUSTER_SUGGESTIONS_SCHEMA, CODEBOOK_RESPONSE_SCHEMA, SPAN_SUGGESTIONS_SCHEMA,
+    ClusterSuggestions, SpanSuggestion, SpanSuggestionKind, SpanSuggestions,
+    CATEGORIZE_SUGGESTIONS_SCHEMA, CLUSTER_SUGGESTIONS_SCHEMA, CODEBOOK_RESPONSE_SCHEMA,
+    SPAN_SUGGESTIONS_SCHEMA,
 };
 use crate::app_state::AppState;
 use crate::commands::transcribe::start_transcription_run;
@@ -21,6 +22,7 @@ use crate::settings::project::ProjectSettings;
 use crate::settings::{resolve_definitive_language, SettingsStore, TaskModelSelection};
 use crate::transcription::pipeline::PipelineConfig;
 use crate::transcription::prompts;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Manager;
@@ -833,6 +835,118 @@ pub async fn ai_proposal_reject(app: tauri::AppHandle, proposal_id: i64) -> AppR
     proposal::mark_rejected(&conn, proposal_id)
 }
 
+fn apply_span_suggestion(
+    conn: &Connection,
+    idx: usize,
+    s: &SpanSuggestion,
+) -> AppResult<(bool, Option<String>)> {
+    let mut tag_ids = Vec::new();
+    let mut had_unknown = false;
+    let all_tags = tag::list_all(conn)?;
+    for name in &s.tag_names {
+        match all_tags.iter().find(|t| &t.name == name) {
+            Some(t) => tag_ids.push(t.id),
+            None => had_unknown = true,
+        }
+    }
+    if had_unknown && tag_ids.is_empty() {
+        return Ok((false, Some(format!("index {idx}: unknown tag"))));
+    }
+    let seg = match segment::get(conn, s.segment_id) {
+        Ok(seg) => seg,
+        Err(_) => return Ok((false, Some(format!("index {idx}: segment missing")))),
+    };
+    let existing_spans = tagged_span::list_for_interview(conn, seg.interview_id)?;
+    let exact_existing_span = existing_spans.iter().find(|span| {
+        span.segment_id == s.segment_id
+            && span.start_offset == s.start_offset
+            && span.end_offset == s.end_offset
+    });
+    let extension_existing_span = s
+        .existing_span_id
+        .and_then(|span_id| existing_spans.iter().find(|span| span.id == span_id));
+    if let Some(existing_span) = extension_existing_span.or(exact_existing_span) {
+        if matches!(s.kind, Some(SpanSuggestionKind::ExtendSpan)) {
+            let text_len = seg.text.chars().count();
+            let snapshot: String = seg
+                .text
+                .chars()
+                .skip(s.start_offset as usize)
+                .take((s.end_offset - s.start_offset) as usize)
+                .collect();
+            let (a_start, a_end) = tagged_span::interpolate_audio_range(
+                seg.start_sec,
+                seg.end_sec,
+                text_len,
+                s.start_offset,
+                s.end_offset,
+            );
+            tagged_span::update_offsets(
+                conn,
+                existing_span.id,
+                s.start_offset,
+                s.end_offset,
+                &snapshot,
+                a_start,
+                a_end,
+            )?;
+        }
+        let existing_tag_ids: std::collections::HashSet<i64> =
+            span_tag::list_for_span(conn, existing_span.id)?
+                .into_iter()
+                .map(|st| st.0)
+                .collect();
+        let mut changed_any = matches!(s.kind, Some(SpanSuggestionKind::ExtendSpan));
+        for tid in tag_ids {
+            if existing_tag_ids.contains(&tid) {
+                continue;
+            }
+            span_tag::attach(conn, existing_span.id, tid, SpanTagSource::AiAccepted)?;
+            changed_any = true;
+        }
+        return if changed_any {
+            Ok((true, None))
+        } else {
+            Ok((
+                false,
+                Some(format!(
+                    "index {idx}: duplicate existing span/tag assignment"
+                )),
+            ))
+        };
+    }
+    let text_len = seg.text.chars().count();
+    let snapshot: String = seg
+        .text
+        .chars()
+        .skip(s.start_offset as usize)
+        .take((s.end_offset - s.start_offset) as usize)
+        .collect();
+    let (a_start, a_end) = tagged_span::interpolate_audio_range(
+        seg.start_sec,
+        seg.end_sec,
+        text_len,
+        s.start_offset,
+        s.end_offset,
+    );
+    let span = tagged_span::create(
+        conn,
+        &tagged_span::NewSpan {
+            interview_id: seg.interview_id,
+            segment_id: s.segment_id,
+            start_offset: s.start_offset,
+            end_offset: s.end_offset,
+            text_snapshot: &snapshot,
+            audio_start_sec: a_start,
+            audio_end_sec: a_end,
+        },
+    )?;
+    for tid in tag_ids {
+        span_tag::attach(conn, span.id, tid, SpanTagSource::AiAccepted)?;
+    }
+    Ok((true, None))
+}
+
 #[tauri::command]
 pub async fn ai_proposal_accept(
     app: tauri::AppHandle,
@@ -956,84 +1070,12 @@ pub async fn ai_proposal_accept(
                         continue;
                     }
                 };
-                let mut tag_ids = Vec::new();
-                let mut had_unknown = false;
-                let all_tags = tag::list_all(&conn)?;
-                for name in &s.tag_names {
-                    match all_tags.iter().find(|t| &t.name == name) {
-                        Some(t) => tag_ids.push(t.id),
-                        None => had_unknown = true,
-                    }
+                let (did_create, skip_reason) = apply_span_suggestion(&conn, idx, s)?;
+                if did_create {
+                    created += 1;
+                } else if let Some(reason) = skip_reason {
+                    skipped.push(reason);
                 }
-                if had_unknown && tag_ids.is_empty() {
-                    skipped.push(format!("index {idx}: unknown tag"));
-                    continue;
-                }
-                let seg = match segment::get(&conn, s.segment_id) {
-                    Ok(seg) => seg,
-                    Err(_) => {
-                        skipped.push(format!("index {idx}: segment missing"));
-                        continue;
-                    }
-                };
-                let existing_spans = tagged_span::list_for_interview(&conn, seg.interview_id)?;
-                if let Some(existing_span) = existing_spans.into_iter().find(|span| {
-                    span.segment_id == s.segment_id
-                        && span.start_offset == s.start_offset
-                        && span.end_offset == s.end_offset
-                }) {
-                    let existing_tag_ids: std::collections::HashSet<i64> =
-                        span_tag::list_for_span(&conn, existing_span.id)?
-                            .into_iter()
-                            .map(|st| st.0)
-                            .collect();
-                    let mut attached_any = false;
-                    for tid in tag_ids {
-                        if existing_tag_ids.contains(&tid) {
-                            continue;
-                        }
-                        span_tag::attach(&conn, existing_span.id, tid, SpanTagSource::AiAccepted)?;
-                        attached_any = true;
-                    }
-                    if attached_any {
-                        created += 1;
-                    } else {
-                        skipped.push(format!(
-                            "index {idx}: duplicate existing span/tag assignment"
-                        ));
-                    }
-                    continue;
-                }
-                let text_len = seg.text.chars().count();
-                let snapshot: String = seg
-                    .text
-                    .chars()
-                    .skip(s.start_offset as usize)
-                    .take((s.end_offset - s.start_offset) as usize)
-                    .collect();
-                let (a_start, a_end) = tagged_span::interpolate_audio_range(
-                    seg.start_sec,
-                    seg.end_sec,
-                    text_len,
-                    s.start_offset,
-                    s.end_offset,
-                );
-                let span = tagged_span::create(
-                    &conn,
-                    &tagged_span::NewSpan {
-                        interview_id: seg.interview_id,
-                        segment_id: s.segment_id,
-                        start_offset: s.start_offset,
-                        end_offset: s.end_offset,
-                        text_snapshot: &snapshot,
-                        audio_start_sec: a_start,
-                        audio_end_sec: a_end,
-                    },
-                )?;
-                for tid in tag_ids {
-                    span_tag::attach(&conn, span.id, tid, SpanTagSource::AiAccepted)?;
-                }
-                created += 1;
             }
         }
         ProposalKind::Categorize => {
@@ -1248,10 +1290,16 @@ pub async fn ai_cost_estimate(
 
 #[cfg(test)]
 mod tests {
-    use super::{accept_categorize_proposal, accept_cluster_proposal};
-    use crate::ai::{CategorizeSuggestions, ClusterSuggestions};
+    use super::{accept_categorize_proposal, accept_cluster_proposal, apply_span_suggestion};
+    use crate::ai::{
+        CategorizeSuggestions, ClusterSuggestions, SpanSuggestion, SpanSuggestionKind,
+    };
     use crate::db::migrations::apply_migrations;
-    use crate::db::queries::{ai_run, category, cluster, project_meta, proposal, tag};
+    use crate::db::queries::span_tag::SpanTagSource;
+    use crate::db::queries::{
+        ai_run, category, cluster, project_meta, proposal, segment, span_tag, speaker, tag,
+        tagged_span,
+    };
     use rusqlite::Connection;
     use serde_json::json;
 
@@ -1378,5 +1426,62 @@ mod tests {
             Some(created_cluster.id)
         );
         assert_eq!(category::get(&conn, second.id).unwrap().cluster_id, None);
+    }
+
+    #[test]
+    fn apply_span_suggestion_extends_existing_span_in_place() {
+        let mut conn = fresh();
+        let interview = crate::db::queries::interview::create(&conn, "I").unwrap();
+        let speaker = speaker::create_or_get(&conn, interview.id, "A", None, None).unwrap();
+        let segment_ids = segment::insert_batch(
+            &mut conn,
+            interview.id,
+            &[segment::NewSegment {
+                speaker_id: Some(speaker.id),
+                start_sec: 0.0,
+                end_sec: 5.0,
+                text: "alpha beta gamma delta".into(),
+            }],
+        )
+        .unwrap();
+        let seg_id = segment_ids[0];
+        let known = tag::create(&conn, None, "known", None, None).unwrap();
+        let span = tagged_span::create(
+            &conn,
+            &tagged_span::NewSpan {
+                interview_id: interview.id,
+                segment_id: seg_id,
+                start_offset: 6,
+                end_offset: 16,
+                text_snapshot: "beta gamma",
+                audio_start_sec: 0.0,
+                audio_end_sec: 2.0,
+            },
+        )
+        .unwrap();
+        span_tag::attach(&conn, span.id, known.id, SpanTagSource::Manual).unwrap();
+
+        let suggestion = SpanSuggestion {
+            kind: Some(SpanSuggestionKind::ExtendSpan),
+            existing_span_id: Some(span.id),
+            segment_id: seg_id,
+            start_offset: 0,
+            end_offset: 22,
+            tag_names: vec!["known".into()],
+            rationale: None,
+        };
+
+        let result = apply_span_suggestion(&conn, 0, &suggestion).unwrap();
+        assert_eq!(result, (true, None));
+        let updated = tagged_span::get(&conn, span.id).unwrap();
+        assert_eq!(updated.start_offset, 0);
+        assert_eq!(updated.end_offset, 22);
+        assert_eq!(updated.text_snapshot, "alpha beta gamma delta");
+        assert_eq!(
+            tagged_span::list_for_interview(&conn, interview.id)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 }

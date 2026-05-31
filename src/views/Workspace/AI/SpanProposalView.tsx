@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { aiProposalAccept, aiRunGet, type ProposalDTO } from "../../../ipc/ai";
+import { buildTagMetaMap, codebookTree, type CodebookTree } from "../../../ipc/codebook";
+import { segmentListForInterview, type SegmentDTO } from "../../../ipc/segment";
+import { spanListForInterview, type SpanDTO } from "../../../ipc/tagging";
 import { activeSuggestionReviewAtom } from "../../../state/ai";
 import { currentProjectAtom } from "../../../state/project";
 import { selectedInterviewIdAtom } from "../../../state/interview";
@@ -21,6 +24,8 @@ type Props = {
 };
 
 type Suggestion = {
+  kind?: "new_span" | "extend_span" | null;
+  existing_span_id?: number | null;
   segment_id: number;
   start_offset: number;
   end_offset: number;
@@ -65,6 +70,9 @@ const errorMessage = (e: unknown): string => {
   return String(e);
 };
 
+const sliceText = (text: string, start: number, end: number): string =>
+  Array.from(text).slice(start, end).join("");
+
 export const SpanProposalView = ({
   proposal,
   onAccepted,
@@ -88,15 +96,27 @@ export const SpanProposalView = ({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [targetInterviewId, setTargetInterviewId] = useState<number | null>(null);
+  const [segments, setSegments] = useState<Map<number, SegmentDTO>>(new Map());
+  const [spans, setSpans] = useState<Map<number, SpanDTO>>(new Map());
+  const [codebook, setCodebook] = useState<CodebookTree | null>(null);
   const isPending = proposal.status === "pending";
 
   useEffect(() => {
     let cancelled = false;
     void aiRunGet(proposal.aiRunId)
-      .then((run) => {
-        if (!cancelled) {
-          setTargetInterviewId(run.interviewId);
-        }
+      .then(async (run) => {
+        if (cancelled) return;
+        setTargetInterviewId(run.interviewId);
+        if (run.interviewId == null) return;
+        const [segmentRows, spanRows, codebookData] = await Promise.all([
+          segmentListForInterview(run.interviewId),
+          spanListForInterview(run.interviewId),
+          codebookTree(),
+        ]);
+        if (cancelled) return;
+        setSegments(new Map(segmentRows.map((segment) => [segment.id, segment])));
+        setSpans(new Map(spanRows.map((span) => [span.id, span])));
+        setCodebook(codebookData);
       })
       .catch((e) => {
         if (!cancelled) {
@@ -107,6 +127,8 @@ export const SpanProposalView = ({
       cancelled = true;
     };
   }, [proposal.aiRunId]);
+
+  const tagMetaMap = buildTagMetaMap(codebook);
 
   const toggle = (i: number) => {
     setSelected((prev) => {
@@ -139,6 +161,8 @@ export const SpanProposalView = ({
         startOffset: suggestion.start_offset,
         endOffset: suggestion.end_offset,
         tagNames: suggestion.tag_names,
+        kind: suggestion.kind,
+        existingSpanId: suggestion.existing_span_id,
         rationale: suggestion.rationale,
       })),
       currentIndex: startIndex,
@@ -232,45 +256,96 @@ export const SpanProposalView = ({
         </div>
       )}
       <ul className={styles.list}>
-        {suggestions.map((s, i) => (
-          <li key={i} className={styles.item}>
-            <label className={styles.row}>
-              <input
-                type="checkbox"
-                checked={selected[i] ?? false}
-                onChange={() => toggle(i)}
-                disabled={!isPending}
-              />
-              <span className={styles.tags}>
-                {s.tag_names.map((n) => (
-                  <span key={n} className={styles.tag}>
-                    {n}
-                  </span>
-                ))}
-              </span>
-              <span className={styles.location}>
-                seg {s.segment_id} [{s.start_offset}–{s.end_offset}]
-              </span>
-            </label>
-            {s.rationale && <p className={styles.rationale}>{s.rationale}</p>}
-            <div className={styles.itemActions}>
-              <Button
-                onClick={() => void startInlineReview(i)}
-                disabled={targetInterviewId === null || busy}
-                className={styles.jumpButton}
-              >
-                {t("ai.reviewInline", { defaultValue: "Review inline" })}
-              </Button>
-              {selectedInterviewId === targetInterviewId && location.pathname.startsWith("/workspace/") && !location.pathname.includes("/suggestions") ? (
-                <span className={styles.itemHint}>
-                  {t("ai.revealInCurrentTranscript", {
-                    defaultValue: "Review in current transcript",
-                  })}
+        {suggestions.map((s, i) => {
+          const segment = segments.get(s.segment_id) ?? null;
+          const existingSpan = s.existing_span_id ? (spans.get(s.existing_span_id) ?? null) : null;
+          const existingTagNames = existingSpan
+            ? existingSpan.tags
+                .map((tagOnSpan) => tagMetaMap.get(tagOnSpan.tagId)?.tag.name)
+                .filter((value): value is string => Boolean(value))
+            : [];
+          const proposedNewTagNames = s.tag_names.filter((name) => !existingTagNames.includes(name));
+          const beforeText = existingSpan && segment
+            ? sliceText(segment.text, existingSpan.startOffset, existingSpan.endOffset)
+            : null;
+          const afterText = segment ? sliceText(segment.text, s.start_offset, s.end_offset) : null;
+          const leftAdded = existingSpan && segment && s.start_offset < existingSpan.startOffset
+            ? sliceText(segment.text, s.start_offset, existingSpan.startOffset)
+            : "";
+          const rightAdded = existingSpan && segment && s.end_offset > existingSpan.endOffset
+            ? sliceText(segment.text, existingSpan.endOffset, s.end_offset)
+            : "";
+          return (
+            <li key={i} className={styles.item}>
+              <label className={styles.row}>
+                <input
+                  type="checkbox"
+                  checked={selected[i] ?? false}
+                  onChange={() => toggle(i)}
+                  disabled={!isPending}
+                />
+                <span className={styles.tags}>
+                  {s.tag_names.map((n) => (
+                    <span key={n} className={styles.tag}>
+                      {n}
+                    </span>
+                  ))}
                 </span>
+                <span className={styles.location}>
+                  {s.kind === "extend_span"
+                    ? t("ai.extendExistingSpan", { defaultValue: "Extend existing span" })
+                    : t("ai.newSpanSuggestion", { defaultValue: "New span suggestion" })}{" "}
+                  · seg {s.segment_id} [{s.start_offset}–{s.end_offset}]
+                  {s.existing_span_id ? ` → span ${s.existing_span_id}` : ""}
+                </span>
+              </label>
+              {existingSpan && beforeText && afterText ? (
+                <div className={styles.previewBlock}>
+                  <div className={styles.previewRow}>
+                    <strong>{t("ai.existingSpanPreview", { defaultValue: "Existing" })}:</strong> {beforeText}
+                  </div>
+                  <div className={styles.previewRow}>
+                    <strong>{t("ai.proposedSpanPreview", { defaultValue: "Proposed" })}:</strong>{" "}
+                    {leftAdded ? <mark>{leftAdded}</mark> : null}
+                    <span>{beforeText}</span>
+                    {rightAdded ? <mark>{rightAdded}</mark> : null}
+                  </div>
+                  <div className={styles.previewRow}>
+                    <strong>{t("ai.existingTags", { defaultValue: "Already on span" })}:</strong>{" "}
+                    {existingTagNames.length > 0 ? existingTagNames.join(", ") : "—"}
+                  </div>
+                  <div className={styles.previewRow}>
+                    <strong>{t("ai.newTags", { defaultValue: "Newly proposed" })}:</strong>{" "}
+                    {proposedNewTagNames.length > 0 ? proposedNewTagNames.join(", ") : "—"}
+                  </div>
+                </div>
+              ) : afterText ? (
+                <div className={styles.previewBlock}>
+                  <div className={styles.previewRow}>
+                    <strong>{t("ai.proposedSpanPreview", { defaultValue: "Proposed" })}:</strong> {afterText}
+                  </div>
+                </div>
               ) : null}
-            </div>
-          </li>
-        ))}
+              {s.rationale && <p className={styles.rationale}>{s.rationale}</p>}
+              <div className={styles.itemActions}>
+                <Button
+                  onClick={() => void startInlineReview(i)}
+                  disabled={targetInterviewId === null || busy}
+                  className={styles.jumpButton}
+                >
+                  {t("ai.reviewInline", { defaultValue: "Review inline" })}
+                </Button>
+                {selectedInterviewId === targetInterviewId && location.pathname.startsWith("/workspace/") && !location.pathname.includes("/suggestions") ? (
+                  <span className={styles.itemHint}>
+                    {t("ai.revealInCurrentTranscript", {
+                      defaultValue: "Review in current transcript",
+                    })}
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       <div className={styles.actions}>
         {result && <span className={styles.result}>{result}</span>}
