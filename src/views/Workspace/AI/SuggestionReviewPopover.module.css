@@ -3,10 +3,11 @@
   z-index: 40;
   min-width: 320px;
   max-width: 420px;
-  background: var(--bg-elevated, #16181d);
+  background: color-mix(in srgb, var(--bg-muted) 92%, var(--bg));
+  color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--fg) 16%, transparent);
   padding: 0.75rem;
 }
 .header {
@@ -39,7 +40,8 @@
   margin-bottom: 0.5rem;
 }
 .tag {
-  background: rgba(91, 154, 255, 0.2);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--fg);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
   font-size: 0.78rem;
