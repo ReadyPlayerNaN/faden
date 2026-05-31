@@ -185,10 +185,94 @@ fn pretag_prompt_includes_codebook_without_duplicate_available_tags_section() {
     assert!(prompt.contains("existing tags from the provided codebook"));
     assert!(prompt.contains("Avoid unnecessary duplication"));
     assert!(!prompt.contains("All available tags (name: description)"));
+    assert!(prompt.contains("Part 1:\nTranscript:"));
+    assert!(prompt.contains("Part 2:\nCodebook:"));
     assert!(prompt.contains("- known: Known description"));
     assert!(prompt.contains("- standalone: Standalone description"));
     assert!(prompt.contains("# Standalone tags"));
-    assert!(prompt.contains("Already tagged spans in this interview"));
+    assert!(!prompt.contains("Already tagged spans in this interview"));
+}
+
+#[tokio::test]
+async fn pretag_filters_already_existing_span_tags() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: "hello world".into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    let known = tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let span = faden_app_lib::db::queries::tagged_span::create(
+        &conn,
+        &faden_app_lib::db::queries::tagged_span::NewSpan {
+            interview_id: i.id,
+            segment_id: seg_id,
+            start_offset: 0,
+            end_offset: 5,
+            text_snapshot: "hello",
+            audio_start_sec: 0.0,
+            audio_end_sec: 2.0,
+        },
+    )
+    .unwrap();
+    faden_app_lib::db::queries::span_tag::attach(
+        &conn,
+        span.id,
+        known.id,
+        faden_app_lib::db::queries::span_tag::SpanTagSource::Manual,
+    )
+    .unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [
+            { "segment_id": seg_id, "start_offset": 0, "end_offset": 5, "tag_names": ["known"] }
+        ]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(
+            json!({
+                "candidates": [{
+                    "content": {"parts": [{"text": response_text}]}
+                }]
+            })
+            .to_string(),
+        )
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(
+        &conn,
+        PretagInput { interview_id: i.id },
+        &client,
+        "gemini-3-flash-preview",
+        None,
+        "en",
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(pid, None);
 }
 
 #[tokio::test]
@@ -204,8 +288,24 @@ async fn pretag_invalid_json_fails_run() {
         .create_async()
         .await;
 
-    let conn = fresh();
+    let mut conn = fresh();
     let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: "hello world".into(),
+        }],
+    )
+    .unwrap();
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
     let client = GeminiClient::with_base_url("k".into(), server.url());
     let err = pretag::run(
         &conn,

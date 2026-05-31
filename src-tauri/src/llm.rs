@@ -24,6 +24,16 @@ fn wrap_prompt(prompt: &str, schema: Option<&str>) -> String {
     }
 }
 
+fn wrap_parts_prompt(parts: &[String], schema: Option<&str>) -> String {
+    let body = parts
+        .iter()
+        .enumerate()
+        .map(|(idx, part)| format!("Part {}:\n{}", idx + 1, part))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    wrap_prompt(&body, schema)
+}
+
 fn provider_api_key(settings: &GlobalSettings, provider: LlmProvider) -> Option<&str> {
     match provider {
         LlmProvider::Gemini => Some(settings.providers.gemini.api_key.as_str()),
@@ -62,6 +72,32 @@ pub async fn generate_text_json(
     response_schema: Option<&str>,
     max_output_tokens: u32,
 ) -> AppResult<String> {
+    generate_text_json_inner(
+        settings,
+        selection,
+        prompt,
+        response_schema,
+        Some(max_output_tokens),
+    )
+    .await
+}
+
+pub async fn generate_text_json_unbounded(
+    settings: &GlobalSettings,
+    selection: &TaskModelSelection,
+    prompt: &str,
+    response_schema: Option<&str>,
+) -> AppResult<String> {
+    generate_text_json_inner(settings, selection, prompt, response_schema, None).await
+}
+
+pub async fn generate_text_json_parts_unbounded(
+    settings: &GlobalSettings,
+    selection: &TaskModelSelection,
+    system_instruction: Option<&str>,
+    user_parts: &[String],
+    response_schema: Option<&str>,
+) -> AppResult<String> {
     validate_task_selection(settings, selection)?;
     match selection.provider {
         LlmProvider::Gemini => {
@@ -69,32 +105,48 @@ pub async fn generate_text_json(
                 settings.providers.gemini.api_key.clone(),
             );
             let url = client.text_generate_url(&selection.model);
-            let body = json!({
+            let mut body = json!({
                 "contents": [{
                     "role": "user",
-                    "parts": [{ "text": prompt }]
+                    "parts": user_parts
+                        .iter()
+                        .map(|part| json!({ "text": part }))
+                        .collect::<Vec<_>>()
                 }],
                 "generationConfig": {
                     "temperature": 0,
                     "responseMimeType": "application/json",
                     "responseJsonSchema": response_schema
                         .and_then(|s| serde_json::from_str::<Value>(s).ok())
-                        .unwrap_or(Value::Null),
-                    "maxOutputTokens": max_output_tokens,
+                        .unwrap_or(Value::Null)
                 }
             });
+            if let Some(system_instruction) = system_instruction {
+                body["systemInstruction"] = json!({
+                    "role": "system",
+                    "parts": [{ "text": system_instruction }]
+                });
+            }
             client.post_generate(&url, &body).await
         }
         LlmProvider::OpenAi => {
+            let messages = if let Some(system_instruction) = system_instruction {
+                json!([
+                    { "role": "system", "content": JSON_INSTRUCTION },
+                    { "role": "system", "content": system_instruction },
+                    { "role": "user", "content": wrap_parts_prompt(user_parts, response_schema) }
+                ])
+            } else {
+                json!([
+                    { "role": "system", "content": JSON_INSTRUCTION },
+                    { "role": "user", "content": wrap_parts_prompt(user_parts, response_schema) }
+                ])
+            };
             let body = json!({
                 "model": selection.model,
-                "messages": [{
-                    "role": "user",
-                    "content": wrap_prompt(prompt, response_schema)
-                }],
+                "messages": messages,
                 "temperature": 0,
-                "response_format": { "type": "json_object" },
-                "max_completion_tokens": max_output_tokens,
+                "response_format": { "type": "json_object" }
             });
             let value = post_json(
                 &join_url(&settings.providers.openai.base_url, "/chat/completions"),
@@ -107,14 +159,17 @@ pub async fn generate_text_json(
             extract_openai_text(&value)
         }
         LlmProvider::Anthropic => {
+            let system = match system_instruction {
+                Some(system_instruction) => format!("{JSON_INSTRUCTION}\n\n{system_instruction}"),
+                None => JSON_INSTRUCTION.to_string(),
+            };
             let body = json!({
                 "model": selection.model,
-                "max_tokens": max_output_tokens,
                 "temperature": 0,
-                "system": JSON_INSTRUCTION,
+                "system": system,
                 "messages": [{
                     "role": "user",
-                    "content": wrap_prompt(prompt, response_schema)
+                    "content": wrap_parts_prompt(user_parts, response_schema)
                 }]
             });
             let value = post_json(
@@ -128,15 +183,131 @@ pub async fn generate_text_json(
             extract_anthropic_text(&value)
         }
         LlmProvider::Ollama => {
+            let mut prompt = String::new();
+            if let Some(system_instruction) = system_instruction {
+                prompt.push_str(system_instruction);
+                prompt.push_str("\n\n");
+            }
+            prompt.push_str(&wrap_parts_prompt(user_parts, response_schema));
+            let body = json!({
+                "model": selection.model,
+                "prompt": prompt,
+                "stream": false,
+                "format": "json",
+                "options": { "temperature": 0 }
+            });
+            let value = post_json(
+                &join_url(&settings.providers.ollama.base_url, "/api/generate"),
+                None,
+                None,
+                (!settings.providers.ollama.username.trim().is_empty()).then_some((
+                    settings.providers.ollama.username.as_str(),
+                    settings.providers.ollama.password.as_str(),
+                )),
+                &body,
+            )
+            .await?;
+            value
+                .get("response")
+                .and_then(|v| v.as_str())
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| AppError::Invalid("ollama response missing text".into()))
+        }
+    }
+}
+
+async fn generate_text_json_inner(
+    settings: &GlobalSettings,
+    selection: &TaskModelSelection,
+    prompt: &str,
+    response_schema: Option<&str>,
+    max_output_tokens: Option<u32>,
+) -> AppResult<String> {
+    validate_task_selection(settings, selection)?;
+    match selection.provider {
+        LlmProvider::Gemini => {
+            let client = crate::transcription::gemini::GeminiClient::new(
+                settings.providers.gemini.api_key.clone(),
+            );
+            let url = client.text_generate_url(&selection.model);
+            let mut generation_config = json!({
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": response_schema
+                    .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                    .unwrap_or(Value::Null),
+            });
+            if let Some(max_output_tokens) = max_output_tokens {
+                generation_config["maxOutputTokens"] = json!(max_output_tokens);
+            }
+            let body = json!({
+                "contents": [{
+                    "role": "user",
+                    "parts": [{ "text": prompt }]
+                }],
+                "generationConfig": generation_config
+            });
+            client.post_generate(&url, &body).await
+        }
+        LlmProvider::OpenAi => {
+            let mut body = json!({
+                "model": selection.model,
+                "messages": [{
+                    "role": "user",
+                    "content": wrap_prompt(prompt, response_schema)
+                }],
+                "temperature": 0,
+                "response_format": { "type": "json_object" }
+            });
+            if let Some(max_output_tokens) = max_output_tokens {
+                body["max_completion_tokens"] = json!(max_output_tokens);
+            }
+            let value = post_json(
+                &join_url(&settings.providers.openai.base_url, "/chat/completions"),
+                Some((&settings.providers.openai.api_key, "Bearer")),
+                None,
+                None,
+                &body,
+            )
+            .await?;
+            extract_openai_text(&value)
+        }
+        LlmProvider::Anthropic => {
+            let mut body = json!({
+                "model": selection.model,
+                "temperature": 0,
+                "system": JSON_INSTRUCTION,
+                "messages": [{
+                    "role": "user",
+                    "content": wrap_prompt(prompt, response_schema)
+                }]
+            });
+            if let Some(max_output_tokens) = max_output_tokens {
+                body["max_tokens"] = json!(max_output_tokens);
+            }
+            let value = post_json(
+                &join_url(&settings.providers.anthropic.base_url, "/v1/messages"),
+                Some((&settings.providers.anthropic.api_key, "x-api-key")),
+                Some(("anthropic-version", "2023-06-01")),
+                None,
+                &body,
+            )
+            .await?;
+            extract_anthropic_text(&value)
+        }
+        LlmProvider::Ollama => {
+            let mut options = json!({
+                "temperature": 0,
+            });
+            if let Some(max_output_tokens) = max_output_tokens {
+                options["num_predict"] = json!(max_output_tokens);
+            }
             let body = json!({
                 "model": selection.model,
                 "prompt": wrap_prompt(prompt, response_schema),
                 "stream": false,
                 "format": "json",
-                "options": {
-                    "temperature": 0,
-                    "num_predict": max_output_tokens,
-                }
+                "options": options
             });
             let value = post_json(
                 &join_url(&settings.providers.ollama.base_url, "/api/generate"),

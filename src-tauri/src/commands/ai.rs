@@ -100,18 +100,28 @@ pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppRes
     let settings = load_settings(&app)?;
     let selection = general_selection(&settings);
     let input = pretag::PretagInput { interview_id };
-    let (run_id, prompt) = {
+    let (run_id, requests) = {
         let conn = project_conn(&app)?;
         let project_settings = effective_project_settings(&app, &conn)?;
-        let prompt = pretag::build_prompt(
+        let requests = pretag::build_requests(
             &conn,
             &input,
             project_settings.prompts.pretag.as_deref(),
             project_settings.language.as_deref().unwrap_or("English"),
         )?;
+        let prompt = pretag::prompt_for_run_record(&requests);
         let input_json = serde_json::json!({
             "provider": selection.provider.as_str(),
             "model": selection.model.clone(),
+            "request_count": requests.len(),
+            "transcript_chunk_count": requests
+                .first()
+                .map(|request| request.transcript_chunk_count)
+                .unwrap_or(0),
+            "tag_chunk_count": requests
+                .first()
+                .map(|request| request.tag_chunk_count)
+                .unwrap_or(0),
         })
         .to_string();
         let run_id = ai_run::start(
@@ -122,18 +132,28 @@ pub async fn ai_pretag_start(app: tauri::AppHandle, interview_id: i64) -> AppRes
             &prompt,
             Some(&input_json),
         )?;
-        (run_id, prompt)
+        (run_id, requests)
     };
-    let api_result = llm::generate_text_json(
-        &settings,
-        &selection,
-        &prompt,
-        Some(SPAN_SUGGESTIONS_SCHEMA),
-        16384,
-    )
-    .await;
+    let api_results = if requests.is_empty() {
+        Vec::new()
+    } else {
+        let mut api_results = Vec::with_capacity(requests.len());
+        for request in requests {
+            api_results.push(
+                llm::generate_text_json_parts_unbounded(
+                    &settings,
+                    &selection,
+                    Some(&request.system_instruction),
+                    &request.user_parts,
+                    Some(SPAN_SUGGESTIONS_SCHEMA),
+                )
+                .await,
+            );
+        }
+        api_results
+    };
     let conn = project_conn(&app)?;
-    let _ = pretag::finalize(&conn, run_id, interview_id, api_result);
+    let _ = pretag::finalize_many(&conn, run_id, interview_id, api_results);
     Ok(run_id)
 }
 
@@ -1080,15 +1100,51 @@ pub async fn ai_cost_estimate(
                 .and_then(|v| v.as_i64())
                 .unwrap_or(-1);
             let project_settings = effective_project_settings(&app, &conn)?;
-            (
-                pretag::build_prompt(
-                    &conn,
-                    &pretag::PretagInput { interview_id: iid },
-                    project_settings.prompts.pretag.as_deref(),
-                    project_settings.language.as_deref().unwrap_or("English"),
-                )?,
-                16384,
-            )
+            let requests = pretag::build_requests(
+                &conn,
+                &pretag::PretagInput { interview_id: iid },
+                project_settings.prompts.pretag.as_deref(),
+                project_settings.language.as_deref().unwrap_or("English"),
+            )?;
+            let total_estimated_usd = requests
+                .iter()
+                .map(|request| {
+                    cost::estimate(
+                        &provider,
+                        &model,
+                        &request.prompt_preview,
+                        pretag::PRETAG_MAX_OUTPUT_TOKENS_ESTIMATE,
+                    )
+                })
+                .fold(
+                    CostEstimate {
+                        provider: provider.clone(),
+                        model: model.clone(),
+                        model_ref: format!("{}/{}", provider, model),
+                        pricing_known: true,
+                        text_input_usd_per_million: 0.0,
+                        audio_input_usd_per_million: 0.0,
+                        output_usd_per_million: 0.0,
+                        estimated_input_tokens: 0,
+                        estimated_output_tokens: 0,
+                        estimated_usd: 0.0,
+                    },
+                    |mut acc, estimate| {
+                        acc.pricing_known &= estimate.pricing_known;
+                        acc.text_input_usd_per_million = estimate.text_input_usd_per_million;
+                        acc.audio_input_usd_per_million = estimate.audio_input_usd_per_million;
+                        acc.output_usd_per_million = estimate.output_usd_per_million;
+                        acc.estimated_input_tokens = acc
+                            .estimated_input_tokens
+                            .saturating_add(estimate.estimated_input_tokens);
+                        acc.estimated_output_tokens = acc
+                            .estimated_output_tokens
+                            .saturating_add(estimate.estimated_output_tokens);
+                        acc.estimated_usd += estimate.estimated_usd;
+                        acc
+                    },
+                );
+            return Ok(total_estimated_usd);
         }
         "find_more" => {
             let tag_id = args.get("tag_id").and_then(|v| v.as_i64()).unwrap_or(-1);
