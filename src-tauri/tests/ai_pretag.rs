@@ -1077,6 +1077,57 @@ async fn pretag_trims_partial_leading_sentence_and_keeps_full_list_sentence() {
 }
 
 #[tokio::test]
+async fn pretag_does_not_split_on_ordinal_period() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let text = "Přesně. Je to cesta od drahých, textem nabitých plátků pro pár stovek gentlemanů v 17. století až po obrovská mediální impéria konce 19. století, která chrlila miliony výtisků denně a dokázala... no, dokázala doslova rozpoutat válku. Je to tak. Je to příběh o tom, jak se zprávy staly z luxusu masovou komoditou.";
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: text.into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [{
+            "segment_id": seg_id,
+            "start_offset": char_index_of(text, "cesta"),
+            "end_offset": char_index_of(text, "19") + 2,
+            "tag_names": ["known"]
+        }]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":response_text}]}}]}).to_string())
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(&conn, PretagInput { interview_id: i.id }, &client, "gemini-3-flash-preview", None, "en")
+        .await.unwrap().expect("expected proposal");
+    let p = proposal::get(&conn, pid).unwrap();
+    let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
+    assert!(suggested_slice(text, suggestion).contains("19. století"));
+}
+
+#[tokio::test]
 async fn pretag_invalid_json_fails_run() {
     let mut server = Server::new_async().await;
     let _m = server

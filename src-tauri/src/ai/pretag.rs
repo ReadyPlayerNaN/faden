@@ -375,6 +375,62 @@ fn is_strong_sentence_boundary_char(ch: char) -> bool {
     matches!(ch, '.' | '!' | '?')
 }
 
+fn prev_non_whitespace(chars: &[char], mut index: i32) -> Option<(i32, char)> {
+    while index >= 0 {
+        let ch = chars[index as usize];
+        if !ch.is_whitespace() {
+            return Some((index, ch));
+        }
+        index -= 1;
+    }
+    None
+}
+
+fn next_non_whitespace(chars: &[char], mut index: i32) -> Option<(i32, char)> {
+    let len = chars.len() as i32;
+    while index < len {
+        let ch = chars[index as usize];
+        if !ch.is_whitespace() {
+            return Some((index, ch));
+        }
+        index += 1;
+    }
+    None
+}
+
+fn is_ordinal_continuation(chars: &[char], index: i32) -> bool {
+    if index < 0 || index >= chars.len() as i32 || chars[index as usize] != '.' {
+        return false;
+    }
+    let prev = prev_non_whitespace(chars, index - 1).map(|(_, ch)| ch);
+    let next = next_non_whitespace(chars, index + 1).map(|(_, ch)| ch);
+    prev.is_some_and(|c| c.is_ascii_digit()) && next.is_some_and(|c| c.is_lowercase())
+}
+
+fn is_sentence_boundary(chars: &[char], index: i32) -> bool {
+    if index < 0 || index >= chars.len() as i32 {
+        return false;
+    }
+    let ch = chars[index as usize];
+    if !is_strong_sentence_boundary_char(ch) {
+        return false;
+    }
+    if ch != '.' {
+        return true;
+    }
+
+    let prev = prev_non_whitespace(chars, index - 1).map(|(_, ch)| ch);
+    let next = next_non_whitespace(chars, index + 1).map(|(_, ch)| ch);
+
+    if prev.is_some_and(|c| c.is_ascii_digit()) {
+        if next.is_some_and(|c| c.is_lowercase() || c.is_numeric()) {
+            return false;
+        }
+    }
+
+    true
+}
+
 fn is_clause_boundary_char(ch: char) -> bool {
     matches!(ch, '.' | '!' | '?' | ';' | ':' | '—')
 }
@@ -409,7 +465,7 @@ fn conjunction_boundary(chars: &[char], index: usize) -> Option<(usize, usize)> 
 fn sentence_start(chars: &[char], index: i32) -> i32 {
     let mut pos = index.clamp(0, chars.len() as i32);
     while pos > 0 {
-        if is_strong_sentence_boundary_char(chars[(pos - 1) as usize]) {
+        if is_sentence_boundary(chars, pos - 1) {
             break;
         }
         pos -= 1;
@@ -423,7 +479,7 @@ fn sentence_start(chars: &[char], index: i32) -> i32 {
 fn next_sentence_start(chars: &[char], start: i32, end: i32) -> Option<i32> {
     let mut pos = start.clamp(0, end);
     while pos < end {
-        if is_strong_sentence_boundary_char(chars[pos as usize]) {
+        if is_sentence_boundary(chars, pos) {
             let mut next = pos + 1;
             while next < end && chars[next as usize].is_whitespace() {
                 next += 1;
@@ -522,6 +578,16 @@ fn normalize_span_to_word_edges(
     while end < len && is_word_char(chars[(end - 1) as usize]) && is_word_char(chars[end as usize])
     {
         end += 1;
+    }
+
+    if end < len && is_ordinal_continuation(chars, end) {
+        end += 1;
+        while end < len && chars[end as usize].is_whitespace() {
+            end += 1;
+        }
+        while end < len && is_word_char(chars[end as usize]) {
+            end += 1;
+        }
     }
 
     Some((start, end))
