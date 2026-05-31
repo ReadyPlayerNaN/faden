@@ -275,13 +275,14 @@ export const Workspace = () => {
         e.preventDefault();
         window.dispatchEvent(new Event("faden:toggle-play"));
       } else if (e.key === "Escape") {
+        setActiveSuggestionReview(null);
         setActiveSelection(null);
         setSelectedSpan(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setSelectedSpan]);
+  }, [historyState.canRedo, historyState.canUndo, setActiveSelection, setActiveSuggestionReview, setSelectedSpan]);
 
   useEffect(() => {
     window.localStorage.setItem(RIGHT_PANE_WIDTH_STORAGE_KEY, String(rightPaneWidth));

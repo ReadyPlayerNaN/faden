@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "jotai";
 import { useHydrateAtoms } from "jotai/utils";
 import { SuggestionReviewPopover } from "./SuggestionReviewPopover";
@@ -69,5 +69,33 @@ describe("SuggestionReviewPopover", () => {
 
     expect(screen.getByText("Extend existing span")).toBeTruthy();
     expect(screen.getByText("alpha beta gamma delta")).toBeTruthy();
+  });
+
+  it("closes on Escape", () => {
+    render(
+      <Provider>
+        <Hydrate>
+          <SuggestionReviewPopover />
+        </Hydrate>
+      </Provider>,
+    );
+
+    expect(screen.getByText("Extend existing span")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Extend existing span")).toBeNull();
+  });
+
+  it("closes from the Cancel button", () => {
+    render(
+      <Provider>
+        <Hydrate>
+          <SuggestionReviewPopover />
+        </Hydrate>
+      </Provider>,
+    );
+
+    expect(screen.getByText("Extend existing span")).toBeTruthy();
+    fireEvent.pointerDown(screen.getByText("common.cancel"));
+    expect(screen.queryByText("Extend existing span")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import { aiProposalAccept, aiProposalList, aiProposalReject } from "../../../ipc/ai";
@@ -34,6 +34,7 @@ export const SuggestionReviewPopover = () => {
   const setPendingProposals = useSetAtom(pendingProposalsAtom);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setResult(null);
@@ -59,6 +60,33 @@ export const SuggestionReviewPopover = () => {
     setReview(null);
     setSelectedSpan(null);
     setSelection(null);
+  };
+
+  useEffect(() => {
+    if (!review) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeReview();
+      }
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && popoverRef.current?.contains(target)) return;
+      closeReview();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [review]);
+
+  const onCancelPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeReview();
   };
 
   const goToIndex = (nextIndex: number) => {
@@ -141,6 +169,7 @@ export const SuggestionReviewPopover = () => {
 
   return (
     <div
+      ref={popoverRef}
       className={styles.popover}
       style={style}
       data-tag-popover-root="true"
@@ -159,7 +188,7 @@ export const SuggestionReviewPopover = () => {
             })}
           </p>
         </div>
-        <Button onClick={closeReview}>{t("common.cancel")}</Button>
+        <Button onPointerDown={onCancelPointerDown} onClick={closeReview}>{t("common.cancel")}</Button>
       </div>
 
       <blockquote className={styles.quote}>
