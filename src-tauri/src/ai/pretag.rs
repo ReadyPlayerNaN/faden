@@ -371,19 +371,20 @@ fn is_word_char(ch: char) -> bool {
     ch.is_alphanumeric()
 }
 
+fn is_strong_sentence_boundary_char(ch: char) -> bool {
+    matches!(ch, '.' | '!' | '?')
+}
+
 fn is_clause_boundary_char(ch: char) -> bool {
-    matches!(ch, '.' | '!' | '?' | ';' | ':' | ',' | '—' | '-')
+    matches!(ch, '.' | '!' | '?' | ';' | ':' | '—')
 }
 
 fn is_boundary_separator(ch: char) -> bool {
-    ch.is_whitespace() || is_clause_boundary_char(ch)
+    ch.is_whitespace() || is_clause_boundary_char(ch) || matches!(ch, ',' | '-' | '–')
 }
 
 fn conjunction_boundary(chars: &[char], index: usize) -> Option<(usize, usize)> {
-    const CONJUNCTIONS: &[&str] = &[
-        "a", "ale", "nebo", "protože", "že", "který", "která", "které", "kterou",
-        "and", "but", "or", "because", "that", "which",
-    ];
+    const CONJUNCTIONS: &[&str] = &["ale", "protože", "but", "because"];
     if index >= chars.len() || !is_word_char(chars[index]) {
         return None;
     }
@@ -403,6 +404,46 @@ fn conjunction_boundary(chars: &[char], index: usize) -> Option<(usize, usize)> 
     } else {
         None
     }
+}
+
+fn sentence_start(chars: &[char], index: i32) -> i32 {
+    let mut pos = index.clamp(0, chars.len() as i32);
+    while pos > 0 {
+        if is_strong_sentence_boundary_char(chars[(pos - 1) as usize]) {
+            break;
+        }
+        pos -= 1;
+    }
+    while pos < chars.len() as i32 && chars[pos as usize].is_whitespace() {
+        pos += 1;
+    }
+    pos
+}
+
+fn next_sentence_start(chars: &[char], start: i32, end: i32) -> Option<i32> {
+    let mut pos = start.clamp(0, end);
+    while pos < end {
+        if is_strong_sentence_boundary_char(chars[pos as usize]) {
+            let mut next = pos + 1;
+            while next < end && chars[next as usize].is_whitespace() {
+                next += 1;
+            }
+            if next < end {
+                return Some(next);
+            }
+            return None;
+        }
+        pos += 1;
+    }
+    None
+}
+
+fn has_meaningful_leading_fragment(chars: &[char], sentence_start: i32, start: i32) -> bool {
+    let word_chars = chars[sentence_start as usize..start as usize]
+        .iter()
+        .filter(|ch| is_word_char(**ch))
+        .count();
+    word_chars >= 4
 }
 
 fn move_to_clause_start(chars: &[char], mut index: i32) -> i32 {
@@ -446,12 +487,11 @@ fn move_to_clause_end(chars: &[char], mut index: i32) -> i32 {
     index
 }
 
-fn normalize_span_to_word_boundaries(
-    text: &str,
+fn normalize_span_to_word_edges(
+    chars: &[char],
     start_offset: i32,
     end_offset: i32,
 ) -> Option<(i32, i32)> {
-    let chars: Vec<char> = text.chars().collect();
     let len = chars.len() as i32;
     if len == 0 {
         return None;
@@ -484,8 +524,30 @@ fn normalize_span_to_word_boundaries(
         end += 1;
     }
 
+    Some((start, end))
+}
+
+fn normalize_span_to_word_boundaries(
+    text: &str,
+    start_offset: i32,
+    end_offset: i32,
+) -> Option<(i32, i32)> {
+    let chars: Vec<char> = text.chars().collect();
+    let (mut start, mut end) = normalize_span_to_word_edges(&chars, start_offset, end_offset)?;
+    let original_start = start;
+    let original_end = end;
+
     start = move_to_clause_start(&chars, start);
     end = move_to_clause_end(&chars, end);
+
+    let original_sentence_start = sentence_start(&chars, original_start);
+    if let Some(next_start) = next_sentence_start(&chars, start, end) {
+        if original_start > original_sentence_start
+            && has_meaningful_leading_fragment(&chars, original_sentence_start, original_start)
+        {
+            start = next_start;
+        }
+    }
 
     while start < end && !is_word_char(chars[start as usize]) {
         start += 1;
@@ -494,7 +556,7 @@ fn normalize_span_to_word_boundaries(
         end -= 1;
     }
 
-    if end <= start {
+    if end <= start || original_end <= original_start {
         None
     } else {
         Some((start, end))
@@ -516,8 +578,9 @@ fn existing_tagged_ranges(
             Ok(segment) if segment.interview_id == interview_id => segment,
             _ => continue,
         };
+        let chars: Vec<char> = segment.text.chars().collect();
         let Some((start_offset, end_offset)) =
-            normalize_span_to_word_boundaries(&segment.text, span.start_offset, span.end_offset)
+            normalize_span_to_word_edges(&chars, span.start_offset, span.end_offset)
         else {
             continue;
         };

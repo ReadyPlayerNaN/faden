@@ -21,6 +21,22 @@ fn char_index_of(text: &str, needle: &str) -> i32 {
         .unwrap()
 }
 
+fn suggested_slice<'a>(text: &'a str, suggestion: &serde_json::Value) -> &'a str {
+    let start = suggestion["start_offset"].as_i64().unwrap() as usize;
+    let end = suggestion["end_offset"].as_i64().unwrap() as usize;
+    let start_byte = text
+        .char_indices()
+        .nth(start)
+        .map(|(idx, _)| idx)
+        .unwrap_or(text.len());
+    let end_byte = text
+        .char_indices()
+        .nth(end)
+        .map(|(idx, _)| idx)
+        .unwrap_or(text.len());
+    &text[start_byte..end_byte]
+}
+
 #[tokio::test]
 async fn pretag_persists_filtered_suggestions() {
     let mut conn = fresh();
@@ -408,7 +424,7 @@ async fn pretag_filters_already_existing_span_tags() {
             speaker_id: Some(sp.id),
             start_sec: 0.0,
             end_sec: 5.0,
-            text: "Takže novináři se naučili dávat to nejdůležitější hned na začátek. Kdo, co, kdy, kde, proč. Zbytek až potom.".into(),
+            text: "Novináři se naučili dávat to nejdůležitější hned na začátek.".into(),
         }],
     )
     .unwrap();
@@ -423,10 +439,9 @@ async fn pretag_filters_already_existing_span_tags() {
         &faden_app_lib::db::queries::tagged_span::NewSpan {
             interview_id: i.id,
             segment_id: seg_id,
-            start_offset: 6,
-            end_offset: 82,
-            text_snapshot:
-                "náři se naučili dávat to nejdůležitější hned na začátek. Kdo, co, kdy, kde",
+            start_offset: 0,
+            end_offset: 63,
+            text_snapshot: "Novináři se naučili dávat to nejdůležitější hned na začátek",
             audio_start_sec: 0.0,
             audio_end_sec: 4.0,
         },
@@ -443,7 +458,7 @@ async fn pretag_filters_already_existing_span_tags() {
     let mut server = Server::new_async().await;
     let response_text = json!({
         "suggestions": [
-            { "segment_id": seg_id, "start_offset": 14, "end_offset": 74, "tag_names": ["known"] }
+            { "segment_id": seg_id, "start_offset": 3, "end_offset": 60, "tag_names": ["known"] }
         ]
     })
     .to_string();
@@ -762,7 +777,7 @@ async fn pretag_expands_phrase_to_clause_with_conjunction_boundary() {
     let p = proposal::get(&conn, pid).unwrap();
     let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
     assert_eq!(suggestion["start_offset"].as_i64(), Some(0));
-    assert_eq!(suggestion["end_offset"].as_i64(), Some(char_index_of(text, " a všechno") as i64));
+    assert_eq!(suggested_slice(text, suggestion), "Najednou přišel zlom a všechno se změnilo");
 }
 
 #[tokio::test]
@@ -809,7 +824,7 @@ async fn pretag_keeps_already_good_clause_stable() {
     let p = proposal::get(&conn, pid).unwrap();
     let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
     assert_eq!(suggestion["start_offset"].as_i64(), Some(start as i64));
-    assert_eq!(suggestion["end_offset"].as_i64(), Some(end as i64));
+    assert_eq!(suggested_slice(text, suggestion), "První klauze, druhá klauze");
 }
 
 #[tokio::test]
@@ -854,7 +869,211 @@ async fn pretag_expands_czech_punctuation_clause() {
     let p = proposal::get(&conn, pid).unwrap();
     let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
     assert_eq!(suggestion["start_offset"].as_i64(), Some(0));
-    assert_eq!(suggestion["end_offset"].as_i64(), Some(char_index_of(text, ", potom") as i64));
+    assert_eq!(suggested_slice(text, suggestion), "Nejdřív přišel tisk, potom distribuce");
+}
+
+#[tokio::test]
+async fn pretag_keeps_sentence_initial_conjunction() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let text = "A začala mediální válka, jakou svět do té doby neviděl. Hearst měl prakticky bezednou kapsu a, no, žádné skrupule.";
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: text.into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [{
+            "segment_id": seg_id,
+            "start_offset": char_index_of(text, "začala"),
+            "end_offset": text.chars().count() as i32 - 1,
+            "tag_names": ["known"]
+        }]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":response_text}]}}]}).to_string())
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(&conn, PretagInput { interview_id: i.id }, &client, "gemini-3-flash-preview", None, "en")
+        .await.unwrap().expect("expected proposal");
+    let p = proposal::get(&conn, pid).unwrap();
+    let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
+    assert_eq!(suggested_slice(text, suggestion), "A začala mediální válka, jakou svět do té doby neviděl. Hearst měl prakticky bezednou kapsu a, no, žádné skrupule");
+}
+
+#[tokio::test]
+async fn pretag_trims_leading_partial_sentence_before_stronger_sentence() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let text = "Bylo to, byla to destilace všeho, co jsme dosud popsali, ale vyhnané do absolutního extrému. Poplašné hysterické titulky o zločinech a katastrofách, přemíra obrázků, často smyšlených nebo vytržených z kontextu.";
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: text.into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [{
+            "segment_id": seg_id,
+            "start_offset": char_index_of(text, "vyhnané"),
+            "end_offset": char_index_of(text, "smyšlených") + "smyšlených".chars().count() as i32,
+            "tag_names": ["known"]
+        }]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":response_text}]}}]}).to_string())
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(&conn, PretagInput { interview_id: i.id }, &client, "gemini-3-flash-preview", None, "en")
+        .await.unwrap().expect("expected proposal");
+    let p = proposal::get(&conn, pid).unwrap();
+    let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
+    assert_eq!(suggested_slice(text, suggestion), "Poplašné hysterické titulky o zločinech a katastrofách, přemíra obrázků, často smyšlených nebo vytržených z kontextu");
+}
+
+#[tokio::test]
+async fn pretag_preserves_hyphenated_words_inside_span() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let text = "Úplné novinářské podvody, kdy se reportéři vydávali za někoho jiného, aby získali příběh. Otevřené sympatie k postavám z podsvětí a hlavně aktivní vytváření zpráv, ne jen jejich popisování. Vrcholem byla španělsko-americká válka.";
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: text.into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [{
+            "segment_id": seg_id,
+            "start_offset": 0,
+            "end_offset": char_index_of(text, "španělsko") + "španělsko".chars().count() as i32,
+            "tag_names": ["known"]
+        }]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":response_text}]}}]}).to_string())
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(&conn, PretagInput { interview_id: i.id }, &client, "gemini-3-flash-preview", None, "en")
+        .await.unwrap().expect("expected proposal");
+    let p = proposal::get(&conn, pid).unwrap();
+    let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
+    assert!(suggested_slice(text, suggestion).ends_with("Vrcholem byla španělsko-americká válka"));
+}
+
+#[tokio::test]
+async fn pretag_trims_partial_leading_sentence_and_keeps_full_list_sentence() {
+    let mut conn = fresh();
+    let i = interview::create(&conn, "I").unwrap();
+    let sp = speaker::create_or_get(&conn, i.id, "A", None, None).unwrap();
+    let text = "Přesně. Byla to nižší střední třída, úředníci, prodavači, kvalifikovaní dělníci. A on jim vytvořil noviny přesně na míru. Krátké, čtivé články, spousta zpráv o celebritách, sportu, módě, praktických rad do života. Byly to noviny pro uspěchané.";
+    let ids = segment::insert_batch(
+        &mut conn,
+        i.id,
+        &[segment::NewSegment {
+            speaker_id: Some(sp.id),
+            start_sec: 0.0,
+            end_sec: 5.0,
+            text: text.into(),
+        }],
+    )
+    .unwrap();
+    let seg_id = ids[0];
+
+    let cl = cluster::create(&conn, "C", None, None).unwrap();
+    let cat = category::create(&conn, Some(cl.id), "Cat", None, None).unwrap();
+    tag::create(&conn, Some(cat.id), "known", None, None).unwrap();
+
+    let mut server = Server::new_async().await;
+    let response_text = json!({
+        "suggestions": [{
+            "segment_id": seg_id,
+            "start_offset": char_index_of(text, "kvalifikovaní"),
+            "end_offset": char_index_of(text, "celebritách") + "celebritách".chars().count() as i32,
+            "tag_names": ["known"]
+        }]
+    })
+    .to_string();
+    let _m = server
+        .mock(
+            "POST",
+            mockito::Matcher::Regex(r"/v1beta/models/.+:generateContent".to_string()),
+        )
+        .with_status(200)
+        .with_body(json!({"candidates":[{"content":{"parts":[{"text":response_text}]}}]}).to_string())
+        .create_async()
+        .await;
+
+    let client = GeminiClient::with_base_url("k".into(), server.url());
+    let pid = pretag::run(&conn, PretagInput { interview_id: i.id }, &client, "gemini-3-flash-preview", None, "en")
+        .await.unwrap().expect("expected proposal");
+    let p = proposal::get(&conn, pid).unwrap();
+    let suggestion = &p.payload["suggestions"].as_array().unwrap()[0];
+    assert_eq!(suggested_slice(text, suggestion), "A on jim vytvořil noviny přesně na míru. Krátké, čtivé články, spousta zpráv o celebritách, sportu, módě, praktických rad do života");
 }
 
 #[tokio::test]
